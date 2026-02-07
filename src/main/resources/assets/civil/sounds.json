@@ -1,0 +1,22 @@
+{
+  "detector_default": {
+    "subtitle": "subtitles.civil.detector_default",
+    "sounds": [{ "name": "civil:detector_default", "stream": false }]
+  },
+  "detector_low": {
+    "subtitle": "subtitles.civil.detector_low",
+    "sounds": [{ "name": "civil:detector_low", "stream": false }]
+  },
+  "detector_medium": {
+    "subtitle": "subtitles.civil.detector_medium",
+    "sounds": [{ "name": "civil:detector_medium", "stream": false }]
+  },
+  "detector_high": {
+    "subtitle": "subtitles.civil.detector_high",
+    "sounds": [{ "name": "civil:detector_high", "stream": false }]
+  },
+  "detector_monster": {
+    "subtitle": "subtitles.civil.detector_monster",
+    "sounds": [{ "name": "civil:detector_monster", "stream": false }]
+  }
+}

@@ -1,0 +1,41 @@
+# Gradle
+.gradle
+**/build/
+!**/src/**/build/
+gradle-app.setting
+.gradletasknamecache
+
+# Java
+*.class
+*.log
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+.mtj.tmp/
+
+# IDE / Eclipse
+.project
+.classpath
+.settings/
+bin/
+
+# Minecraft run (worlds, config, logs)
+run/
+
+# Python (tests)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+tests/output/*
+!tests/output/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db

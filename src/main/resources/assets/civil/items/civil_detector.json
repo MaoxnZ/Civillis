@@ -1,0 +1,41 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:component",
+    "component": "civil:detector_display",
+    "cases": [
+      {
+        "when": "low",
+        "model": {
+          "type": "minecraft:model",
+          "model": "civil:item/civil_detector_low"
+        }
+      },
+      {
+        "when": "medium",
+        "model": {
+          "type": "minecraft:model",
+          "model": "civil:item/civil_detector_medium"
+        }
+      },
+      {
+        "when": "high",
+        "model": {
+          "type": "minecraft:model",
+          "model": "civil:item/civil_detector_high"
+        }
+      },
+      {
+        "when": "monster",
+        "model": {
+          "type": "minecraft:model",
+          "model": "civil:item/civil_detector_monster"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "civil:item/civil_detector_default"
+    }
+  }
+}

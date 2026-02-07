@@ -1,0 +1,80 @@
+plugins {
+    id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    // Loom 会自动添加下载 Minecraft 与其依赖所需的仓库
+    // 如需额外依赖（其它 mod），可以在这里添加自定义仓库
+}
+
+loom {
+    // 需要仅客户端/仅服务端代码时可取消注释
+    // splitEnvironmentSourceSets()
+
+    mods {
+        "civil" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+dependencies {
+    // 对应版本号在 gradle.properties 中配置
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_version}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+    // Fabric API（通常都需要）
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // H2 Database（纯 Java 嵌入式数据库，用于缓存持久化）
+    implementation include('com.h2database:h2:2.2.224')
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": inputs.properties.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+}
+
+java {
+    withSourcesJar()
+
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+    inputs.property "archivesName", project.base.archivesName
+
+    from("LICENSE") {
+        rename { "${it}_${inputs.properties.archivesName}" }
+    }
+}
+
+publishing {
+    publications {
+        create("mavenJava", MavenPublication) {
+            artifactId = project.archives_base_name
+            from components.java
+        }
+    }
+
+    repositories {
+        // 如果需要发布到 maven 仓库，可以在这里配置
+    }
+}

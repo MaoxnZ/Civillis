@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "civil",
+  "version": "${version}",
+  "name": "Civil Mod",
+  "description": "Prevent hostile mobs from spawning in civilized areas.",
+  "authors": [
+    "You"
+  ],
+  "contact": {
+    "homepage": "https://fabricmc.net/"
+  },
+  "license": "ARR",
+  "icon": "assets/civil/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "civil.CivilMod"
+    ],
+    "client": [
+      "civil.CivilModClient"
+    ]
+  },
+  "mixins": [
+    "civil.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.18.2",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "package": "civil.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "CivilLevelBlockChangeMixin",
+    "CivilServerLevelSpawnGateMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}
+

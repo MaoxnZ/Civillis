@@ -1,0 +1,12 @@
+# # 文明检测器自定义音效
+
+本目录应包含以下 OGG 文件（由 sounds.json 引用 civil:detector_*）：
+- detector_default.ogg
+- detector_low.ogg
+- detector_medium.ogg
+- detector_high.ogg
+- detector_monster.ogg
+
+生成方式：在项目根目录执行
+  python scripts/generate_detector_sounds.py
+需要已安装 ffmpeg 并加入 PATH。
