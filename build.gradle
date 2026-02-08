@@ -12,7 +12,8 @@ base {
 
 repositories {
     // Loom 会自动添加下载 Minecraft 与其依赖所需的仓库
-    // 如需额外依赖（其它 mod），可以在这里添加自定义仓库
+    maven { url "https://maven.shedaniel.me/" }            // Cloth Config
+    maven { url "https://maven.terraformersmc.com/releases/" }  // Mod Menu
 }
 
 loom {
@@ -37,6 +38,14 @@ dependencies {
 
     // H2 Database（纯 Java 嵌入式数据库，用于缓存持久化）
     implementation include('com.h2database:h2:2.2.224')
+
+    // Optional: Mod Menu + Cloth Config（in-game settings GUI, not bundled）
+    // modImplementation makes them available in runClient for testing;
+    // end users must install these separately (they are NOT included in the jar).
+    modImplementation("com.terraformersmc:modmenu:${project.modmenu_version}")
+    modImplementation("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}") {
+        exclude(group: "net.fabricmc.fabric-api")
+    }
 }
 
 processResources {

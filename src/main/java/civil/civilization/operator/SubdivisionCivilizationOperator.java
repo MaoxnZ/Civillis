@@ -1,6 +1,6 @@
 package civil.civilization.operator;
 
-import civil.civilization.CivilValues;
+import civil.config.CivilConfig;
 import civil.civilization.structure.VoxelRegion;
 import net.minecraft.block.AbstractSkullBlock;
 import net.minecraft.block.Block;
@@ -23,8 +23,7 @@ public final class SubdivisionCivilizationOperator implements CivilizationOperat
 
     private static final Logger OPERATOR_LOG = LoggerFactory.getLogger("civil-operator");
 
-    /** Single block weight normalization factor, consistent with {@link SimpleCivilizationOperator}. */
-    private static final double NORMALIZATION_FACTOR = 5.0;
+    // Normalization factor is in CivilConfig.normalizationFactor
 
     /** When true, prints the actual number of blocks computed for this voxel chunk after each computeScore (for plot_civil_operator_log.py parsing). */
     private static boolean debugLogging = false;
@@ -69,10 +68,8 @@ public final class SubdivisionCivilizationOperator implements CivilizationOperat
             OPERATOR_LOG.info("[civil] operator_visited {} {} {} {}", cx, cz, sy, visited);
         }
 
-        if (forceAllow[0]) {
-            return CivilValues.FORCE_ALLOW_SCORE;
-        }
-        return Math.min(1.0, runningCivil[0] / NORMALIZATION_FACTOR);
+        // Head types already written to context; return the actual civilization score.
+        return Math.min(1.0, runningCivil[0] / CivilConfig.normalizationFactor);
     }
 
     /**
@@ -82,7 +79,7 @@ public final class SubdivisionCivilizationOperator implements CivilizationOperat
             int baseMinX, int baseMinY, int baseMinZ, int sizeX, int sizeY, int sizeZ,
             double[] civil, byte[] suspect, double[] runningCivil, boolean[] forceAllow,
             CivilComputeContext context, int depth) {
-        if (forceAllow[0] || runningCivil[0] >= NORMALIZATION_FACTOR) {
+        if (forceAllow[0] || runningCivil[0] >= CivilConfig.normalizationFactor) {
             return;
         }
 
@@ -192,7 +189,7 @@ public final class SubdivisionCivilizationOperator implements CivilizationOperat
             int j = order[i];
             processBox(region, subMins[j], subMaxs[j], baseMinX, baseMinY, baseMinZ,
                     sizeX, sizeY, sizeZ, civil, suspect, runningCivil, forceAllow, context, depth + 1);
-            if (forceAllow[0] || runningCivil[0] >= NORMALIZATION_FACTOR) return;
+            if (forceAllow[0] || runningCivil[0] >= CivilConfig.normalizationFactor) return;
         }
     }
 

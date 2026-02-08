@@ -1,5 +1,7 @@
 package civil.civilization.structure;
 
+import civil.config.CivilConfig;
+
 /**
  * L2 cache entry: stores detailed state and aggregated values of 9 L1 cells.
  *
@@ -37,7 +39,24 @@ public final class L2Entry {
     /** Whether the entire node has dirty cells (equivalent to dirtyCount > 0). */
     private boolean dirty;
 
+    /**
+     * Presence timestamp (ServerClock millis).
+     * Tracks how recently this region was actively maintained / visited.
+     * Used to compute the civilization decay factor.
+     */
+    private long presenceTime;
+
+    /**
+     * Last time a recovery step was applied (ServerClock millis).
+     * Transient — not persisted; resets to 0 on cold-storage restore.
+     */
+    private transient long lastRecoveryTime;
+
     public L2Entry(L2Key key) {
+        this(key, civil.civilization.ServerClock.now());
+    }
+
+    public L2Entry(L2Key key, long presenceTime) {
         this.key = key;
         this.scores = new double[L2Key.CELL_COUNT];
         this.states = new byte[L2Key.CELL_COUNT];
@@ -45,6 +64,8 @@ public final class L2Entry {
         this.validCount = 0;
         this.dirtyCount = 0;
         this.dirty = false;
+        this.presenceTime = presenceTime;
+        this.lastRecoveryTime = 0;
     }
 
     public L2Key getKey() {
@@ -171,6 +192,66 @@ public final class L2Entry {
                 consumer.accept(i);
             }
         }
+    }
+
+    // ========== Presence / Decay / Recovery ==========
+
+    /**
+     * Get the presence timestamp (ServerClock millis).
+     */
+    public long getPresenceTime() {
+        return presenceTime;
+    }
+
+    /**
+     * Set the presence timestamp (used when restoring from cold storage).
+     */
+    public void setPresenceTime(long presenceTime) {
+        this.presenceTime = presenceTime;
+    }
+
+    /**
+     * Advance presenceTime toward {@code now} on visit (L1 cascade update).
+     *
+     * <p>Recovery is rate-limited by {@link CivilConfig#recoveryCooldownMs}.
+     * Each step recovers {@link CivilConfig#recoveryFraction} of the current gap
+     * (at least {@link CivilConfig#minRecoveryMs}).
+     *
+     * @param now current ServerClock time
+     */
+    public void onVisit(long now) {
+        long gap = now - presenceTime;
+        if (gap <= 0) return;
+
+        if (now - lastRecoveryTime < CivilConfig.recoveryCooldownMs) return;
+
+        long recovery = Math.max(CivilConfig.minRecoveryMs, (long) (gap * CivilConfig.recoveryFraction));
+        presenceTime += Math.min(recovery, gap);
+        lastRecoveryTime = now;
+    }
+
+    /**
+     * Compute the decay factor for this entry based on absence duration.
+     *
+     * @param now current ServerClock time
+     * @return factor in [{@link CivilConfig#minDecayFloor}, 1.0]
+     */
+    public double computeDecayFactor(long now) {
+        return computeDecayFactor(now, presenceTime);
+    }
+
+    /**
+     * Static decay computation (also usable from service layer).
+     *
+     * @param now          current ServerClock time
+     * @param presenceTime the entry's presence timestamp
+     * @return factor in [{@link CivilConfig#minDecayFloor}, 1.0]
+     */
+    public static double computeDecayFactor(long now, long presenceTime) {
+        double hoursAbsent = (now - presenceTime) / 3_600_000.0;
+        if (hoursAbsent <= CivilConfig.gracePeriodHours) return 1.0;
+        double effective = hoursAbsent - CivilConfig.gracePeriodHours;
+        return Math.max(CivilConfig.minDecayFloor, Math.exp(-CivilConfig.decayLambda * effective));
     }
 
     // ========== Persistence Support ==========

@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "civil",
   "version": "${version}",
-  "name": "Civil Mod",
+  "name": "Civillis",
   "description": "Prevent hostile mobs from spawning in civilized areas.",
   "authors": [
-    "You"
+    "MaoxnZ"
   ],
   "contact": {
     "homepage": "https://fabricmc.net/"
@@ -19,6 +19,9 @@
     ],
     "client": [
       "civil.CivilModClient"
+    ],
+    "modmenu": [
+      "civil.config.CivilModMenuIntegration"
     ]
   },
   "mixins": [
@@ -29,5 +32,9 @@
     "minecraft": "~1.21.11",
     "java": ">=21",
     "fabric-api": "*"
+  },
+  "suggests": {
+    "modmenu": "*",
+    "cloth-config": "*"
   }
 }

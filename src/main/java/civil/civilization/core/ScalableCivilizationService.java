@@ -2,9 +2,10 @@ package civil.civilization.core;
 
 import civil.CivilMod;
 import civil.civilization.CScore;
-import civil.civilization.CivilValues;
-import civil.civilization.cache.scalable.TtlCacheService;
-import civil.civilization.cache.scalable.TtlCacheService.QueryResult;
+import civil.config.CivilConfig;
+import civil.civilization.ServerClock;
+import civil.civilization.cache.TtlCacheService;
+import civil.civilization.cache.TtlCacheService.QueryResult;
 import civil.civilization.structure.*;
 import civil.civilization.operator.CivilComputeContext;
 import civil.civilization.operator.CivilizationOperator;
@@ -18,22 +19,14 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Scalable civilization scoring service: adapts the TTL cache + H2 persistence
- * pyramid multi-layer cache architecture.
+ * Civilization scoring service: TTL cache + H2 persistence + gradual decay.
  * 
  * <p>Core features:
  * <ul>
  *   <li>Returns conservative estimate (max civilization value) when data is not loaded, preventing false spawns</li>
  *   <li>Async loading does not block the main thread</li>
- *   <li>TTL eviction for civilization decay</li>
+ *   <li>Gradual decay via {@code presenceTime} (ServerClock-based) instead of hard TTL cutoff</li>
  *   <li>Supports large-scale servers (thousands of concurrent players)</li>
- * </ul>
- * 
- * <p>Differences from {@link PyramidCivilizationService}:
- * <ul>
- *   <li>Uses {@link TtlCacheService} instead of LruPyramidCache</li>
- *   <li>L2/L3 queries use QueryResult with conservative estimates</li>
- *   <li>No capacity limit; relies on TTL expiry for eviction</li>
  * </ul>
  */
 public final class ScalableCivilizationService implements CivilizationService {
@@ -44,38 +37,7 @@ public final class ScalableCivilizationService implements CivilizationService {
     private static final int LOG_SAMPLE_RATE = 100;
     private final AtomicInteger callCounter = new AtomicInteger(0);
 
-    /** Brush radius (voxel chunks): brush range uses L1 computation with cascade updates to L2/L3. */
-    public static final int BRUSH_RADIUS_X = 2;
-    public static final int BRUSH_RADIUS_Z = 2;
-    public static final int BRUSH_RADIUS_Y = 1;
-
-    /** Detection radius (voxel chunks): total detection range. */
-    public static final int DETECTION_RADIUS_X = 7;
-    public static final int DETECTION_RADIUS_Z = 7;
-    public static final int DETECTION_RADIUS_Y = 1;
-
-    /** Core radius (voxel chunks): hypothetical core range for cohesion calculation. */
-    private static final int CORE_RADIUS_X = 1;
-    private static final int CORE_RADIUS_Z = 1;
-    private static final int CORE_RADIUS_Y = 0;  // 3x3x1
-
-    /** Monster head influence range (voxel chunks). */
-    private static final int MONSTER_HEAD_RANGE_CX = 1;
-    private static final int MONSTER_HEAD_RANGE_CZ = 1;
-    private static final int MONSTER_HEAD_RANGE_SY = 0;
-
-    // ========== Aggregation parameters ==========
-
-    /** Sigmoid midpoint: output is 0.5 when totalRaw equals this value. */
-    private static final double SIGMOID_MID = 0.8;
-    /** Sigmoid steepness. */
-    private static final double SIGMOID_STEEPNESS = 3.0;
-    /** rawSigmoid(0), used for normalization so the curve passes through (0,0). */
-    private static final double SIGMOID_S0 = 1.0 / (1.0 + Math.exp(SIGMOID_STEEPNESS * SIGMOID_MID));
-    /** Cohesion term weight. */
-    private static final double BETA = 0.8;
-    /** Distance squared decay coefficient (squared decay makes distant contributions approach 0 quickly while nearby remains nearly unchanged). */
-    private static final double ALPHA_DIST_SQ = 0.5;
+    // All tunable parameters are in CivilConfig.
 
     /** Face-adjacent 6 directions. */
     private static final int[][] FACE_OFFSETS = {
@@ -126,10 +88,10 @@ public final class ScalableCivilizationService implements CivilizationService {
         int dimMaxY = dimMinY + dim.height() - 1;
 
         // ========== Define regions ==========
-        ChunkBox coreBox = ChunkBox.centered(cx0, cz0, sy0, CORE_RADIUS_X, CORE_RADIUS_Z, CORE_RADIUS_Y);
-        ChunkBox brushBox = ChunkBox.centered(cx0, cz0, sy0, BRUSH_RADIUS_X, BRUSH_RADIUS_Z, BRUSH_RADIUS_Y);
+        ChunkBox coreBox = ChunkBox.centered(cx0, cz0, sy0, CivilConfig.coreRadiusX, CivilConfig.coreRadiusZ, CivilConfig.coreRadiusY);
+        ChunkBox brushBox = ChunkBox.centered(cx0, cz0, sy0, CivilConfig.brushRadiusX, CivilConfig.brushRadiusZ, CivilConfig.brushRadiusY);
         ChunkBox l2RegionBox = ChunkBox.centered(cx0, cz0, sy0, 4, 4, 1);  // 9x9x3 (hypothetical L2 region)
-        ChunkBox detectionBox = ChunkBox.centered(cx0, cz0, sy0, DETECTION_RADIUS_X, DETECTION_RADIUS_Z, DETECTION_RADIUS_Y);
+        ChunkBox detectionBox = ChunkBox.centered(cx0, cz0, sy0, CivilConfig.detectionRadiusX, CivilConfig.detectionRadiusZ, CivilConfig.detectionRadiusY);
 
         // ========== Layer 1: Brush range ==========
         // The brush range is the core area for spawn decisions; L1 does not use cold storage.
@@ -159,9 +121,9 @@ public final class ScalableCivilizationService implements CivilizationService {
             chunkScoreMatrix.put(l1, cScore.score());
         }
 
-        // If force allow detected, return immediately
+        // If any monster head in range, skip expensive L2/L3 queries — heads override spawn blocking
         if (anyForceAllow) {
-            return new CScore(CivilValues.FORCE_ALLOW_SCORE, Collections.unmodifiableList(allHeadTypes));
+            return new CScore(0.0, Collections.unmodifiableList(allHeadTypes));
         }
 
         // Compute core region score (with cohesion)
@@ -189,6 +151,8 @@ public final class ScalableCivilizationService implements CivilizationService {
         // ========== Layer 2: Enumerate real L2 blocks (clipped to hypothetical L2 region) ==========
         // coarseScore is a cumulative value (range [0, 9]), scaled by (effectiveOverlap / 9.0)
         // L2 uses conservative estimate strategy: LOADING returns conservative estimate (waiting for cold storage load)
+        // Precise results are multiplied by a gradual decay factor based on presenceTime.
+        long serverNow = ServerClock.now();
         double l2Sum = 0.0;
         for (L2Key realL2 : findRealL2sInRegion(l2RegionBox)) {
             ChunkBox realBox = ChunkBox.fromL2(realL2);
@@ -198,22 +162,28 @@ public final class ScalableCivilizationService implements CivilizationService {
             if (effectiveOverlap <= 0) continue;
 
             QueryResult l2Result = cacheService.queryL2Score(world, realL2, this::computeL1Score);
-            // L2 returns precise value or conservative estimate (LOADING uses MAX_CIVILIZATION * CELL_COUNT)
             double coarseScore = l2Result.score();
+
+            // Apply gradual decay factor for precise results (LOADING uses conservative estimate, no extra decay)
+            double decay = l2Result.isPrecise()
+                    ? L2Entry.computeDecayFactor(serverNow, l2Result.presenceTime())
+                    : 1.0;
             
             // Sampled log
             if (shouldLog) {
                 String status = l2Result.isPrecise() ? "HIT" : "LOADING";
-                LOGGER.info("[civil-scalable-query] layer=L2 dim={} key={},{},{} status={} score={}",
-                        dimName, realL2.getC2x(), realL2.getC2z(), realL2.getS2y(), status, coarseScore);
+                LOGGER.info("[civil-scalable-query] layer=L2 dim={} key={},{},{} status={} score={} decay={}",
+                        dimName, realL2.getC2x(), realL2.getC2z(), realL2.getS2y(), status, coarseScore,
+                        String.format("%.3f", decay));
             }
             
-            l2Sum += coarseScore * (effectiveOverlap / 9.0) * weightForChunk(realBox.center(), centerChunk);
+            l2Sum += coarseScore * decay * (effectiveOverlap / 9.0) * weightForChunk(realBox.center(), centerChunk);
         }
 
         // ========== Layer 3: Enumerate real L3 blocks (clipped to detection box, excluding L2 region) ==========
         // coarseScore is a cumulative value (range [0, 243]), scaled by (effectiveOverlap / 243.0)
         // L3 uses conservative estimate strategy: LOADING returns conservative estimate (waiting for cold storage load)
+        // Precise results are multiplied by a gradual decay factor based on presenceTime.
         double l3Sum = 0.0;
         for (L3Key realL3 : findRealL3sInRegion(detectionBox)) {
             ChunkBox realBox = ChunkBox.fromL3(realL3);
@@ -223,17 +193,22 @@ public final class ScalableCivilizationService implements CivilizationService {
             if (effectiveOverlap <= 0) continue;
 
             QueryResult l3Result = cacheService.queryL3Score(world, realL3, this::computeL1Score);
-            // L3 has only PRECISE and LOADING (cold storage miss creates empty entry)
             double coarseScore = l3Result.score();
+
+            // Apply gradual decay factor for precise results
+            double decay = l3Result.isPrecise()
+                    ? L3Entry.computeDecayFactor(serverNow, l3Result.presenceTime())
+                    : 1.0;
             
             // Sampled log
             if (shouldLog) {
                 String status = l3Result.isPrecise() ? "HIT" : "LOADING";
-                LOGGER.info("[civil-scalable-query] layer=L3 dim={} key={},{},{} status={} score={}",
-                        dimName, realL3.getC3x(), realL3.getC3z(), realL3.getS3y(), status, coarseScore);
+                LOGGER.info("[civil-scalable-query] layer=L3 dim={} key={},{},{} status={} score={} decay={}",
+                        dimName, realL3.getC3x(), realL3.getC3z(), realL3.getS3y(), status, coarseScore,
+                        String.format("%.3f", decay));
             }
             
-            l3Sum += coarseScore * (effectiveOverlap / 243.0) * weightForChunk(realBox.center(), centerChunk);
+            l3Sum += coarseScore * decay * (effectiveOverlap / 243.0) * weightForChunk(realBox.center(), centerChunk);
         }
 
         // ========== Merge ==========
@@ -344,15 +319,15 @@ public final class ScalableCivilizationService implements CivilizationService {
 
     /**
      * Run all operators on a single voxel region to produce a CScore.
+     *
+     * <p>Score is always in [0,1]. Monster head info flows through context,
+     * not through the score value.
      */
     private CScore computeCScoreForRegion(VoxelRegion region) {
         CivilComputeContext context = new CivilComputeContext();
         double maxScore = 0.0;
         for (CivilizationOperator operator : operators) {
             double s = operator.computeScore(region, context);
-            if (s >= CivilValues.FORCE_ALLOW_SCORE) {
-                return new CScore(s, List.copyOf(context.getHeadTypes()));
-            }
             if (s > maxScore) {
                 maxScore = s;
             }
@@ -364,14 +339,15 @@ public final class ScalableCivilizationService implements CivilizationService {
     // ========== Aggregation computation ==========
 
     private static double sigmoid(double totalRaw) {
+        double s0 = 1.0 / (1.0 + Math.exp(CivilConfig.sigmoidSteepness * CivilConfig.sigmoidMid));
         double s = rawSigmoid(totalRaw);
-        double scale = 1.0 - SIGMOID_S0;
+        double scale = 1.0 - s0;
         if (scale <= 1e-10) return totalRaw <= 0.0 ? 0.0 : 1.0;
-        return Math.max(0.0, Math.min(1.0, (s - SIGMOID_S0) / scale));
+        return Math.max(0.0, Math.min(1.0, (s - s0) / scale));
     }
 
     private static double rawSigmoid(double x) {
-        double t = SIGMOID_STEEPNESS * (x - SIGMOID_MID);
+        double t = CivilConfig.sigmoidSteepness * (x - CivilConfig.sigmoidMid);
         if (t >= 20.0) return 1.0;
         if (t <= -20.0) return 0.0;
         return 1.0 / (1.0 + Math.exp(-t));
@@ -381,7 +357,7 @@ public final class ScalableCivilizationService implements CivilizationService {
         int d = Math.abs(chunk.getCx() - center.getCx())
                 + Math.abs(chunk.getCz() - center.getCz())
                 + Math.abs(chunk.getSy() - center.getSy());
-        return 1.0 / (1.0 + ALPHA_DIST_SQ * d * d);  // Squared decay
+        return 1.0 / (1.0 + CivilConfig.distanceAlphaSq * d * d);
     }
 
     /**
@@ -405,7 +381,7 @@ public final class ScalableCivilizationService implements CivilizationService {
                 }
             }
         }
-        return BETA * sum * 0.5;
+        return CivilConfig.cohesionBeta * sum * 0.5;
     }
 
     private static double bondStrength(double s, double ns) {
@@ -414,8 +390,8 @@ public final class ScalableCivilizationService implements CivilizationService {
     }
 
     private static boolean isWithinMonsterHeadRange(VoxelChunkKey key, VoxelChunkKey center) {
-        return Math.abs(key.getCx() - center.getCx()) <= MONSTER_HEAD_RANGE_CX
-                && Math.abs(key.getCz() - center.getCz()) <= MONSTER_HEAD_RANGE_CZ
-                && Math.abs(key.getSy() - center.getSy()) <= MONSTER_HEAD_RANGE_SY;
+        return Math.abs(key.getCx() - center.getCx()) <= CivilConfig.headRangeCX
+                && Math.abs(key.getCz() - center.getCz()) <= CivilConfig.headRangeCZ
+                && Math.abs(key.getSy() - center.getSy()) <= CivilConfig.headRangeSY;
     }
 }

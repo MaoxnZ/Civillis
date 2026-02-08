@@ -6,7 +6,8 @@ import civil.civilization.core.CivilizationService;
 /**
  * Global service access entry point for Civil module.
  *
- * Currently exposes civilization scoring service and civilization cache (for markChunkDirtyAt etc. when blocks change), more subsystems can be centrally managed here in the future.
+ * Exposes civilization scoring service and civilization cache
+ * (for markChunkDirtyAt etc. when blocks change).
  */
 public final class CivilServices {
 
@@ -28,22 +29,8 @@ public final class CivilServices {
         return civilizationService;
     }
 
-    /** Civilization cache (may be a debounced wrapper), used for markChunkDirtyAt when blocks change. null if not initialized. */
+    /** Civilization cache, used for markChunkDirtyAt when blocks change. null if not initialized. */
     public static CivilizationCache getCivilizationCache() {
         return civilizationCache;
-    }
-
-    // ========== Backward Compatibility ==========
-
-    /** @deprecated Use {@link #initCivilizationCache(CivilizationCache)} */
-    @Deprecated
-    public static void initCivilizationMap(CivilizationCache cache) {
-        initCivilizationCache(cache);
-    }
-
-    /** @deprecated Use {@link #getCivilizationCache()} */
-    @Deprecated
-    public static CivilizationCache getCivilizationMap() {
-        return getCivilizationCache();
     }
 }

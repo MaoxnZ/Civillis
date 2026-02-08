@@ -9,7 +9,7 @@ public interface CivilizationOperator {
 
     /**
      * Calculate the civilization contribution of the given neighborhood, convention range [0, 1].
-     * If monster heads exist requiring "force allow spawn", can return {@link civil.civilization.CivilValues#FORCE_ALLOW_SCORE}.
+     * Monster head info should be written to {@link CivilComputeContext} if available, not encoded in the score.
      */
     double computeScore(VoxelRegion region);
 

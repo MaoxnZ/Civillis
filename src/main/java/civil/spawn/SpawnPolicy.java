@@ -2,6 +2,7 @@ package civil.spawn;
 
 import civil.CivilServices;
 import civil.civilization.CScore;
+import civil.config.CivilConfig;
 import net.minecraft.entity.EntityType;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -27,8 +28,8 @@ public final class SpawnPolicy {
     public static SpawnDecision decide(ServerWorld world, BlockPos pos, EntityType<?> entityType) {
         CScore cScore = CivilServices.getCivilizationService().getCScoreAt(world, pos);
         double score = cScore.score();
-        double thresholdLOW = 0.1;
-        double thresholdMID = 0.3;
+        double thresholdLow = CivilConfig.spawnThresholdLow;
+        double thresholdMid = CivilConfig.spawnThresholdMid;
 
         List<EntityType<?>> headTypes = cScore.headTypes() != null ? cScore.headTypes() : List.of();
 
@@ -39,11 +40,11 @@ public final class SpawnPolicy {
             return new SpawnDecision(false, score, "HEAD_ANY", headTypes);
         }
 
-        if (score <= thresholdLOW) {
+        if (score <= thresholdLow) {
             return new SpawnDecision(false, score, SpawnDecision.BRANCH_LOW);
         }
-        if (score > thresholdLOW && score < thresholdMID) {
-            double t = (score - thresholdLOW) / (thresholdMID - thresholdLOW);
+        if (score > thresholdLow && score < thresholdMid) {
+            double t = (score - thresholdLow) / (thresholdMid - thresholdLow);
             double blockProbability = t;
             Random random = world.getRandom();
             boolean block = random.nextDouble() < blockProbability;

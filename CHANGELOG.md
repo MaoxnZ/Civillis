@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.1.0-alpha]
+
+### Added
+
+- **In-game settings GUI**: Install Mod Menu + Cloth Config to configure
+  Civillis directly from the pause menu. Six intuitive sliders let you
+  adjust spawn suppression strength, detection range, decay speed,
+  recovery speed, decay floor, and freshness duration
+- **Gradual civilization decay and recovery**: Civilization protection
+  now fades smoothly over time when you leave an area. Revisiting a
+  decayed settlement gradually restores its protection — the longer you
+  stay, the more it recovers
+
+### Changed
+
+- **Internal data system rebuilt**: Save data is now stored more
+  efficiently and reliably, reducing file overhead and improving
+  compatibility with large multiplayer servers
+- **Smarter patrol detection**: The game now detects your presence
+  around settlements more precisely, with built-in "debounce" —
+  flying past an abandoned city at high speed does not count as a
+  proper patrol
+
+### Fixed
+
+- **Offline decay**: Logging out of a single-player world no longer
+  counts as absence — your civilization protection picks up right
+  where you left off
+- **Monster head score spike**: Monster heads placed far from the
+  detection center no longer inflate the civilization score at a
+  distance. Head influence is now tracked separately
+- **Detector colors ignoring settings**: The Civilization Detector now
+  respects your configured suppression strength when choosing the
+  result color (red / yellow / green)
+
 ## [1.0.0-alpha]
 
 Initial public release.

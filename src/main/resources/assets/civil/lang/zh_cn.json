@@ -4,5 +4,36 @@
   "subtitles.civil.detector_low": "文明检测器：低文明",
   "subtitles.civil.detector_medium": "文明检测器：中等文明",
   "subtitles.civil.detector_high": "文明检测器：高文明",
-  "subtitles.civil.detector_monster": "文明检测器：怪物头"
+  "subtitles.civil.detector_monster": "文明检测器：怪物头",
+
+  "civil.config.title": "Civillis 设置",
+  "civil.config.category.main": "文明参数",
+
+  "civil.config.simple.spawnSuppression": "刷怪抑制强度",
+  "civil.config.simple.spawnSuppression.tooltip": "建筑对敌对生物生成的抑制力度。",
+  "civil.config.simple.detectionRange": "检测范围",
+  "civil.config.simple.detectionRange.tooltip": "每次怪物生成时扫描周围文明的区域大小。",
+  "civil.config.simple.decaySpeed": "衰落速度",
+  "civil.config.simple.decaySpeed.tooltip": "宽限期过后额外防护消退的速度。",
+  "civil.config.simple.decayFloor": "衰落下限",
+  "civil.config.simple.decayFloor.tooltip": "即使完全废弃，额外防护仍保留的最低强度。",
+  "civil.config.simple.recoverySpeed": "恢复速度",
+  "civil.config.simple.recoverySpeed.tooltip": "重新造访时额外防护恢复的速度。",
+  "civil.config.simple.freshnessDuration": "文明保鲜时长",
+  "civil.config.simple.freshnessDuration.tooltip": "离开后额外防护开始衰退前的宽限时间。",
+
+  "civil.config.subcategory.decay": "衰减与恢复 详细设置",
+  "civil.config.subcategory.decay.tooltip.1": "\u7e41\u8363\u7684\u805a\u843d\u80fd\u5c06",
+  "civil.config.subcategory.decay.tooltip.2": "\u654c\u5bf9\u751f\u7269\u9a71\u9000\u5f97\u66f4\u8fdc\u3002",
+  "civil.config.subcategory.decay.tooltip.3": "\u00a77\u9700\u8981\u4f60\u7684\u5728\u573a\u6765\u7ef4\u6301\u3002",
+
+  "civil.config.slider.spawn": "%1$d",
+  "civil.config.slider.spawn.unsafe": "\u00a7e\u26a0 %1$d",
+  "civil.config.slider.range": "%1$d",
+  "civil.config.slider.decay.days": "\u2248%2$s\u5929 t\u00bd",
+  "civil.config.slider.decay.hours": "\u2248%2$s\u65f6 t\u00bd",
+  "civil.config.slider.recovery": "~%2$d\u5206\u949f \u26a1",
+  "civil.config.slider.freshness": "%1$d\u5c0f\u65f6",
+
+  "civil.config.override.warning": "\u00a7e\u26a0 检测到 civil.properties 中存在手动自定义值。修改此滑块将覆盖您的自定义配置。"
 }

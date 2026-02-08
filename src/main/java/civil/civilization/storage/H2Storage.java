@@ -15,8 +15,10 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -50,7 +52,25 @@ public final class H2Storage {
      * Increment this when making breaking changes to table structure,
      * and add a corresponding migration case in {@link #runMigrations(int)}.
      */
-    static final int CURRENT_SCHEMA_VERSION = 1;
+    static final int CURRENT_SCHEMA_VERSION = 2;
+
+    /**
+     * Declarative column registry: columns that may not exist in older databases.
+     *
+     * <p>The introspective ensure pass checks each of these against the actual
+     * database schema on every startup, adding any that are missing. This is
+     * independent of {@link #CURRENT_SCHEMA_VERSION} and self-healing.
+     *
+     * <p>When adding a new column to any table, add it here as well so that
+     * existing worlds are automatically repaired regardless of their schema version.
+     */
+    private static final List<ExpectedColumn> EXPECTED_COLUMNS = List.of(
+            new ExpectedColumn("L2_CACHE", "PRESENCE_TIME", "BIGINT", "0"),
+            new ExpectedColumn("L3_CACHE", "PRESENCE_TIME", "BIGINT", "0")
+    );
+
+    /** Describes a column that must exist in a given table. */
+    private record ExpectedColumn(String table, String column, String sqlType, String defaultValue) {}
 
     private Connection connection;
     private final ExecutorService ioExecutor;
@@ -129,6 +149,73 @@ public final class H2Storage {
                 LOGGER.info("[civil-storage] Schema v{} is up to date", version);
             }
         }
+
+        // Introspective ensure pass: verify actual table columns match expectations.
+        // Self-healing regardless of schema_version — handles intermediate builds,
+        // branch switches, version mismatches, or any other schema drift.
+        ensureExpectedColumns();
+    }
+
+    /**
+     * Introspective schema repair: query the actual database metadata and add
+     * any columns listed in {@link #EXPECTED_COLUMNS} that are missing.
+     *
+     * <p>This runs on every startup and is fully idempotent. It does not depend
+     * on {@code schema_version} being accurate — it checks reality, not bookkeeping.
+     *
+     * <p>Performance: one metadata query per table, plus one {@code ALTER TABLE}
+     * per missing column. Typically completes in sub-millisecond time.
+     */
+    private void ensureExpectedColumns() throws SQLException {
+        // Collect the distinct tables we need to check
+        Set<String> tablesToCheck = new HashSet<>();
+        for (ExpectedColumn col : EXPECTED_COLUMNS) {
+            tablesToCheck.add(col.table());
+        }
+
+        // For each table, load its actual column set from INFORMATION_SCHEMA
+        for (String table : tablesToCheck) {
+            Set<String> actualColumns = getActualColumns(table);
+            if (actualColumns.isEmpty()) {
+                // Table doesn't exist yet (should not happen after createTablesV1, but safe to skip)
+                continue;
+            }
+
+            for (ExpectedColumn col : EXPECTED_COLUMNS) {
+                if (!col.table().equals(table)) continue;
+                if (actualColumns.contains(col.column())) continue;
+
+                // Column is missing — repair it
+                String alterSql = String.format(
+                        "ALTER TABLE %s ADD COLUMN %s %s DEFAULT %s",
+                        col.table(), col.column(), col.sqlType(), col.defaultValue()
+                );
+                LOGGER.info("[civil-storage] Schema repair: adding missing column {}.{} ({})",
+                        col.table(), col.column(), col.sqlType());
+                try (Statement stmt = connection.createStatement()) {
+                    stmt.execute(alterSql);
+                }
+            }
+        }
+    }
+
+    /**
+     * Query the actual column names of a table from H2's INFORMATION_SCHEMA.
+     *
+     * @return set of uppercase column names, or empty set if the table does not exist
+     */
+    private Set<String> getActualColumns(String tableName) throws SQLException {
+        Set<String> columns = new HashSet<>();
+        String sql = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, tableName);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    columns.add(rs.getString("COLUMN_NAME"));
+                }
+            }
+        }
+        return columns;
     }
 
     /**
@@ -198,10 +285,12 @@ public final class H2Storage {
             try (Statement stmt = connection.createStatement()) {
                 for (int v = fromVersion; v < CURRENT_SCHEMA_VERSION; v++) {
                     switch (v) {
-                        // case 1:
-                        //     // v1 -> v2 migration
-                        //     stmt.execute("...");
-                        //     break;
+                        case 1:
+                            // v1 -> v2: add presence_time column for gradual decay
+                            LOGGER.info("[civil-storage] Migrating v1 -> v2: adding presence_time to l2/l3_cache");
+                            stmt.execute("ALTER TABLE l2_cache ADD COLUMN IF NOT EXISTS presence_time BIGINT DEFAULT 0");
+                            stmt.execute("ALTER TABLE l3_cache ADD COLUMN IF NOT EXISTS presence_time BIGINT DEFAULT 0");
+                            break;
                         default:
                             throw new SQLException(
                                 "Unknown schema version " + v + ", cannot migrate to v" + CURRENT_SCHEMA_VERSION +
@@ -246,6 +335,7 @@ public final class H2Storage {
                     scores BINARY(72) NOT NULL,
                     states BINARY(9) NOT NULL,
                     create_time BIGINT NOT NULL,
+                    presence_time BIGINT DEFAULT 0 NOT NULL,
                     PRIMARY KEY (dim, c2x, c2z, s2y)
                 )
             """);
@@ -260,6 +350,7 @@ public final class H2Storage {
                     scores BINARY(1944) NOT NULL,
                     states BINARY(243) NOT NULL,
                     create_time BIGINT NOT NULL,
+                    presence_time BIGINT DEFAULT 0 NOT NULL,
                     PRIMARY KEY (dim, c3x, c3z, s3y)
                 )
             """);
@@ -373,7 +464,7 @@ public final class H2Storage {
 
         return CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
-            String sql = "SELECT scores, states, create_time FROM l2_cache WHERE dim=? AND c2x=? AND c2z=? AND s2y=?";
+            String sql = "SELECT scores, states, create_time, presence_time FROM l2_cache WHERE dim=? AND c2x=? AND c2z=? AND s2y=?";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
                 ps.setString(1, dim);
                 ps.setInt(2, key.getC2x());
@@ -385,15 +476,16 @@ public final class H2Storage {
                         byte[] scoresBytes = rs.getBytes("scores");
                         byte[] states = rs.getBytes("states");
                         long createTime = rs.getLong("create_time");
+                        long presenceTime = rs.getLong("presence_time");
 
                         double[] scores = bytesToDoubleArray(scoresBytes);
-                        L2Entry l2Entry = new L2Entry(key);
+                        L2Entry l2Entry = new L2Entry(key, presenceTime);
                         l2Entry.restoreFromArrays(scores, states);
 
                         if (CivilMod.DEBUG) {
                             long latency = System.currentTimeMillis() - startTime;
-                            LOGGER.info("[civil-ttl-io] type=LOAD_L2 dim={} key={},{},{} latency_ms={} hit=true",
-                                    dim, key.getC2x(), key.getC2z(), key.getS2y(), latency);
+                            LOGGER.info("[civil-ttl-io] type=LOAD_L2 dim={} key={},{},{} latency_ms={} hit=true presenceTime={}",
+                                    dim, key.getC2x(), key.getC2z(), key.getS2y(), latency, presenceTime);
                         }
                         return Optional.of(new StoredL2Entry(key, l2Entry, createTime));
                     }
@@ -413,17 +505,20 @@ public final class H2Storage {
     /**
      * Async save L2 entry.
      * 
-     * @param lastAccessTime last access time (for cold storage TTL evaluation, civilization decay)
+     * @param lastAccessTime last access time (preserved for hot cache TTL on restore)
      */
     public CompletableFuture<Void> saveL2Async(String dim, L2Key key, L2Entry l2Entry, long lastAccessTime) {
         if (closed) return CompletableFuture.completedFuture(null);
 
+        // Capture presenceTime before submitting to background thread
+        long presenceTime = l2Entry.getPresenceTime();
+
         return CompletableFuture.runAsync(() -> {
             long startTime = System.currentTimeMillis();
             String sql = """
-                MERGE INTO l2_cache (dim, c2x, c2z, s2y, scores, states, create_time)
+                MERGE INTO l2_cache (dim, c2x, c2z, s2y, scores, states, create_time, presence_time)
                 KEY (dim, c2x, c2z, s2y)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """;
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
                 ps.setString(1, dim);
@@ -432,13 +527,14 @@ public final class H2Storage {
                 ps.setInt(4, key.getS2y());
                 ps.setBytes(5, doubleArrayToBytes(l2Entry.getScoresArray()));
                 ps.setBytes(6, l2Entry.getStatesArray());
-                ps.setLong(7, lastAccessTime);  // Preserve original timestamp, do not refresh
+                ps.setLong(7, lastAccessTime);
+                ps.setLong(8, presenceTime);
                 ps.executeUpdate();
                 
                 if (CivilMod.DEBUG) {
                     long latency = System.currentTimeMillis() - startTime;
-                    LOGGER.info("[civil-ttl-io] type=SAVE_L2 dim={} key={},{},{} latency_ms={}",
-                            dim, key.getC2x(), key.getC2z(), key.getS2y(), latency);
+                    LOGGER.info("[civil-ttl-io] type=SAVE_L2 dim={} key={},{},{} latency_ms={} presenceTime={}",
+                            dim, key.getC2x(), key.getC2z(), key.getS2y(), latency, presenceTime);
                 }
             } catch (SQLException e) {
                 LOGGER.warn("[civil-storage] Failed to save L2: {}", e.getMessage());
@@ -456,7 +552,7 @@ public final class H2Storage {
 
         return CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
-            String sql = "SELECT scores, states, create_time FROM l3_cache WHERE dim=? AND c3x=? AND c3z=? AND s3y=?";
+            String sql = "SELECT scores, states, create_time, presence_time FROM l3_cache WHERE dim=? AND c3x=? AND c3z=? AND s3y=?";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
                 ps.setString(1, dim);
                 ps.setInt(2, key.getC3x());
@@ -468,15 +564,16 @@ public final class H2Storage {
                         byte[] scoresBytes = rs.getBytes("scores");
                         byte[] states = rs.getBytes("states");
                         long createTime = rs.getLong("create_time");
+                        long presenceTime = rs.getLong("presence_time");
 
                         double[] scores = bytesToDoubleArray(scoresBytes);
-                        L3Entry l3Entry = new L3Entry(key);
+                        L3Entry l3Entry = new L3Entry(key, presenceTime);
                         l3Entry.restoreFromArrays(scores, states);
 
                         if (CivilMod.DEBUG) {
                             long latency = System.currentTimeMillis() - startTime;
-                            LOGGER.info("[civil-ttl-io] type=LOAD_L3 dim={} key={},{},{} latency_ms={} hit=true",
-                                    dim, key.getC3x(), key.getC3z(), key.getS3y(), latency);
+                            LOGGER.info("[civil-ttl-io] type=LOAD_L3 dim={} key={},{},{} latency_ms={} hit=true presenceTime={}",
+                                    dim, key.getC3x(), key.getC3z(), key.getS3y(), latency, presenceTime);
                         }
                         return Optional.of(new StoredL3Entry(key, l3Entry, createTime));
                     }
@@ -496,17 +593,20 @@ public final class H2Storage {
     /**
      * Async save L3 entry.
      * 
-     * @param lastAccessTime last access time (for cold storage TTL evaluation, civilization decay)
+     * @param lastAccessTime last access time (preserved for hot cache TTL on restore)
      */
     public CompletableFuture<Void> saveL3Async(String dim, L3Key key, L3Entry l3Entry, long lastAccessTime) {
         if (closed) return CompletableFuture.completedFuture(null);
 
+        // Capture presenceTime before submitting to background thread
+        long presenceTime = l3Entry.getPresenceTime();
+
         return CompletableFuture.runAsync(() -> {
             long startTime = System.currentTimeMillis();
             String sql = """
-                MERGE INTO l3_cache (dim, c3x, c3z, s3y, scores, states, create_time)
+                MERGE INTO l3_cache (dim, c3x, c3z, s3y, scores, states, create_time, presence_time)
                 KEY (dim, c3x, c3z, s3y)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """;
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
                 ps.setString(1, dim);
@@ -515,16 +615,58 @@ public final class H2Storage {
                 ps.setInt(4, key.getS3y());
                 ps.setBytes(5, doubleArrayToBytes(l3Entry.getScoresArray()));
                 ps.setBytes(6, l3Entry.getStatesArray());
-                ps.setLong(7, lastAccessTime);  // Preserve original timestamp, do not refresh
+                ps.setLong(7, lastAccessTime);
+                ps.setLong(8, presenceTime);
                 ps.executeUpdate();
                 
                 if (CivilMod.DEBUG) {
                     long latency = System.currentTimeMillis() - startTime;
-                    LOGGER.info("[civil-ttl-io] type=SAVE_L3 dim={} key={},{},{} latency_ms={}",
-                            dim, key.getC3x(), key.getC3z(), key.getS3y(), latency);
+                    LOGGER.info("[civil-ttl-io] type=SAVE_L3 dim={} key={},{},{} latency_ms={} presenceTime={}",
+                            dim, key.getC3x(), key.getC3z(), key.getS3y(), latency, presenceTime);
                 }
             } catch (SQLException e) {
                 LOGGER.warn("[civil-storage] Failed to save L3: {}", e.getMessage());
+            }
+        }, ioExecutor);
+    }
+
+    // ========== ServerClock persistence ==========
+
+    /**
+     * Load the persisted ServerClock value from civil_meta.
+     *
+     * @return saved millis, or 0 if not present (fresh world)
+     */
+    public long loadServerClockMillis() {
+        String sql = "SELECT meta_value FROM civil_meta WHERE meta_key = 'server_clock_millis'";
+        try (PreparedStatement ps = connection.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return Long.parseLong(rs.getString("meta_value"));
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to load server_clock_millis: {}", e.getMessage());
+        }
+        return 0;
+    }
+
+    /**
+     * Persist the current ServerClock value to civil_meta (synchronous, called on IO thread).
+     */
+    public CompletableFuture<Void> saveServerClockAsync(long millis) {
+        if (closed) return CompletableFuture.completedFuture(null);
+
+        return CompletableFuture.runAsync(() -> {
+            String sql = """
+                MERGE INTO civil_meta (meta_key, meta_value)
+                KEY (meta_key)
+                VALUES ('server_clock_millis', ?)
+            """;
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, String.valueOf(millis));
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                LOGGER.warn("[civil-storage] Failed to save server_clock_millis: {}", e.getMessage());
             }
         }, ioExecutor);
     }

@@ -4,5 +4,36 @@
   "subtitles.civil.detector_low": "Civil Detector: Low",
   "subtitles.civil.detector_medium": "Civil Detector: Medium",
   "subtitles.civil.detector_high": "Civil Detector: High",
-  "subtitles.civil.detector_monster": "Civil Detector: Monster"
+  "subtitles.civil.detector_monster": "Civil Detector: Monster",
+
+  "civil.config.title": "Civillis Settings",
+  "civil.config.category.main": "Civilization",
+
+  "civil.config.simple.spawnSuppression": "Spawn Suppression Strength",
+  "civil.config.simple.spawnSuppression.tooltip": "How strongly your buildings suppress hostile mob spawning.",
+  "civil.config.simple.detectionRange": "Detection Range",
+  "civil.config.simple.detectionRange.tooltip": "Area scanned around each mob spawn attempt for nearby civilization.",
+  "civil.config.simple.decaySpeed": "Decay Speed",
+  "civil.config.simple.decaySpeed.tooltip": "How fast the extra protection fades after the grace period.",
+  "civil.config.simple.decayFloor": "Decay Floor",
+  "civil.config.simple.decayFloor.tooltip": "Minimum strength the protection aura retains even if fully abandoned.",
+  "civil.config.simple.recoverySpeed": "Recovery Speed",
+  "civil.config.simple.recoverySpeed.tooltip": "How fast the protection aura recovers when you return.",
+  "civil.config.simple.freshnessDuration": "Freshness Duration",
+  "civil.config.simple.freshnessDuration.tooltip": "Grace period before the protection aura starts fading after you leave.",
+
+  "civil.config.subcategory.decay": "Decay \u0026 Recovery Details",
+  "civil.config.subcategory.decay.tooltip.1": "Thriving settlements push",
+  "civil.config.subcategory.decay.tooltip.2": "hostile mobs back even further.",
+  "civil.config.subcategory.decay.tooltip.3": "\u00a77Requires your presence to sustain.",
+
+  "civil.config.slider.spawn": "%1$d",
+  "civil.config.slider.spawn.unsafe": "\u00a7e\u26a0 %1$d",
+  "civil.config.slider.range": "%1$d",
+  "civil.config.slider.decay.days": "\u2248%2$sd t\u00bd",
+  "civil.config.slider.decay.hours": "\u2248%2$sh t\u00bd",
+  "civil.config.slider.recovery": "~%2$dmin \u26a1",
+  "civil.config.slider.freshness": "%1$dh",
+
+  "civil.config.override.warning": "\u00a7e\u26a0 Advanced override detected in civil.properties. Changing this slider will overwrite your custom value."
 }

@@ -1,13 +1,9 @@
 package civil;
 
 import civil.component.ModComponents;
-import civil.civilization.cache.simple.LruPyramidCache;
-import civil.civilization.cache.scalable.TtlCacheService;
-import civil.civilization.storage.NbtStorage;
-import civil.civilization.structure.NeighborhoodSampler;
+import civil.civilization.cache.TtlCacheService;
 import civil.civilization.structure.SimpleNeighborhoodSampler;
 import civil.item.CivilDetectorAnimationReset;
-import civil.civilization.core.PyramidCivilizationService;
 import civil.civilization.core.ScalableCivilizationService;
 import civil.civilization.operator.CivilizationOperator;
 import civil.civilization.operator.SimpleCivilizationOperator;
@@ -33,137 +29,62 @@ public class CivilMod implements ModInitializer {
      */
     public static final boolean DEBUG = false;
 
-    /**
-     * Whether to use the TTL cache (H2 database).
-     * true  = Use the scalable TTL cache + H2 async persistence (supports large-scale servers)
-     * false = Use the simple LRU cache + NBT persistence (simple and stable)
-     */
-    public static final boolean USE_SCALABLE_CACHE = true;
-
-    /** Legacy persistence manager (used when USE_SCALABLE_CACHE=false). */
-    private static NbtStorage persistence;
-
-    /** Scalable cache service (used when USE_SCALABLE_CACHE=true). */
+    /** Cache service (TTL cache + H2 async persistence + gradual decay). */
     private static TtlCacheService cacheService;
 
     @Override
     public void onInitialize() {
         CivilConfig.load();
-        NeighborhoodSampler sampler = new SimpleNeighborhoodSampler(
-                PyramidCivilizationService.DETECTION_RADIUS_X,
-                PyramidCivilizationService.DETECTION_RADIUS_Z,
-                PyramidCivilizationService.DETECTION_RADIUS_Y);
-        SimpleCivilizationOperator operator = new SimpleCivilizationOperator();
 
-        if (USE_SCALABLE_CACHE) {
-            // Scalable TTL cache + H2 database
-            initWithTtlCache(sampler, operator);
-        } else {
-            // Simple LRU cache + NBT persistence
-            initWithLruCache(sampler, operator);
-        }
+        SimpleCivilizationOperator operator = new SimpleCivilizationOperator();
+        SimpleNeighborhoodSampler sampler = new SimpleNeighborhoodSampler(
+                CivilConfig.detectionRadiusX,
+                CivilConfig.detectionRadiusZ,
+                CivilConfig.detectionRadiusY);
+
+        // TTL cache service (30-minute hot cache, H2 database persistence, gradual decay)
+        cacheService = new TtlCacheService();
+
+        ScalableCivilizationService civilizationService =
+                new ScalableCivilizationService(sampler, List.of((CivilizationOperator) operator), cacheService);
+        CivilServices.initCivilizationService(civilizationService);
+        CivilServices.initCivilizationCache(cacheService);
+        TpsLogger.register();
+
+        // Register cache lifecycle events
+        registerCacheEvents();
 
         ModComponents.initialize();
         ModSounds.initialize();
         ModItems.register();
         ModItems.registerItemGroups();
         CivilDetectorAnimationReset.register();
-    }
-
-    /**
-     * Initialize with legacy LRU cache (backward compatible).
-     */
-    private void initWithLruCache(NeighborhoodSampler sampler, SimpleCivilizationOperator operator) {
-        // Pyramid multi-layer cache: L1(4096) + L2(2048) + L3(512), no debounce needed (lazy load + idempotent markDirty)
-        LruPyramidCache cache = new LruPyramidCache(4096, 2048, 512);
-        PyramidCivilizationService civilizationService =
-                new PyramidCivilizationService(sampler, List.of((CivilizationOperator) operator), cache);
-        CivilServices.initCivilizationService(civilizationService);
-        CivilServices.initCivilizationCache(cache);
-        TpsLogger.register();
-
-        // Register cache persistence events
-        registerLruCachePersistence(cache);
 
         if (DEBUG) {
-            LOGGER.info("Civil mod loaded. (mode=LRU, service=pyramid+SimpleCivilizationOperator, cache=L1:{}/L2:{}/L3:{}, TPS={})",
-                    cache.l1Size(), cache.l2Size(), cache.l3Size(),
-                    CivilConfig.isTpsLogEnabled() ? "on/" + CivilConfig.getTpsLogIntervalTicks() + "ticks" : "off");
-        }
-    }
-
-    /**
-     * Initialize with scalable TTL cache (supports large-scale servers).
-     */
-    private void initWithTtlCache(NeighborhoodSampler sampler, SimpleCivilizationOperator operator) {
-        // TTL cache service (30-minute expiry, H2 database persistence)
-        cacheService = new TtlCacheService();
-
-        // Scalable civilization service: adapts TTL cache + H2 persistence
-        ScalableCivilizationService civilizationService =
-                new ScalableCivilizationService(sampler, List.of((CivilizationOperator) operator), cacheService);
-        CivilServices.initCivilizationService(civilizationService);
-        
-        // Use TTL cache as CivilizationCache
-        CivilServices.initCivilizationCache(cacheService);
-        TpsLogger.register();
-
-        // Register TTL cache events
-        registerTtlCacheEvents();
-
-        if (DEBUG) {
-            LOGGER.info("Civil mod loaded. (mode=scalable, service=ScalableCivilizationService, TTL={}min, TPS={})",
+            LOGGER.info("Civil mod loaded. (service=ScalableCivilizationService, TTL={}min, TPS={})",
                     cacheService.getCache().getTtlMillis() / 60000,
                     CivilConfig.isTpsLogEnabled() ? "on/" + CivilConfig.getTpsLogIntervalTicks() + "ticks" : "off");
+            LOGGER.info("[civil] config thresholdMid={} thresholdLow={}",
+                    String.format("%.4f", CivilConfig.spawnThresholdMid),
+                    String.format("%.4f", CivilConfig.spawnThresholdLow));
         }
     }
 
     /**
-     * Register legacy LRU cache persistence: load from save on overworld load, save on overworld unload.
+     * Register cache lifecycle events: initialization, per-tick maintenance, and shutdown.
      */
-    private void registerLruCachePersistence(LruPyramidCache cache) {
-        persistence = new NbtStorage(cache);
-
-        // Load cache from save when overworld loads
-        ServerWorldEvents.LOAD.register((server, world) -> {
-            if (CivilMod.DEBUG) {
-                LOGGER.info("[civil] ServerWorldEvents.LOAD fired, world: {}", world.getRegistryKey());
-            }
-            if (world.getRegistryKey() == World.OVERWORLD) {
-                if (CivilMod.DEBUG) {
-                    LOGGER.info("[civil] Overworld detected, loading cache...");
-                }
-                persistence.load(world);
-            } else {
-                if (CivilMod.DEBUG) {
-                    LOGGER.info("[civil] Non-overworld, skipping cache load: {}", world.getRegistryKey());
-                }
-            }
-        });
-
-        // Save cache when overworld unloads
-        ServerWorldEvents.UNLOAD.register((server, world) -> {
-            if (world.getRegistryKey() == World.OVERWORLD) {
-                persistence.save();
-            }
-        });
-    }
-
-    /**
-     * Register TTL cache events: initialization, per-tick maintenance, and shutdown.
-     */
-    private void registerTtlCacheEvents() {
-        // Initialize H2 database when overworld loads
+    private void registerCacheEvents() {
+        // Initialize H2 database and ServerClock when overworld loads
         ServerWorldEvents.LOAD.register((server, world) -> {
             if (world.getRegistryKey() == World.OVERWORLD) {
                 if (DEBUG) {
-                    LOGGER.info("[civil] TTL cache service initializing...");
+                    LOGGER.info("[civil] Cache service initializing...");
                 }
                 cacheService.initialize(world);
             }
         });
 
-        // Per-tick maintenance (prefetch, TTL cleanup)
+        // Per-tick maintenance (ServerClock tick, prefetch, TTL cleanup)
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             if (cacheService != null && cacheService.isInitialized()) {
                 cacheService.onServerTick(server);
@@ -174,7 +95,7 @@ public class CivilMod implements ModInitializer {
         ServerWorldEvents.UNLOAD.register((server, world) -> {
             if (world.getRegistryKey() == World.OVERWORLD) {
                 if (DEBUG) {
-                    LOGGER.info("[civil] TTL cache service shutting down...");
+                    LOGGER.info("[civil] Cache service shutting down...");
                 }
                 cacheService.shutdown();
             }
@@ -182,14 +103,7 @@ public class CivilMod implements ModInitializer {
     }
 
     /**
-     * Get the legacy persistence manager (for manual save triggers).
-     */
-    public static NbtStorage getPersistence() {
-        return persistence;
-    }
-
-    /**
-     * Get the scalable cache service.
+     * Get the cache service.
      */
     public static TtlCacheService getCacheService() {
         return cacheService;

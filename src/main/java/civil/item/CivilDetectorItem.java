@@ -2,10 +2,10 @@ package civil.item;
 
 import civil.CivilMod;
 import civil.CivilServices;
+import civil.config.CivilConfig;
 import civil.ModSounds;
 import civil.component.ModComponents;
 import civil.civilization.CScore;
-import civil.civilization.CivilValues;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -24,8 +24,7 @@ import net.minecraft.world.World;
  */
 public class CivilDetectorItem extends Item {
 
-    private static final int ANIMATION_TICKS = 40; // 2 seconds
-    private static final int COOLDOWN_TICKS = 10;  // 0.5 second cooldown
+    // Animation/cooldown durations are in CivilConfig
 
     public CivilDetectorItem(Settings settings) {
         super(settings);
@@ -40,22 +39,21 @@ public class CivilDetectorItem extends Item {
         }
         if (world instanceof ServerWorld serverWorld) {
             // Set cooldown
-            player.getItemCooldownManager().set(stack, COOLDOWN_TICKS);
+            player.getItemCooldownManager().set(stack, CivilConfig.detectorCooldownTicks);
             BlockPos pos = player.getBlockPos();
-            double score;
+            CScore cScore;
             try {
-                CScore cScore = CivilServices.getCivilizationService().getCScoreAt(serverWorld, pos);
-                score = cScore.score();
+                cScore = CivilServices.getCivilizationService().getCScoreAt(serverWorld, pos);
             } catch (Exception e) {
                 if (CivilMod.DEBUG) {
                     CivilMod.LOGGER.warn("[civil] Civil detector failed at {}: {}", pos, e.getMessage());
                 }
-                score = -1.0;
+                cScore = null;
             }
 
             if (CivilMod.DEBUG) {
-                String msg = score >= 0
-                        ? String.format("§aCivilization Value: §f%.2f §7(Position %d, %d, %d)", score, pos.getX(), pos.getY(), pos.getZ())
+                String msg = cScore != null
+                        ? String.format("§aCivilization Value: §f%.2f §7(Position %d, %d, %d)", cScore.score(), pos.getX(), pos.getY(), pos.getZ())
                         : "§cCivilization detection failed";
                 if (player instanceof ServerPlayerEntity serverPlayer) {
                     serverPlayer.sendMessage(Text.literal(msg));
@@ -63,9 +61,9 @@ public class CivilDetectorItem extends Item {
             }
 
             // Trigger 2-second animation: write display state and animation end tick, start animation reset logic checking
-            String displayState = scoreToDisplayState(score);
+            String displayState = scoreToDisplayState(cScore);
             stack.set(ModComponents.DETECTOR_DISPLAY, displayState);
-            stack.set(ModComponents.DETECTOR_ANIMATION_END, world.getTime() + ANIMATION_TICKS);
+            stack.set(ModComponents.DETECTOR_ANIMATION_END, world.getTime() + CivilConfig.detectorAnimationTicks);
             CivilDetectorAnimationReset.markActive();
 
             // Play sound effect by detection state: get sound + pitch at once (vanilla uses pitch to distinguish, custom OGG uses 1.0)
@@ -90,18 +88,23 @@ public class CivilDetectorItem extends Item {
         return display != null && !"default".equals(display) && endTick != null;
     }
 
-    /** Civilization value -> display state: 0–0.2 low/red, 0.2–0.5 medium/yellow, 0.5+ high/green, 2 monster head/purple. */
-    private static String scoreToDisplayState(double score) {
-        if (score < 0) {
+    /**
+     * CScore -> display state: monster head = purple,
+     * below thresholdLow = low/red, between thresholdLow..thresholdMid = medium/yellow,
+     * above thresholdMid = high/green.  Thresholds follow CivilConfig (GUI suppression slider).
+     */
+    private static String scoreToDisplayState(CScore cScore) {
+        if (cScore == null) {
             return "default";
         }
-        if (score >= CivilValues.FORCE_ALLOW_SCORE) {
+        if (cScore.isForceAllow()) {
             return "monster";
         }
-        if (score < 0.1) {
+        double score = cScore.score();
+        if (score < CivilConfig.spawnThresholdLow) {
             return "low";
         }
-        if (score < 0.3) {
+        if (score < CivilConfig.spawnThresholdMid) {
             return "medium";
         }
         return "high";
