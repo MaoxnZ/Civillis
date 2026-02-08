@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.1.1-alpha]
+
+### Added
+
+- **Full MC 1.21 series compatibility**: The mod now ships separate
+  builds for MC 1.21.1, 1.21.2–1.21.3, 1.21.4, and 1.21.5–1.21.11,
+  covering the entire 1.21 release line
+
+### Fixed
+
+- **Inflated score on first teleport**: Teleporting to a previously
+  unvisited location no longer briefly reports a high civilization
+  score. Unloaded regions now default to zero instead of the maximum
+  estimate, which better reflects reality given the persistent storage
+  and prefetcher systems already in place
+
 ## [1.1.0-alpha]
 
 ### Added

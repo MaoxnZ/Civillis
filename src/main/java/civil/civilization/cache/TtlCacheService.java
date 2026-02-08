@@ -42,8 +42,12 @@ public final class TtlCacheService implements CivilizationCache {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("civil-cache-service");
 
-    /** Maximum civilization value (conservative estimate). */
-    public static final double MAX_CIVILIZATION = 1.0;
+    /**
+     * Default score for unloaded L2/L3 regions.
+     * With H2 persistence and gradual decay, never-scanned areas have no civilization (0.0).
+     * During async loading, this value is returned; once loaded, the real score takes effect.
+     */
+    public static final double UNLOADED_DEFAULT_SCORE = 0.0;
 
     private final TtlPyramidCache cache;
     private final H2Storage storage;
@@ -193,7 +197,7 @@ public final class TtlCacheService implements CivilizationCache {
      * <p>L2 uses cold storage. Return value status:
      * <ul>
      *   <li>PRECISE - hot cache hit, uses exact value</li>
-     *   <li>LOADING - async loading in progress, uses conservative estimate</li>
+     *   <li>LOADING - async loading in progress, returns 0 (unscanned = no civilization)</li>
      * </ul>
      */
     public QueryResult queryL2Score(ServerWorld level, L2Key key, ScoreComputer scoreComputer) {
@@ -208,7 +212,7 @@ public final class TtlCacheService implements CivilizationCache {
 
         // Check if already loading
         if (loadingTracker.isLoading(loadKey)) {
-            return QueryResult.loading(MAX_CIVILIZATION * L2Key.CELL_COUNT);
+            return QueryResult.loading(UNLOADED_DEFAULT_SCORE);
         }
 
         // Trigger async load
@@ -228,7 +232,7 @@ public final class TtlCacheService implements CivilizationCache {
                     });
         }
 
-        return QueryResult.loading(MAX_CIVILIZATION * L2Key.CELL_COUNT);
+        return QueryResult.loading(UNLOADED_DEFAULT_SCORE);
     }
 
     /**
@@ -237,7 +241,7 @@ public final class TtlCacheService implements CivilizationCache {
      * <p>L3 uses cold storage. Return value status:
      * <ul>
      *   <li>PRECISE - hot cache hit, uses exact value</li>
-     *   <li>LOADING - async loading in progress, uses conservative estimate</li>
+     *   <li>LOADING - async loading in progress, returns 0 (unscanned = no civilization)</li>
      * </ul>
      */
     public QueryResult queryL3Score(ServerWorld level, L3Key key, ScoreComputer scoreComputer) {
@@ -252,7 +256,7 @@ public final class TtlCacheService implements CivilizationCache {
 
         // Check if already loading
         if (loadingTracker.isLoading(loadKey)) {
-            return QueryResult.loading(MAX_CIVILIZATION * L3Key.CELL_COUNT);
+            return QueryResult.loading(UNLOADED_DEFAULT_SCORE);
         }
 
         // Trigger async load
@@ -272,7 +276,7 @@ public final class TtlCacheService implements CivilizationCache {
                     });
         }
 
-        return QueryResult.loading(MAX_CIVILIZATION * L3Key.CELL_COUNT);
+        return QueryResult.loading(UNLOADED_DEFAULT_SCORE);
     }
 
     // ========== L2/L3 direct access ==========
@@ -326,7 +330,7 @@ public final class TtlCacheService implements CivilizationCache {
      * <p>Status descriptions:
      * <ul>
      *   <li>PRECISE - hot cache hit, uses exact value; {@code presenceTime} is valid</li>
-     *   <li>LOADING - async loading from cold storage, uses conservative estimate; decay not applied</li>
+     *   <li>LOADING - async loading from cold storage, returns 0 (unscanned = no civilization); decay not applied</li>
      * </ul>
      */
     public record QueryResult(double score, boolean isPrecise, long presenceTime) {

@@ -37,7 +37,7 @@ public final class TtlPyramidCache implements CivilizationCache {
 
     // Hot cache TTL is in CivilConfig.hotCacheTtlMs
 
-    /** Maximum civilization value (conservative estimate). */
+    /** Maximum civilization value per L1 cell. */
     public static final double MAX_CIVILIZATION = 1.0;
 
     private final long ttlMillis;

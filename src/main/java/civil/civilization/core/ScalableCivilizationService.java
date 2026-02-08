@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 
  * <p>Core features:
  * <ul>
- *   <li>Returns conservative estimate (max civilization value) when data is not loaded, preventing false spawns</li>
+ *   <li>Returns zero score when data is not yet loaded (never-scanned areas have no civilization)</li>
  *   <li>Async loading does not block the main thread</li>
  *   <li>Gradual decay via {@code presenceTime} (ServerClock-based) instead of hard TTL cutoff</li>
  *   <li>Supports large-scale servers (thousands of concurrent players)</li>
@@ -150,8 +150,7 @@ public final class ScalableCivilizationService implements CivilizationService {
 
         // ========== Layer 2: Enumerate real L2 blocks (clipped to hypothetical L2 region) ==========
         // coarseScore is a cumulative value (range [0, 9]), scaled by (effectiveOverlap / 9.0)
-        // L2 uses conservative estimate strategy: LOADING returns conservative estimate (waiting for cold storage load)
-        // Precise results are multiplied by a gradual decay factor based on presenceTime.
+        // L2: LOADING returns 0 (unscanned = no civilization); precise results use gradual decay factor.
         long serverNow = ServerClock.now();
         double l2Sum = 0.0;
         for (L2Key realL2 : findRealL2sInRegion(l2RegionBox)) {
@@ -182,8 +181,7 @@ public final class ScalableCivilizationService implements CivilizationService {
 
         // ========== Layer 3: Enumerate real L3 blocks (clipped to detection box, excluding L2 region) ==========
         // coarseScore is a cumulative value (range [0, 243]), scaled by (effectiveOverlap / 243.0)
-        // L3 uses conservative estimate strategy: LOADING returns conservative estimate (waiting for cold storage load)
-        // Precise results are multiplied by a gradual decay factor based on presenceTime.
+        // L3: LOADING returns 0 (unscanned = no civilization); precise results use gradual decay factor.
         double l3Sum = 0.0;
         for (L3Key realL3 : findRealL3sInRegion(detectionBox)) {
             ChunkBox realBox = ChunkBox.fromL3(realL3);
