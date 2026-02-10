@@ -35,5 +35,15 @@
   "civil.config.slider.recovery": "~%2$dmin \u26a1",
   "civil.config.slider.freshness": "%1$dh",
 
+  "civil.config.subcategory.headAttract": "Mob Head Attraction",
+  "civil.config.subcategory.headAttract.tooltip.1": "Mob heads act as totems that",
+  "civil.config.subcategory.headAttract.tooltip.2": "attract monsters towards them",
+  "civil.config.subcategory.headAttract.tooltip.3": "\u00a77by suppressing distant spawns.",
+
+  "civil.config.simple.headAttractStrength": "Attraction Strength",
+  "civil.config.simple.headAttractRange": "Attraction Range",
+  "civil.config.slider.headAttractStrength": "%1$d (\u03bb%2$s)",
+  "civil.config.slider.headAttractRange": "%1$d blocks",
+
   "civil.config.override.warning": "\u00a7e\u26a0 Advanced override detected in civil.properties. Changing this slider will overwrite your custom value."
 }

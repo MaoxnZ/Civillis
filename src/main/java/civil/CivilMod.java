@@ -1,5 +1,7 @@
 package civil;
 
+import civil.civilization.MobHeadRegistry;
+import civil.civilization.operator.BlockCivilization;
 import civil.component.ModComponents;
 import civil.civilization.cache.TtlCacheService;
 import civil.civilization.structure.SimpleNeighborhoodSampler;
@@ -10,8 +12,13 @@ import civil.civilization.operator.SimpleCivilizationOperator;
 import civil.config.CivilConfig;
 import civil.perf.TpsLogger;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
+import net.minecraft.block.AbstractSkullBlock;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.SkullBlockEntity;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +39,9 @@ public class CivilMod implements ModInitializer {
     /** Cache service (TTL cache + H2 async persistence + gradual decay). */
     private static TtlCacheService cacheService;
 
+    /** Mob head registry (persistent head position tracking for attraction system). */
+    private static MobHeadRegistry mobHeadRegistry;
+
     @Override
     public void onInitialize() {
         CivilConfig.load();
@@ -47,8 +57,10 @@ public class CivilMod implements ModInitializer {
 
         ScalableCivilizationService civilizationService =
                 new ScalableCivilizationService(sampler, List.of((CivilizationOperator) operator), cacheService);
+        mobHeadRegistry = new MobHeadRegistry();
         CivilServices.initCivilizationService(civilizationService);
         CivilServices.initCivilizationCache(cacheService);
+        CivilServices.initMobHeadRegistry(mobHeadRegistry);
         TpsLogger.register();
 
         // Register cache lifecycle events
@@ -74,13 +86,18 @@ public class CivilMod implements ModInitializer {
      * Register cache lifecycle events: initialization, per-tick maintenance, and shutdown.
      */
     private void registerCacheEvents() {
-        // Initialize H2 database and ServerClock when overworld loads
+        // Initialize H2 database, ServerClock, and MobHeadRegistry when overworld loads
         ServerWorldEvents.LOAD.register((server, world) -> {
             if (world.getRegistryKey() == World.OVERWORLD) {
                 if (DEBUG) {
                     LOGGER.info("[civil] Cache service initializing...");
                 }
                 cacheService.initialize(world);
+
+                // Initialize MobHeadRegistry after H2 is ready
+                if (mobHeadRegistry != null) {
+                    mobHeadRegistry.initialize(cacheService.getStorage());
+                }
             }
         });
 
@@ -91,13 +108,34 @@ public class CivilMod implements ModInitializer {
             }
         });
 
-        // Shutdown cache service when overworld unloads
+        // Shutdown cache service and MobHeadRegistry when overworld unloads
         ServerWorldEvents.UNLOAD.register((server, world) -> {
             if (world.getRegistryKey() == World.OVERWORLD) {
                 if (DEBUG) {
                     LOGGER.info("[civil] Cache service shutting down...");
                 }
+                if (mobHeadRegistry != null) {
+                    mobHeadRegistry.shutdown();
+                }
                 cacheService.shutdown();
+            }
+        });
+
+        // Chunk load event: discover pre-existing heads for world upgrade path.
+        // Scans BlockEntities (typically 0-10 per chunk) for skull blocks — negligible cost.
+        ServerChunkEvents.CHUNK_LOAD.register((world, chunk) -> {
+            if (mobHeadRegistry == null || !mobHeadRegistry.isInitialized()) return;
+
+            String dim = world.getRegistryKey().toString();
+            for (BlockPos bePos : chunk.getBlockEntityPositions()) {
+                if (chunk.getBlockEntity(bePos) instanceof SkullBlockEntity) {
+                    BlockState state = chunk.getBlockState(bePos);
+                    if (BlockCivilization.isMonsterHead(state)) {
+                        AbstractSkullBlock skull = (AbstractSkullBlock) state.getBlock();
+                        String skullType = skull.getSkullType().toString();
+                        mobHeadRegistry.onHeadAdded(dim, bePos.getX(), bePos.getY(), bePos.getZ(), skullType);
+                    }
+                }
             }
         });
     }

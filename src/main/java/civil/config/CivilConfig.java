@@ -48,18 +48,25 @@ public final class CivilConfig {
     /** Detection range: box side in blocks, range [112, 496] step 32, default 240. */
     public static int simpleDetectionRange = 240;
 
+    /** Head attraction strength: 1 (weak) to 10 (strong), default 5. Maps to headAttractLambda. */
+    public static int simpleHeadAttractStrength = 5;
+
+    /** Head attraction range: 3-10 slider, val×16 = blocks. Default 8 → 128 blocks. Maps to headAttractMaxRadius. */
+    public static int simpleHeadAttractRange = 8;
+
     // ══════════════════════════════════════════════════════════
     //  Raw override detection
     // ══════════════════════════════════════════════════════════
 
     /** Param group indices for override checking. */
-    public static final int PARAM_FRESHNESS   = 0;
-    public static final int PARAM_DECAY_SPEED = 1;
-    public static final int PARAM_DECAY_FLOOR = 2;
-    public static final int PARAM_RECOVERY    = 3;
-    public static final int PARAM_SPAWN       = 4;
-    public static final int PARAM_RANGE       = 5;
-    private static final boolean[] rawOverrides = new boolean[6];
+    public static final int PARAM_FRESHNESS     = 0;
+    public static final int PARAM_DECAY_SPEED   = 1;
+    public static final int PARAM_DECAY_FLOOR   = 2;
+    public static final int PARAM_RECOVERY      = 3;
+    public static final int PARAM_SPAWN         = 4;
+    public static final int PARAM_RANGE         = 5;
+    public static final int PARAM_HEAD_ATTRACT  = 6;
+    private static final boolean[] rawOverrides = new boolean[7];
 
     /** Whether a raw override was detected for the given simple param group. */
     public static boolean hasRawOverride(int param) {
@@ -73,6 +80,8 @@ public final class CivilConfig {
     private static int loadedSimpleRecoverySpeed;
     private static int loadedSimpleSpawnSuppression;
     private static int loadedSimpleDetectionRange;
+    private static int loadedSimpleHeadAttractStrength;
+    private static int loadedSimpleHeadAttractRange;
 
     /**
      * Compare current simple values to the snapshot taken at load time.
@@ -103,6 +112,12 @@ public final class CivilConfig {
         if (simpleDetectionRange != loadedSimpleDetectionRange) {
             rawOverrides[PARAM_RANGE] = false;
             loadedSimpleDetectionRange = simpleDetectionRange;
+        }
+        if (simpleHeadAttractStrength != loadedSimpleHeadAttractStrength
+                || simpleHeadAttractRange != loadedSimpleHeadAttractRange) {
+            rawOverrides[PARAM_HEAD_ATTRACT] = false;
+            loadedSimpleHeadAttractStrength = simpleHeadAttractStrength;
+            loadedSimpleHeadAttractRange = simpleHeadAttractRange;
         }
     }
 
@@ -150,6 +165,12 @@ public final class CivilConfig {
     public static int headRangeCZ = 1;
     public static int headRangeSY = 0;
 
+    // -- Head Attraction (totem suppression of distant spawns) --
+    public static boolean headAttractEnabled = true;
+    public static double headAttractNearBlocks = 32.0;
+    public static double headAttractMaxRadius = 128.0;
+    public static double headAttractLambda = 0.15;
+
     // -- Cache & Performance --
     public static long hotCacheTtlMs = 30 * 60 * 1000L;
     public static int  clockPersistTicks = 6000;
@@ -182,7 +203,7 @@ public final class CivilConfig {
     // ══════════════════════════════════════════════════════════
 
     /**
-     * Compute internal params from the 6 simple user-facing values.
+     * Compute internal params from the 8 simple user-facing values.
      * <p>Groups with active raw overrides are skipped to preserve the user's
      * manual configuration. During {@link #load()} Phase 3, all override flags
      * are false so everything is computed; the GUI save flow calls
@@ -225,6 +246,12 @@ public final class CivilConfig {
             int radius = (sideChunks - 1) / 2;
             detectionRadiusX = radius;
             detectionRadiusZ = radius;
+        }
+
+        // 7-8. Head attraction strength & range
+        if (!rawOverrides[PARAM_HEAD_ATTRACT]) {
+            headAttractLambda    = 0.03 * simpleHeadAttractStrength;
+            headAttractMaxRadius = simpleHeadAttractRange * 16.0;
         }
     }
 
@@ -270,13 +297,21 @@ public final class CivilConfig {
         // Snap to nearest valid step (odd chunk count): 112, 144, 176, ..., 496
         simpleDetectionRange = snapDetectionRange(simpleDetectionRange);
 
+        simpleHeadAttractStrength = parseInt(p.getProperty("simple.headAttractStrength"), simpleHeadAttractStrength);
+        simpleHeadAttractStrength = Math.max(1, Math.min(10, simpleHeadAttractStrength));
+
+        simpleHeadAttractRange = parseInt(p.getProperty("simple.headAttractRange"), simpleHeadAttractRange);
+        simpleHeadAttractRange = Math.max(3, Math.min(10, simpleHeadAttractRange));
+
         // Snapshot simple values for change detection in GUI save flow
-        loadedSimpleFreshness        = simpleFreshnessDuration;
-        loadedSimpleDecaySpeed       = simpleDecaySpeed;
-        loadedSimpleDecayFloor       = simpleDecayFloor;
-        loadedSimpleRecoverySpeed    = simpleRecoverySpeed;
-        loadedSimpleSpawnSuppression = simpleSpawnSuppression;
-        loadedSimpleDetectionRange   = simpleDetectionRange;
+        loadedSimpleFreshness           = simpleFreshnessDuration;
+        loadedSimpleDecaySpeed          = simpleDecaySpeed;
+        loadedSimpleDecayFloor          = simpleDecayFloor;
+        loadedSimpleRecoverySpeed       = simpleRecoverySpeed;
+        loadedSimpleSpawnSuppression    = simpleSpawnSuppression;
+        loadedSimpleDetectionRange      = simpleDetectionRange;
+        loadedSimpleHeadAttractStrength = simpleHeadAttractStrength;
+        loadedSimpleHeadAttractRange    = simpleHeadAttractRange;
 
         // Reset override flags (important if load() is called more than once)
         java.util.Arrays.fill(rawOverrides, false);
@@ -285,16 +320,18 @@ public final class CivilConfig {
         computeInternalFromSimple();
 
         // Save computed values for override detection
-        double compGracePeriod     = gracePeriodHours;
-        double compDecayLambda     = decayLambda;
-        double compMinDecayFloor   = minDecayFloor;
-        long   compRecoveryCd      = recoveryCooldownMs;
-        double compRecoveryFrac    = recoveryFraction;
-        long   compRecoveryMin     = minRecoveryMs;
-        double compSpawnLow        = spawnThresholdLow;
-        double compSpawnMid        = spawnThresholdMid;
-        int    compDetRadX         = detectionRadiusX;
-        int    compDetRadZ         = detectionRadiusZ;
+        double compGracePeriod        = gracePeriodHours;
+        double compDecayLambda        = decayLambda;
+        double compMinDecayFloor      = minDecayFloor;
+        long   compRecoveryCd         = recoveryCooldownMs;
+        double compRecoveryFrac       = recoveryFraction;
+        long   compRecoveryMin        = minRecoveryMs;
+        double compSpawnLow           = spawnThresholdLow;
+        double compSpawnMid           = spawnThresholdMid;
+        int    compDetRadX            = detectionRadiusX;
+        int    compDetRadZ            = detectionRadiusZ;
+        double compHeadAttractLambda  = headAttractLambda;
+        double compHeadAttractMaxRad  = headAttractMaxRadius;
 
         // ── Phase 4: Load raw overrides (advanced users) ──
         gracePeriodHours   = parseDouble(p.getProperty("decay.gracePeriodHours"), gracePeriodHours);
@@ -325,6 +362,11 @@ public final class CivilConfig {
         headRangeCZ        = parseInt(p.getProperty("range.headRangeCZ"), headRangeCZ);
         headRangeSY        = parseInt(p.getProperty("range.headRangeSY"), headRangeSY);
 
+        headAttractEnabled    = parseBoolean(p.getProperty("headAttract.enabled"), headAttractEnabled);
+        headAttractNearBlocks = parseDouble(p.getProperty("headAttract.nearBlocks"), headAttractNearBlocks);
+        headAttractMaxRadius  = parseDouble(p.getProperty("headAttract.maxRadius"), headAttractMaxRadius);
+        headAttractLambda     = parseDouble(p.getProperty("headAttract.lambda"), headAttractLambda);
+
         hotCacheTtlMs      = parseLong(p.getProperty("cache.hotTtlMs"), hotCacheTtlMs);
         clockPersistTicks  = parseInt(p.getProperty("cache.clockPersistTicks"), clockPersistTicks);
         prefetchL2Radius   = parseInt(p.getProperty("prefetch.l2Radius"), prefetchL2Radius);
@@ -347,6 +389,8 @@ public final class CivilConfig {
                                         || !approxEq(spawnThresholdMid, compSpawnMid);
         rawOverrides[PARAM_RANGE]       = detectionRadiusX != compDetRadX
                                         || detectionRadiusZ != compDetRadZ;
+        rawOverrides[PARAM_HEAD_ATTRACT] = !approxEq(headAttractLambda, compHeadAttractLambda)
+                                        || !approxEq(headAttractMaxRadius, compHeadAttractMaxRad);
 
         // ── Phase 6: Write default file if not present ──
         if (!Files.isRegularFile(file)) {
@@ -386,6 +430,8 @@ public final class CivilConfig {
             sb.append("simple.recoverySpeed=").append(simpleRecoverySpeed).append('\n');
             sb.append("simple.spawnSuppression=").append(simpleSpawnSuppression).append('\n');
             sb.append("simple.detectionRange=").append(simpleDetectionRange).append('\n');
+            sb.append("simple.headAttractStrength=").append(simpleHeadAttractStrength).append('\n');
+            sb.append("simple.headAttractRange=").append(simpleHeadAttractRange).append('\n');
             sb.append('\n');
 
             // Raw overrides: uncommented if active, commented otherwise
@@ -395,6 +441,7 @@ public final class CivilConfig {
             String pRecov  = rawOverrides[PARAM_RECOVERY]    ? "" : "#";
             String pSpawn  = rawOverrides[PARAM_SPAWN]       ? "" : "#";
             String pRange  = rawOverrides[PARAM_RANGE]       ? "" : "#";
+            String pHead   = rawOverrides[PARAM_HEAD_ATTRACT] ? "" : "#";
 
             sb.append("# ── Advanced: Decay & Recovery (uncomment to override) ──\n");
             sb.append(pFresh).append("decay.gracePeriodHours=").append(gracePeriodHours).append('\n');
@@ -431,6 +478,13 @@ public final class CivilConfig {
             sb.append("#range.headRangeCX=").append(headRangeCX).append('\n');
             sb.append("#range.headRangeCZ=").append(headRangeCZ).append('\n');
             sb.append("#range.headRangeSY=").append(headRangeSY).append('\n');
+            sb.append('\n');
+
+            sb.append("# ── Advanced: Head Attraction (totem spawn suppression) ──\n");
+            sb.append("#headAttract.enabled=").append(headAttractEnabled).append('\n');
+            sb.append("#headAttract.nearBlocks=").append(headAttractNearBlocks).append('\n');
+            sb.append(pHead).append("headAttract.maxRadius=").append(headAttractMaxRadius).append('\n');
+            sb.append(pHead).append("headAttract.lambda=").append(headAttractLambda).append('\n');
             sb.append('\n');
 
             sb.append("# ── Advanced: Cache & Performance ──\n");

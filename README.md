@@ -14,10 +14,10 @@ Leave for too long, and nature slowly reclaims its ground. But a well-establishe
 
 ## How It Works
 
-The mod evaluates a 240×240×48 block area around each potential spawn point and computes a **civilization score** based on nearby structures. Blocks that reflect human presence — furnaces, beds, campfires, beacons, workstations, and others like them — are what the mod looks for.
+The mod evaluates a 240×240×48 block area (configurable) around each potential spawn point and computes a **civilization score** based on nearby structures. Blocks that reflect human presence — furnaces, beds, campfires, beacons, workstations, and others like them — are what the mod looks for.
 
 - **Settle and grow → safer land.** A thriving city can push monsters back ~90 blocks from its borders.
-- **Leave for a while → gradual decay.** After 24 hours without visits, protection weakens — but a large settlement still keeps a ~40-block safe perimeter.
+- **Leave for a while → gradual decay.** Over time without visits, protection weakens — but a large settlement still keeps a ~40-block safe perimeter.
 - **A small cabin → modest protection.** A lone outpost won't create a fortress, but it helps.
 
 ## Features
@@ -32,13 +32,13 @@ Want danger back? Place a monster skull to override the protection. A skeleton s
 Craft a detector from a compass surrounded by emeralds, and scan your local civilization level. Color-coded visual feedback and custom sound cues tell you exactly how safe — or exposed — your surroundings are.
 
 ### ⏳ Civilization Decay
-The world doesn't stay tamed forever. Unvisited areas gradually lose their protection over 24 hours, creating a living, breathing sense of territory that rewards active presence.
+The world doesn't stay tamed forever. Unvisited areas gradually lose their protection over time, creating a living, breathing sense of territory that rewards active presence.
 
 ### 🖥️ Server-Ready
 Built from the ground up for multiplayer. Async database persistence and player-aware cache prefetching keep performance smooth even on large servers with many players exploring vast worlds.
 
 ## Requirements
 
-- Minecraft **1.21.11**
+- Minecraft **1.21.1 ~ 1.21.11**
 - Fabric Loader **≥ 0.18.2**
 - [Fabric API](https://modrinth.com/mod/fabric-api)

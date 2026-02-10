@@ -176,6 +176,46 @@ public final class CivilConfigScreen {
 
         cat.addEntry(decay.build());
 
+        // ── 4. Head Attraction (collapsible) ──
+        SubCategoryBuilder headAttract = eb.startSubCategory(
+                Text.translatable("civil.config.subcategory.headAttract"));
+        headAttract.setExpanded(false);
+        headAttract.setTooltip(
+                Text.translatable("civil.config.subcategory.headAttract.tooltip.1"),
+                Text.translatable("civil.config.subcategory.headAttract.tooltip.2"),
+                Text.translatable("civil.config.subcategory.headAttract.tooltip.3"));
+
+        // 4a. Attraction Strength (1-10) → headAttractLambda
+        if (CivilConfig.hasRawOverride(CivilConfig.PARAM_HEAD_ATTRACT)) {
+            headAttract.add(eb.startTextDescription(
+                    Text.translatable("civil.config.override.warning")).build());
+        }
+        headAttract.add(eb.startIntSlider(
+                        Text.translatable("civil.config.simple.headAttractStrength"),
+                        CivilConfig.simpleHeadAttractStrength, 1, 10)
+                .setDefaultValue(5)
+                .setTextGetter(val -> {
+                    double lambda = 0.03 * val;
+                    String lambdaStr = String.format("%.2f", lambda);
+                    return Text.translatable("civil.config.slider.headAttractStrength", val, lambdaStr);
+                })
+                .setSaveConsumer(v -> CivilConfig.simpleHeadAttractStrength = v)
+                .build());
+
+        // 4b. Attraction Range (3-10) → headAttractMaxRadius (val × 16 blocks)
+        headAttract.add(eb.startIntSlider(
+                        Text.translatable("civil.config.simple.headAttractRange"),
+                        CivilConfig.simpleHeadAttractRange, 3, 10)
+                .setDefaultValue(8)
+                .setTextGetter(val -> {
+                    int blocks = val * 16;
+                    return Text.translatable("civil.config.slider.headAttractRange", blocks);
+                })
+                .setSaveConsumer(v -> CivilConfig.simpleHeadAttractRange = v)
+                .build());
+
+        cat.addEntry(headAttract.build());
+
         return builder.build();
     }
 }

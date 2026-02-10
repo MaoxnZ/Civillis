@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.2.0-alpha]
+
+### Added
+
+- **Mob heads are now true totems**: Monster skulls no longer just
+  allow spawns nearby — they actively pull hostile mobs toward them
+  from across the dimension. Place a skeleton skull and watch
+  monsters converge on it, even from deep underground caves. No more
+  lighting up every last tunnel or building your mob farm in the sky
+  — let the totems do the work
+- **Configurable attraction**: Adjust how strongly and how far totems
+  attract mobs through the in-game settings GUI (Mod Menu + Cloth
+  Config). Dial it up for a powerful funnel, or tone it down for a
+  subtler nudge
+
+### Note
+
+The totem attraction is a significant suppression of distant spawns,
+not a 100% redirect. For absolute peak mob farm efficiency, traditional
+techniques (like building above the spawn cap height) still give that
+last few percent. But for most players, a handful of skulls is all you
+need. Mix and match different skull types to further control the ratio
+of mobs that show up.
+
+Civillis won't break your farms, it only makes them better.
+
 ## [1.1.1-alpha]
 
 ### Added

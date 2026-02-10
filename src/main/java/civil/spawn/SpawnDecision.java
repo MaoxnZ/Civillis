@@ -15,6 +15,7 @@ public record SpawnDecision(boolean block, double score, String branch, List<Ent
     public static final String BRANCH_LOW = "LOW";
     public static final String BRANCH_MID = "MID";
     public static final String BRANCH_HIGH = "HIGH";
+    public static final String BRANCH_HEAD_SUPPRESS = "HEAD_SUPPRESS";
 
     /** Use empty list when no head information. */
     public SpawnDecision(boolean block, double score, String branch) {

@@ -52,7 +52,7 @@ public final class H2Storage {
      * Increment this when making breaking changes to table structure,
      * and add a corresponding migration case in {@link #runMigrations(int)}.
      */
-    static final int CURRENT_SCHEMA_VERSION = 2;
+    static final int CURRENT_SCHEMA_VERSION = 3;
 
     /**
      * Declarative column registry: columns that may not exist in older databases.
@@ -154,6 +154,10 @@ public final class H2Storage {
         // Self-healing regardless of schema_version — handles intermediate builds,
         // branch switches, version mismatches, or any other schema drift.
         ensureExpectedColumns();
+
+        // Table-level self-healing: ensure required tables exist regardless of
+        // schema_version. Uses CREATE TABLE IF NOT EXISTS — fully idempotent.
+        ensureExpectedTables();
     }
 
     /**
@@ -196,6 +200,29 @@ public final class H2Storage {
                     stmt.execute(alterSql);
                 }
             }
+        }
+    }
+
+    /**
+     * Table-level schema repair: ensure all required tables exist, regardless of
+     * {@code schema_version}. Uses {@code CREATE TABLE IF NOT EXISTS} — fully
+     * idempotent and self-healing.
+     *
+     * <p>This catches edge cases where the migration ran but the table was not
+     * created (intermediate builds, branch switches, etc.).
+     */
+    private void ensureExpectedTables() throws SQLException {
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS mob_heads (
+                    dim VARCHAR(255) NOT NULL,
+                    x INT NOT NULL,
+                    y INT NOT NULL,
+                    z INT NOT NULL,
+                    skull_type VARCHAR(64) NOT NULL,
+                    PRIMARY KEY (dim, x, y, z)
+                )
+            """);
         }
     }
 
@@ -290,6 +317,20 @@ public final class H2Storage {
                             LOGGER.info("[civil-storage] Migrating v1 -> v2: adding presence_time to l2/l3_cache");
                             stmt.execute("ALTER TABLE l2_cache ADD COLUMN IF NOT EXISTS presence_time BIGINT DEFAULT 0");
                             stmt.execute("ALTER TABLE l3_cache ADD COLUMN IF NOT EXISTS presence_time BIGINT DEFAULT 0");
+                            break;
+                        case 2:
+                            // v2 -> v3: create mob_heads table for head attraction system
+                            LOGGER.info("[civil-storage] Migrating v2 -> v3: creating mob_heads table");
+                            stmt.execute("""
+                                CREATE TABLE IF NOT EXISTS mob_heads (
+                                    dim VARCHAR(255) NOT NULL,
+                                    x INT NOT NULL,
+                                    y INT NOT NULL,
+                                    z INT NOT NULL,
+                                    skull_type VARCHAR(64) NOT NULL,
+                                    PRIMARY KEY (dim, x, y, z)
+                                )
+                            """);
                             break;
                         default:
                             throw new SQLException(
@@ -671,6 +712,80 @@ public final class H2Storage {
         }, ioExecutor);
     }
 
+    // ========== Mob heads operations ==========
+
+    /**
+     * Load all mob head positions from H2. Synchronous — called once at startup.
+     *
+     * @return list of all stored mob heads (typically 10-100 entries; empty for fresh/upgraded worlds)
+     */
+    public List<StoredMobHead> loadAllMobHeads() {
+        List<StoredMobHead> results = new ArrayList<>();
+        String sql = "SELECT dim, x, y, z, skull_type FROM mob_heads";
+        try (PreparedStatement ps = connection.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                results.add(new StoredMobHead(
+                        rs.getString("dim"),
+                        rs.getInt("x"),
+                        rs.getInt("y"),
+                        rs.getInt("z"),
+                        rs.getString("skull_type")
+                ));
+            }
+        } catch (SQLException e) {
+            LOGGER.warn("[civil-storage] Failed to load mob heads: {}", e.getMessage());
+        }
+        return results;
+    }
+
+    /**
+     * Persist a newly discovered or placed mob head. Async — does not block server thread.
+     * Uses MERGE (upsert) so duplicate inserts are harmless.
+     */
+    public CompletableFuture<Void> saveMobHeadAsync(String dim, int x, int y, int z, String skullType) {
+        if (closed) return CompletableFuture.completedFuture(null);
+
+        return CompletableFuture.runAsync(() -> {
+            String sql = """
+                MERGE INTO mob_heads (dim, x, y, z, skull_type)
+                KEY (dim, x, y, z)
+                VALUES (?, ?, ?, ?, ?)
+            """;
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, dim);
+                ps.setInt(2, x);
+                ps.setInt(3, y);
+                ps.setInt(4, z);
+                ps.setString(5, skullType);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                LOGGER.warn("[civil-storage] Failed to save mob head at ({},{},{}): {}", x, y, z, e.getMessage());
+            }
+        }, ioExecutor);
+    }
+
+    /**
+     * Remove a mob head that was broken. Async — does not block server thread.
+     * No-op if the head does not exist in H2.
+     */
+    public CompletableFuture<Void> deleteMobHeadAsync(String dim, int x, int y, int z) {
+        if (closed) return CompletableFuture.completedFuture(null);
+
+        return CompletableFuture.runAsync(() -> {
+            String sql = "DELETE FROM mob_heads WHERE dim=? AND x=? AND y=? AND z=?";
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, dim);
+                ps.setInt(2, x);
+                ps.setInt(3, y);
+                ps.setInt(4, z);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                LOGGER.warn("[civil-storage] Failed to delete mob head at ({},{},{}): {}", x, y, z, e.getMessage());
+            }
+        }, ioExecutor);
+    }
+
     // ========== Batch save ==========
 
     /**
@@ -766,4 +881,5 @@ public final class H2Storage {
     public record StoredL2Entry(L2Key key, L2Entry l2Entry, long createTime) {}
     public record StoredL3Entry(L3Key key, L3Entry l3Entry, long createTime) {}
     public record L1SaveRequest(String dim, VoxelChunkKey key, CScore cScore) {}
+    public record StoredMobHead(String dim, int x, int y, int z, String skullType) {}
 }

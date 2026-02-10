@@ -320,6 +320,13 @@ public final class TtlCacheService implements CivilizationCache {
         return cache;
     }
 
+    /**
+     * Get the underlying H2 storage (for MobHeadRegistry initialization).
+     */
+    public H2Storage getStorage() {
+        return storage;
+    }
+
     // ========== Query result (L2/L3 only) ==========
 
     /**
