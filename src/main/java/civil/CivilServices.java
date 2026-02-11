@@ -2,14 +2,15 @@ package civil;
 
 import civil.civilization.MobHeadRegistry;
 import civil.civilization.cache.CivilizationCache;
+import civil.civilization.cache.ResultCache;
 import civil.civilization.core.CivilizationService;
+import civil.civilization.core.ScalableCivilizationService;
 
 /**
  * Global service access entry point for Civil module.
  *
- * Exposes civilization scoring service, civilization cache
- * (for markChunkDirtyAt etc. when blocks change), and mob head registry
- * (for head attraction system).
+ * Exposes civilization scoring service, civilization cache (L1 read/write),
+ * result cache, and mob head registry (for head attraction system).
  */
 public final class CivilServices {
 
@@ -36,7 +37,7 @@ public final class CivilServices {
         return civilizationService;
     }
 
-    /** Civilization cache, used for markChunkDirtyAt when blocks change. null if not initialized. */
+    /** Civilization cache (L1 read/write). null if not initialized. */
     public static CivilizationCache getCivilizationCache() {
         return civilizationCache;
     }
@@ -44,5 +45,28 @@ public final class CivilServices {
     /** Mob head registry for head attraction system. null if not initialized. */
     public static MobHeadRegistry getMobHeadRegistry() {
         return mobHeadRegistry;
+    }
+
+    /**
+     * Get the result cache from the ScalableCivilizationService.
+     * Used for delta propagation and result shard maintenance.
+     * Returns null if the service is not a ScalableCivilizationService.
+     */
+    public static ResultCache getResultCache() {
+        if (civilizationService instanceof ScalableCivilizationService scs) {
+            return scs.getResultCache();
+        }
+        return null;
+    }
+
+    /**
+     * Get the ScalableCivilizationService for delta propagation.
+     * Returns null if the service is not a ScalableCivilizationService.
+     */
+    public static ScalableCivilizationService getScalableService() {
+        if (civilizationService instanceof ScalableCivilizationService scs) {
+            return scs;
+        }
+        return null;
     }
 }

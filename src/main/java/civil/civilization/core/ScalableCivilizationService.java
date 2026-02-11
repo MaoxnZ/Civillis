@@ -4,392 +4,341 @@ import civil.CivilMod;
 import civil.civilization.CScore;
 import civil.config.CivilConfig;
 import civil.civilization.ServerClock;
+import civil.civilization.cache.ResultCache;
+import civil.civilization.cache.ResultEntry;
 import civil.civilization.cache.TtlCacheService;
-import civil.civilization.cache.TtlCacheService.QueryResult;
-import civil.civilization.structure.*;
-import civil.civilization.operator.CivilComputeContext;
-import civil.civilization.operator.CivilizationOperator;
-import net.minecraft.entity.EntityType;
+import civil.civilization.structure.VoxelChunkKey;
+import civil.civilization.operator.BlockCivilization;
+import net.minecraft.block.BlockState;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.chunk.Chunk;
+import net.minecraft.world.chunk.ChunkSection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
+
 
 /**
- * Civilization scoring service: TTL cache + H2 persistence + gradual decay.
- * 
- * <p>Core features:
+ * Fusion Architecture civilization scoring service.
+ *
+ * <p>Two-layer cache system:
  * <ul>
- *   <li>Returns zero score when data is not yet loaded (never-scanned areas have no civilization)</li>
- *   <li>Async loading does not block the main thread</li>
- *   <li>Gradual decay via {@code presenceTime} (ServerClock-based) instead of hard TTL cutoff</li>
- *   <li>Supports large-scale servers (thousands of concurrent players)</li>
+ *   <li><b>L1 Info Shards</b>: per-VC raw score, palette-accelerated, H2-persisted</li>
+ *   <li><b>Result Shards</b>: pre-aggregated coreSum/outerSum, O(1) spawn-check query</li>
  * </ul>
+ *
+ * <p>Spawn checks hit the result cache (O(1), ~50ns). Block changes trigger
+ * palette L1 recompute + delta propagation to result shards (~13μs total).
+ *
+ * <p>L1 computation is inlined: a single 4096-block pass reads world block states
+ * directly and accumulates weights via {@link BlockCivilization#getBlockWeight}.
+ * The old VoxelRegion / Sampler / Operator abstraction layers are removed.
  */
 public final class ScalableCivilizationService implements CivilizationService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("civil-scalable");
-    
-    /** Log sampling rate: output detailed log every N calls. */
-    private static final int LOG_SAMPLE_RATE = 100;
-    private final AtomicInteger callCounter = new AtomicInteger(0);
 
-    // All tunable parameters are in CivilConfig.
+    // (callCounter / LOG_SAMPLE_RATE removed — debug logging is now gated entirely by CivilMod.DEBUG)
 
-    /** Face-adjacent 6 directions. */
-    private static final int[][] FACE_OFFSETS = {
-            {1, 0, 0}, {-1, 0, 0},
-            {0, 1, 0}, {0, -1, 0},
-            {0, 0, 1}, {0, 0, -1}
-    };
-
-    private final NeighborhoodSampler sampler;
-    private final List<CivilizationOperator> operators;
     private final TtlCacheService cacheService;
+    private final ResultCache resultCache;
 
-    public ScalableCivilizationService(
-            NeighborhoodSampler sampler,
-            List<CivilizationOperator> operators,
-            TtlCacheService cacheService) {
-        this.sampler = Objects.requireNonNull(sampler, "sampler");
-        this.operators = List.copyOf(operators);
+    public ScalableCivilizationService(TtlCacheService cacheService) {
         this.cacheService = Objects.requireNonNull(cacheService, "cacheService");
+        this.resultCache = new ResultCache();
     }
+
+    /** Access the result cache (for delta propagation, TTL cleanup, etc.). */
+    public ResultCache getResultCache() {
+        return resultCache;
+    }
+
+    // ========== CivilizationService interface ==========
 
     @Override
     public double getScoreAt(ServerWorld world, BlockPos pos) {
         return getCScoreAt(world, pos).score();
     }
 
+    /**
+     * Fusion Architecture: O(1) spawn-check via result shard cache.
+     *
+     * <p>Flow:
+     * <ol>
+     *   <li>Result cache hit + config valid → O(1) read (~50ns)</li>
+     *   <li>Result cache hit + config invalid → recompute from L1 shards (~34μs)</li>
+     *   <li>Result cache miss → compute from L1 shards (~34μs), cache result</li>
+     * </ol>
+     *
+     * <p>Monster head detection is handled separately by MobHeadRegistry
+     * (queried directly in SpawnPolicy and CivilDetectorItem).
+     */
     @Override
     public CScore getCScoreAt(ServerWorld world, BlockPos pos) {
-        long startTimeUs = System.nanoTime() / 1000;
-        int callNum = callCounter.incrementAndGet();
-        boolean shouldLog = CivilMod.DEBUG && (callNum % LOG_SAMPLE_RATE == 0);
-        
-        if (operators.isEmpty()) {
-            return new CScore(0.0, List.of());
+        long startTimeUs = CivilMod.DEBUG ? System.nanoTime() / 1000 : 0;
+
+        VoxelChunkKey centerVC = VoxelChunkKey.from(pos);
+
+        // O(1) result shard lookup (or lazy compute on miss)
+        ResultEntry entry = resultCache.getOrCompute(world, centerVC, this::computeResultEntry);
+        double score = entry.getEffectiveScore(ServerClock.now());
+
+        if (CivilMod.DEBUG) {
+            long elapsedUs = System.nanoTime() / 1000 - startTimeUs;
+            String dimName = world.getRegistryKey().getValue().toString();
+            long serverNow = ServerClock.now();
+            double freshness = ResultEntry.computeDecayFactor(serverNow, entry.getPresenceTime());
+
+            LOGGER.info("[civil-fusion-score] dim={} cx={} cz={} sy={} score={} raw={} freshness={} elapsed_us={}",
+                    dimName, centerVC.getCx(), centerVC.getCz(), centerVC.getSy(),
+                    String.format("%.4f", score),
+                    String.format("%.4f", entry.getRawScore(serverNow)),
+                    String.format("%.4f", freshness),
+                    elapsedUs);
         }
 
-        VoxelChunkKey centerChunk = VoxelChunkKey.from(pos);
-        int cx0 = centerChunk.getCx();
-        int cz0 = centerChunk.getCz();
-        int sy0 = centerChunk.getSy();
+        return new CScore(score);
+    }
 
-        // Pre-compute dimension info
-        String dimName = shouldLog ? world.getRegistryKey().toString() : null;
-        
-        // Pre-compute dimension Y bounds to avoid repeated queries
+    // ========== Result shard computation ==========
+
+    /**
+     * Compute a fresh result entry by aggregating all L1 shards within detection range.
+     *
+     * <p>For each L1 shard in [-rx, rx] × [-rz, rz] × [-ry, ry]:
+     * <ul>
+     *   <li>Retrieve L1 score from hot cache (or compute synchronously on miss)</li>
+     *   <li>Apply distance-based weight</li>
+     *   <li>Accumulate into coreSum (within coreRadius) or outerSum (outside)</li>
+     * </ul>
+     *
+     * <p>Cost: ~675 HashMap lookups × ~50ns = ~34μs (all L1 pre-filled by chunk load)
+     */
+    private ResultEntry computeResultEntry(ServerWorld world, VoxelChunkKey centerVC) {
+        double coreSum = 0.0;
+        double outerSum = 0.0;
+
+        int rx = CivilConfig.detectionRadiusX;
+        int rz = CivilConfig.detectionRadiusZ;
+        int ry = CivilConfig.detectionRadiusY;
+
         var dim = world.getDimension();
         int dimMinY = dim.minY();
         int dimMaxY = dimMinY + dim.height() - 1;
 
-        // ========== Define regions ==========
-        ChunkBox coreBox = ChunkBox.centered(cx0, cz0, sy0, CivilConfig.coreRadiusX, CivilConfig.coreRadiusZ, CivilConfig.coreRadiusY);
-        ChunkBox brushBox = ChunkBox.centered(cx0, cz0, sy0, CivilConfig.brushRadiusX, CivilConfig.brushRadiusZ, CivilConfig.brushRadiusY);
-        ChunkBox l2RegionBox = ChunkBox.centered(cx0, cz0, sy0, 4, 4, 1);  // 9x9x3 (hypothetical L2 region)
-        ChunkBox detectionBox = ChunkBox.centered(cx0, cz0, sy0, CivilConfig.detectionRadiusX, CivilConfig.detectionRadiusZ, CivilConfig.detectionRadiusY);
+        for (int dx = -rx; dx <= rx; dx++) {
+            for (int dz = -rz; dz <= rz; dz++) {
+                for (int dy = -ry; dy <= ry; dy++) {
+                    VoxelChunkKey shard = centerVC.offset(dx, dz, dy);
 
-        // ========== Layer 1: Brush range ==========
-        // The brush range is the core area for spawn decisions; L1 does not use cold storage.
-        // Hot cache hits are used directly; misses are computed synchronously.
-        Map<VoxelChunkKey, Double> chunkScoreMatrix = new HashMap<>();
-        boolean anyForceAllow = false;
-        List<EntityType<?>> allHeadTypes = new ArrayList<>();
+                    // Skip out-of-dimension shards
+                    if (!shard.isValidIn(world, dimMinY, dimMaxY)) continue;
 
-        for (VoxelChunkKey l1 : brushBox.allChunks()) {
-            // Skip chunks outside dimension bounds
-            if (!l1.isValidIn(world, dimMinY, dimMaxY)) {
-                continue;
-            }
-            
-            // L1: check hot cache directly, compute synchronously on miss
-            CScore cScore = cacheService.getChunkCScore(world, l1)
-                    .orElseGet(() -> computeAndCacheL1(world, l1));
+                    // Get L1 score: hot cache hit or synchronous compute
+                    double l1Score = getL1Score(world, shard);
+                    if (l1Score <= 0.0) continue;
 
-            boolean inMonsterHeadRange = isWithinMonsterHeadRange(l1, centerChunk);
-            if (cScore.isForceAllow() && inMonsterHeadRange) {
-                anyForceAllow = true;
-            }
-            if (inMonsterHeadRange && cScore.headTypes() != null) {
-                allHeadTypes.addAll(cScore.headTypes());
-            }
+                    // Euclidean distance squared — no sqrt needed since weight uses d²
+                    double distSq = dx * dx + dz * dz + dy * dy;
+                    double weight = 1.0 / (1.0 + CivilConfig.distanceAlphaSq * distSq);
+                    double contribution = l1Score * weight;
 
-            chunkScoreMatrix.put(l1, cScore.score());
-        }
-
-        // If any monster head in range, skip expensive L2/L3 queries — heads override spawn blocking
-        if (anyForceAllow) {
-            return new CScore(0.0, Collections.unmodifiableList(allHeadTypes));
-        }
-
-        // Compute core region score (with cohesion)
-        double coreSum = 0.0;
-        for (VoxelChunkKey l1 : coreBox.allChunks()) {
-            Double score = chunkScoreMatrix.get(l1);
-            if (score != null) {
-                coreSum += score * weightForChunk(l1, centerChunk);
-            }
-        }
-        double cohesion = computeCohesion(chunkScoreMatrix, centerChunk, coreBox);
-        coreSum += cohesion;
-
-        // Compute brush-inner, core-outer score
-        double brushOuterSum = 0.0;
-        for (VoxelChunkKey l1 : brushBox.allChunks()) {
-            if (!coreBox.contains(l1)) {
-                Double score = chunkScoreMatrix.get(l1);
-                if (score != null) {
-                    brushOuterSum += score * weightForChunk(l1, centerChunk);
+                    // Core/outer split: axis-aligned box check (each axis independent)
+                    boolean inCore = Math.abs(dx) <= CivilConfig.coreRadiusX
+                                  && Math.abs(dz) <= CivilConfig.coreRadiusZ
+                                  && Math.abs(dy) <= CivilConfig.coreRadiusY;
+                    if (inCore) {
+                        coreSum += contribution;
+                    } else {
+                        outerSum += contribution;
+                    }
                 }
             }
         }
 
-        // ========== Layer 2: Enumerate real L2 blocks (clipped to hypothetical L2 region) ==========
-        // coarseScore is a cumulative value (range [0, 9]), scaled by (effectiveOverlap / 9.0)
-        // L2: LOADING returns 0 (unscanned = no civilization); precise results use gradual decay factor.
-        long serverNow = ServerClock.now();
-        double l2Sum = 0.0;
-        for (L2Key realL2 : findRealL2sInRegion(l2RegionBox)) {
-            ChunkBox realBox = ChunkBox.fromL2(realL2);
-            int overlapWithRegion = realBox.countOverlap(l2RegionBox);
-            int overlapWithBrush = realBox.countOverlap(brushBox);
-            int effectiveOverlap = overlapWithRegion - overlapWithBrush;
-            if (effectiveOverlap <= 0) continue;
-
-            QueryResult l2Result = cacheService.queryL2Score(world, realL2, this::computeL1Score);
-            double coarseScore = l2Result.score();
-
-            // Apply gradual decay factor for precise results (LOADING uses conservative estimate, no extra decay)
-            double decay = l2Result.isPrecise()
-                    ? L2Entry.computeDecayFactor(serverNow, l2Result.presenceTime())
-                    : 1.0;
-            
-            // Sampled log
-            if (shouldLog) {
-                String status = l2Result.isPrecise() ? "HIT" : "LOADING";
-                LOGGER.info("[civil-scalable-query] layer=L2 dim={} key={},{},{} status={} score={} decay={}",
-                        dimName, realL2.getC2x(), realL2.getC2z(), realL2.getS2y(), status, coarseScore,
-                        String.format("%.3f", decay));
-            }
-            
-            l2Sum += coarseScore * decay * (effectiveOverlap / 9.0) * weightForChunk(realBox.center(), centerChunk);
+        // Restore persisted presenceTime / lastRecoveryTime from H2 if available.
+        // Without this, TTL eviction would permanently lose decay state.
+        String dimKey = world.getRegistryKey().toString();
+        long[] persisted = cacheService.getStorage().loadPresenceSync(dimKey, centerVC);
+        if (persisted != null) {
+            return new ResultEntry(coreSum, outerSum, persisted[0], persisted[1]);
         }
-
-        // ========== Layer 3: Enumerate real L3 blocks (clipped to detection box, excluding L2 region) ==========
-        // coarseScore is a cumulative value (range [0, 243]), scaled by (effectiveOverlap / 243.0)
-        // L3: LOADING returns 0 (unscanned = no civilization); precise results use gradual decay factor.
-        double l3Sum = 0.0;
-        for (L3Key realL3 : findRealL3sInRegion(detectionBox)) {
-            ChunkBox realBox = ChunkBox.fromL3(realL3);
-            int overlapWithDetection = realBox.countOverlap(detectionBox);
-            int overlapWithL2Region = realBox.countOverlap(l2RegionBox);
-            int effectiveOverlap = overlapWithDetection - overlapWithL2Region;
-            if (effectiveOverlap <= 0) continue;
-
-            QueryResult l3Result = cacheService.queryL3Score(world, realL3, this::computeL1Score);
-            double coarseScore = l3Result.score();
-
-            // Apply gradual decay factor for precise results
-            double decay = l3Result.isPrecise()
-                    ? L3Entry.computeDecayFactor(serverNow, l3Result.presenceTime())
-                    : 1.0;
-            
-            // Sampled log
-            if (shouldLog) {
-                String status = l3Result.isPrecise() ? "HIT" : "LOADING";
-                LOGGER.info("[civil-scalable-query] layer=L3 dim={} key={},{},{} status={} score={} decay={}",
-                        dimName, realL3.getC3x(), realL3.getC3z(), realL3.getS3y(), status, coarseScore,
-                        String.format("%.3f", decay));
-            }
-            
-            l3Sum += coarseScore * decay * (effectiveOverlap / 243.0) * weightForChunk(realBox.center(), centerChunk);
-        }
-
-        // ========== Merge ==========
-        double totalRaw = coreSum + brushOuterSum + l2Sum + l3Sum;
-        double score = sigmoid(totalRaw);
-        
-        // Sampled log
-        if (shouldLog) {
-            long elapsedUs = System.nanoTime() / 1000 - startTimeUs;
-            int l1Count = chunkScoreMatrix.size();
-            // Estimate L2/L3 usage count
-            int l2Count = findRealL2sInRegion(l2RegionBox).size();
-            int l3Count = findRealL3sInRegion(detectionBox).size();
-            LOGGER.info("[civil-scalable-brush] dim={} pos={},{},{} l1_count={} l2_count={} l3_count={} total_score={} elapsed_us={}",
-                    dimName, pos.getX(), pos.getY(), pos.getZ(), 
-                    l1Count, l2Count, l3Count, String.format("%.3f", totalRaw), elapsedUs);
-        }
-        
-        return new CScore(score, Collections.unmodifiableList(allHeadTypes));
+        return new ResultEntry(coreSum, outerSum, ServerClock.now());
     }
 
-    // ========== Real block enumeration ==========
+    // ========== L1 score access ==========
 
     /**
-     * Find all real L2 blocks that intersect with the region.
+     * Get L1 score for a single shard.
+     *
+     * <p>Lookup chain: hot cache → H2 cold storage → palette recompute.
+     * The cold storage check is a safety net for the rare case where a shard
+     * has been TTL-evicted but the prefetcher hasn't refreshed it yet (~0.1ms).
      */
-    private List<L2Key> findRealL2sInRegion(ChunkBox region) {
-        L2Key min = L2Key.from(region.getMinCx(), region.getMinCz(), region.getMinSy());
-        L2Key max = L2Key.from(region.getMaxCx(), region.getMaxCz(), region.getMaxSy());
-        List<L2Key> result = new ArrayList<>();
-        for (int s2y = min.getS2y(); s2y <= max.getS2y(); s2y++) {
-            for (int c2z = min.getC2z(); c2z <= max.getC2z(); c2z++) {
-                for (int c2x = min.getC2x(); c2x <= max.getC2x(); c2x++) {
-                    result.add(new L2Key(c2x, c2z, s2y));
-                }
-            }
+    private double getL1Score(ServerWorld world, VoxelChunkKey key) {
+        // 1. Hot cache hit (typical case — prefetcher keeps entries alive)
+        Optional<CScore> cached = cacheService.getChunkCScore(world, key);
+        if (cached.isPresent()) {
+            return cached.get().score();
         }
-        return result;
-    }
 
-    /**
-     * Find all real L3 blocks that intersect with the region.
-     */
-    private List<L3Key> findRealL3sInRegion(ChunkBox region) {
-        L3Key min = L3Key.from(region.getMinCx(), region.getMinCz(), region.getMinSy());
-        L3Key max = L3Key.from(region.getMaxCx(), region.getMaxCz(), region.getMaxSy());
-        List<L3Key> result = new ArrayList<>();
-        for (int s3y = min.getS3y(); s3y <= max.getS3y(); s3y++) {
-            for (int c3z = min.getC3z(); c3z <= max.getC3z(); c3z++) {
-                for (int c3x = min.getC3x(); c3x <= max.getC3x(); c3x++) {
-                    result.add(new L3Key(c3x, c3z, s3y));
-                }
-            }
+        // 2. H2 cold storage (TTL-evicted but persisted — sync single-row lookup)
+        Double coldScore = cacheService.getStorage().loadL1Sync(
+                world.getRegistryKey().toString(), key);
+        if (coldScore != null) {
+            CScore restored = new CScore(coldScore);
+            cacheService.putChunkCScore(world, key, restored); // re-fill hot cache
+            return coldScore;
         }
-        return result;
+
+        // 3. Both miss — full palette + operator recompute
+        return computeAndCacheL1(world, key).score();
     }
 
     // ========== L1 computation ==========
 
     /**
      * Compute L1 score and write to cache.
-     * 
-     * <p>L1 does not use cold storage; computed synchronously on cache miss.
-     * Results are written to hot cache with cascade updates to L2/L3.
+     * Uses palette pre-filter (ChunkSection.hasAny) to skip empty sections.
      */
-    private CScore computeAndCacheL1(ServerWorld world, VoxelChunkKey key) {
+    CScore computeAndCacheL1(ServerWorld world, VoxelChunkKey key) {
         if (!key.isValidIn(world)) {
-            return new CScore(0.0, List.of());
+            return new CScore(0.0);
         }
-        long startUs = System.nanoTime() / 1000;
+        // Guard: if the chunk isn't loaded, return 0.0 instead of force-loading it.
+        // Any previously computed non-zero L1 would already be in H2 (caught by
+        // getL1Score's cold-storage check), so reaching here means the chunk is
+        // either brand-new or was empty — returning 0.0 is safe.
+        if (!world.isChunkLoaded(key.getCx(), key.getCz())) {
+            return new CScore(0.0);
+        }
+        long startUs = CivilMod.DEBUG ? System.nanoTime() / 1000 : 0;
         CScore cScore = computeCScoreForChunk(world, key);
-        cacheService.putChunkCScore(world, key, cScore);  // Write to hot cache, cascade update L2/L3
-        
-        // L1 computation log (sampling rate controlled by callCounter)
-        if (CivilMod.DEBUG && (callCounter.get() % LOG_SAMPLE_RATE == 0)) {
+        cacheService.putChunkCScore(world, key, cScore);
+
+        if (CivilMod.DEBUG) {
             long elapsedUs = System.nanoTime() / 1000 - startUs;
-            String dim = world.getRegistryKey().toString();
-            LOGGER.info("[civil-scalable-compute] layer=L1 dim={} key={},{},{} score={} elapsed_us={}",
-                    dim, key.getCx(), key.getCz(), key.getSy(), 
+            String dimLog = world.getRegistryKey().getValue().toString();
+            LOGGER.info("[civil-fusion-compute] L1 dim={} key={},{},{} score={} elapsed_us={}",
+                    dimLog, key.getCx(), key.getCz(), key.getSy(),
                     String.format("%.4f", cScore.score()), elapsedUs);
         }
-        
+
         return cScore;
     }
 
     /**
-     * Compute a single L1 score (used for L2/L3 dirty cell repair).
-     * Returns 0 if the chunk is outside dimension bounds.
-     */
-    private double computeL1Score(ServerWorld world, VoxelChunkKey key) {
-        if (!key.isValidIn(world)) {
-            return 0.0;
-        }
-        return computeCScoreForChunk(world, key).score();
-    }
-
-    /**
-     * Compute CScore for a single voxel chunk.
-     * Caller should verify key.isValidIn(world) first.
+     * Compute CScore for a single voxel chunk (inlined single-pass).
+     *
+     * <ol>
+     *   <li>Palette pre-filter: {@code ChunkSection.hasAny(isTargetBlock)} (~1μs).
+     *       Skips sections containing zero target blocks.</li>
+     *   <li>Single 4096-block iteration: reads world block states directly and
+     *       accumulates weights via {@link BlockCivilization#getBlockWeight} (~100μs).</li>
+     * </ol>
+     *
+     * <p>This replaces the old two-pass pipeline (VoxelRegion fill + operator scan).
      */
     private CScore computeCScoreForChunk(ServerWorld world, VoxelChunkKey key) {
-        VoxelRegion voxelRegion = sampler.sampleOneVoxelChunk(world, key);
-        if (voxelRegion == null) {
-            return new CScore(0.0, List.of());
-        }
-        return computeCScoreForRegion(voxelRegion);
-    }
-
-    /**
-     * Run all operators on a single voxel region to produce a CScore.
-     *
-     * <p>Score is always in [0,1]. Monster head info flows through context,
-     * not through the score value.
-     */
-    private CScore computeCScoreForRegion(VoxelRegion region) {
-        CivilComputeContext context = new CivilComputeContext();
-        double maxScore = 0.0;
-        for (CivilizationOperator operator : operators) {
-            double s = operator.computeScore(region, context);
-            if (s > maxScore) {
-                maxScore = s;
+        // Palette pre-filter: check if the section contains any target blocks
+        try {
+            Chunk chunk = world.getChunk(key.getCx(), key.getCz());
+            int sectionIdx = chunk.getSectionIndex(key.getSy() * 16);
+            if (sectionIdx >= 0 && sectionIdx < chunk.getSectionArray().length) {
+                ChunkSection section = chunk.getSection(sectionIdx);
+                if (!section.hasAny(BlockCivilization::isTargetBlock)) {
+                    return new CScore(0.0);
+                }
             }
+        } catch (Exception e) {
+            // Fallback: if palette check fails, proceed with full scan
         }
-        double score = Math.max(0.0, Math.min(1.0, maxScore));
-        return new CScore(score, List.copyOf(context.getHeadTypes()));
-    }
 
-    // ========== Aggregation computation ==========
+        // Single-pass: iterate world blocks directly, accumulate weight
+        VoxelChunkKey.WorldBounds bounds = key.getWorldBounds(world);
+        BlockPos min = bounds.min();
+        BlockPos max = bounds.max();
+        if (min.getY() > max.getY()) {
+            return new CScore(0.0);
+        }
 
-    private static double sigmoid(double totalRaw) {
-        double s0 = 1.0 / (1.0 + Math.exp(CivilConfig.sigmoidSteepness * CivilConfig.sigmoidMid));
-        double s = rawSigmoid(totalRaw);
-        double scale = 1.0 - s0;
-        if (scale <= 1e-10) return totalRaw <= 0.0 ? 0.0 : 1.0;
-        return Math.max(0.0, Math.min(1.0, (s - s0) / scale));
-    }
-
-    private static double rawSigmoid(double x) {
-        double t = CivilConfig.sigmoidSteepness * (x - CivilConfig.sigmoidMid);
-        if (t >= 20.0) return 1.0;
-        if (t <= -20.0) return 0.0;
-        return 1.0 / (1.0 + Math.exp(-t));
-    }
-
-    private static double weightForChunk(VoxelChunkKey chunk, VoxelChunkKey center) {
-        int d = Math.abs(chunk.getCx() - center.getCx())
-                + Math.abs(chunk.getCz() - center.getCz())
-                + Math.abs(chunk.getSy() - center.getSy());
-        return 1.0 / (1.0 + CivilConfig.distanceAlphaSq * d * d);
-    }
-
-    /**
-     * Compute cohesion within the core range.
-     */
-    private static double computeCohesion(Map<VoxelChunkKey, Double> chunkScores, VoxelChunkKey center, ChunkBox coreBox) {
-        double sum = 0.0;
-        for (Map.Entry<VoxelChunkKey, Double> e : chunkScores.entrySet()) {
-            VoxelChunkKey key = e.getKey();
-            if (!coreBox.contains(key)) continue;
-            double s = e.getValue();
-            if (s <= 0.0) continue;
-            double w = weightForChunk(key, center);
-            int cx = key.getCx(), cz = key.getCz(), sy = key.getSy();
-            for (int[] d : FACE_OFFSETS) {
-                VoxelChunkKey neighbor = new VoxelChunkKey(cx + d[0], cz + d[1], sy + d[2]);
-                if (!coreBox.contains(neighbor)) continue;
-                Double ns = chunkScores.get(neighbor);
-                if (ns != null && ns > 0.0) {
-                    sum += bondStrength(s, ns) * w;
+        double totalWeight = 0.0;
+        BlockPos.Mutable mutable = new BlockPos.Mutable();
+        for (int y = min.getY(); y <= max.getY(); y++) {
+            for (int z = min.getZ(); z <= max.getZ(); z++) {
+                for (int x = min.getX(); x <= max.getX(); x++) {
+                    mutable.set(x, y, z);
+                    BlockState state = world.getBlockState(mutable);
+                    totalWeight += BlockCivilization.getBlockWeight(state.getBlock());
                 }
             }
         }
-        return CivilConfig.cohesionBeta * sum * 0.5;
+
+        if (totalWeight <= 0.0) {
+            return new CScore(0.0);
+        }
+        double score = Math.min(1.0, totalWeight / CivilConfig.normalizationFactor);
+        return new CScore(score);
     }
 
-    private static double bondStrength(double s, double ns) {
-        double denom = s + ns;
-        return denom > 0.0 ? (s * s + ns * ns) / denom : 0.0;
+    // ========== Delta propagation (called from block change mixin) ==========
+
+    /**
+     * Handle a civilization block change: recompute L1, calculate delta, propagate.
+     *
+     * <p>Called from CivilLevelBlockChangeMixin when a special block is placed/removed.
+     *
+     * @param world the server world
+     * @param pos   the block position that changed
+     */
+    public void onCivilBlockChanged(ServerWorld world, BlockPos pos) {
+        long startNs = CivilMod.DEBUG ? System.nanoTime() : 0;
+        VoxelChunkKey shardKey = VoxelChunkKey.from(pos);
+        String dim = world.getRegistryKey().toString();
+
+        // 1. Get old L1 score (hot → cold → 0.0)
+        // Must check H2 cold storage to avoid incorrect delta when L1 was TTL-evicted.
+        double oldScore = cacheService.getChunkCScore(world, shardKey)
+                .map(CScore::score)
+                .orElseGet(() -> {
+                    Double cold = cacheService.getStorage().loadL1Sync(dim, shardKey);
+                    return cold != null ? cold : 0.0;
+                });
+
+        // 2. Palette recompute new L1 score
+        CScore newCScore = computeCScoreForChunk(world, shardKey);
+        double newScore = newCScore.score();
+
+        // 3. Update L1 cache + H2
+        cacheService.putChunkCScore(world, shardKey, newCScore);
+
+        // 4. Calculate delta and propagate
+        double delta = newScore - oldScore;
+        if (Math.abs(delta) > 1e-10) {
+            resultCache.propagateDelta(dim, shardKey, delta);
+        }
+
+        if (CivilMod.DEBUG) {
+            long elapsedUs = (System.nanoTime() - startNs) / 1000;
+            String dimLog = world.getRegistryKey().getValue().toString();
+            LOGGER.info("[civil-block-change] dim={} x={} y={} z={} cx={} cz={} sy={} old={} new={} delta={} elapsed_us={}",
+                    dimLog, pos.getX(), pos.getY(), pos.getZ(),
+                    shardKey.getCx(), shardKey.getCz(), shardKey.getSy(),
+                    String.format("%.4f", oldScore), String.format("%.4f", newScore),
+                    String.format("%.4f", delta), elapsedUs);
+        }
     }
 
-    private static boolean isWithinMonsterHeadRange(VoxelChunkKey key, VoxelChunkKey center) {
-        return Math.abs(key.getCx() - center.getCx()) <= CivilConfig.headRangeCX
-                && Math.abs(key.getCz() - center.getCz()) <= CivilConfig.headRangeCZ
-                && Math.abs(key.getSy() - center.getSy()) <= CivilConfig.headRangeSY;
+    // ========== Weight function (also used by ResultCache) ==========
+
+    /**
+     * Distance-based weight for L1 contribution.
+     * Takes Euclidean distance squared (dx²+dz²+dy²) — no sqrt needed.
+     * Shared with delta propagation in ResultCache.
+     */
+    static double weightForDistSq(double distSq) {
+        return 1.0 / (1.0 + CivilConfig.distanceAlphaSq * distSq);
     }
 }

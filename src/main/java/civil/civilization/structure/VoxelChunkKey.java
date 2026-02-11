@@ -125,6 +125,14 @@ public final class VoxelChunkKey {
         return Objects.hash(cx, cz, sy);
     }
 
+    /**
+     * Return a new key offset by the given deltas.
+     * Used for iterating detection ranges around a center VC.
+     */
+    public VoxelChunkKey offset(int dx, int dz, int dy) {
+        return new VoxelChunkKey(cx + dx, cz + dz, sy + dy);
+    }
+
     @Override
     public String toString() {
         return "VoxelChunkKey{cx=" + cx + ",cz=" + cz + ",sy=" + sy + "}";

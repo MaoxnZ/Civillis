@@ -1,20 +1,26 @@
 package civil.civilization.cache;
 
 /**
- * Cache entry wrapper with timestamps.
- * 
- * <p>Used to implement TTL eviction strategy:
- * <ul>
- *   <li>createTime: Entry creation/update time, used for TTL judgment</li>
- *   <li>lastAccessTime: Last access time, used for statistics</li>
- * </ul>
- * 
+ * Cache entry wrapper with wall-clock timestamps for TTL management.
+ *
+ * <p>TTL strategy: entries expire when {@code now - lastTouchTime > ttlMillis}.
+ * Calling {@link #touch()} refreshes the TTL countdown, so entries actively
+ * used by the prefetcher (near online players) never expire.
+ *
  * @param <T> Cache value type
  */
 public final class TimestampedEntry<T> {
 
     private volatile T value;
-    private final long createTime;
+
+    /**
+     * Wall-clock millis of last TTL refresh.
+     * Updated by {@link #touch()} and used by {@link #isExpired(long)}.
+     * Initially set to the creation/restore time.
+     */
+    private volatile long lastTouchTime;
+
+    /** Wall-clock millis of last read access (statistics only, not used for TTL). */
     private volatile long lastAccessTime;
 
     public TimestampedEntry(T value) {
@@ -23,7 +29,7 @@ public final class TimestampedEntry<T> {
 
     public TimestampedEntry(T value, long createTime) {
         this.value = value;
-        this.createTime = createTime;
+        this.lastTouchTime = createTime;
         this.lastAccessTime = createTime;
     }
 
@@ -35,47 +41,54 @@ public final class TimestampedEntry<T> {
     }
 
     /**
-     * Update the cached value (does not change createTime).
+     * Update the cached value (does not reset TTL timer).
      */
     public void setValue(T value) {
         this.value = value;
     }
 
     /**
-     * Get the creation time.
+     * Get the last touch time (TTL baseline).
+     * <p>Named {@code getCreateTime} for backward compatibility with cleanup code
+     * that uses {@code now - entry.getValue().getCreateTime() > ttlMillis}.
      */
     public long getCreateTime() {
-        return createTime;
+        return lastTouchTime;
     }
 
     /**
-     * Get the last access time.
+     * Get the last access time (statistics only).
      */
     public long getLastAccessTime() {
         return lastAccessTime;
     }
 
     /**
-     * Update the last access time.
+     * Refresh the TTL countdown AND update access time.
+     *
+     * <p>After calling touch(), the entry will survive for another full TTL period.
+     * Called by the prefetcher every second for entries near online players.
      */
     public void touch() {
-        this.lastAccessTime = System.currentTimeMillis();
+        long now = System.currentTimeMillis();
+        this.lastTouchTime = now;
+        this.lastAccessTime = now;
     }
 
     /**
-     * Check if the entry has expired.
-     * 
+     * Check if the entry has expired (not touched for longer than TTL).
+     *
      * @param ttlMillis TTL time (milliseconds)
      * @return true if expired
      */
     public boolean isExpired(long ttlMillis) {
-        return System.currentTimeMillis() - createTime > ttlMillis;
+        return System.currentTimeMillis() - lastTouchTime > ttlMillis;
     }
 
     /**
-     * Get the entry age (milliseconds).
+     * Get the time since last touch (milliseconds).
      */
     public long getAgeMillis() {
-        return System.currentTimeMillis() - createTime;
+        return System.currentTimeMillis() - lastTouchTime;
     }
 }

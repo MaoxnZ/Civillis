@@ -6,6 +6,8 @@ import civil.config.CivilConfig;
 import civil.ModSounds;
 import civil.component.ModComponents;
 import civil.civilization.CScore;
+import civil.civilization.MobHeadRegistry;
+import net.minecraft.entity.EntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -17,6 +19,8 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.ActionResult;
 import net.minecraft.world.World;
+
+import java.util.List;
 
 /**
  * Civilization detector: right-click when held to activate, outputs current position's civilization value to chat,
@@ -61,7 +65,7 @@ public class CivilDetectorItem extends Item {
             }
 
             // Trigger 2-second animation: write display state and animation end tick, start animation reset logic checking
-            String displayState = scoreToDisplayState(cScore);
+            String displayState = scoreToDisplayState(cScore, serverWorld, pos);
             stack.set(ModComponents.DETECTOR_DISPLAY, displayState);
             stack.set(ModComponents.DETECTOR_ANIMATION_END, world.getTime() + CivilConfig.detectorAnimationTicks);
             CivilDetectorAnimationReset.markActive();
@@ -89,17 +93,34 @@ public class CivilDetectorItem extends Item {
     }
 
     /**
-     * CScore -> display state: monster head = purple,
+     * Determine display state from civilization score and nearby mob heads.
+     *
+     * <p>Priority: monster head nearby = purple,
      * below thresholdLow = low/red, between thresholdLow..thresholdMid = medium/yellow,
      * above thresholdMid = high/green.  Thresholds follow CivilConfig (GUI suppression slider).
+     *
+     * <p>Head detection queries MobHeadRegistry directly (consistent with SpawnPolicy),
+     * since CScore no longer carries headTypes in the Fusion Architecture.
      */
-    private static String scoreToDisplayState(CScore cScore) {
+    private static String scoreToDisplayState(CScore cScore, ServerWorld world, BlockPos pos) {
         if (cScore == null) {
             return "default";
         }
-        if (cScore.isForceAllow()) {
-            return "monster";
+
+        // Check MobHeadRegistry directly (fusion architecture: heads decoupled from CScore)
+        MobHeadRegistry registry = CivilServices.getMobHeadRegistry();
+        if (registry != null && registry.isInitialized()) {
+            String dim = world.getRegistryKey().toString();
+            List<EntityType<?>> headTypes = registry.getHeadTypesNear(
+                    dim, pos,
+                    CivilConfig.headRangeX,
+                    CivilConfig.headRangeZ,
+                    CivilConfig.headRangeY);
+            if (!headTypes.isEmpty()) {
+                return "monster";
+            }
         }
+
         double score = cScore.score();
         if (score < CivilConfig.spawnThresholdLow) {
             return "low";

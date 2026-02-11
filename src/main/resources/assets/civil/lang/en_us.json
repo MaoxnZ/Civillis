@@ -34,6 +34,8 @@
   "civil.config.slider.decay.hours": "\u2248%2$sh t\u00bd",
   "civil.config.slider.recovery": "~%2$dmin \u26a1",
   "civil.config.slider.freshness": "%1$dh",
+  "civil.config.simple.patrolRange": "Patrol Influence Range",
+  "civil.config.slider.patrolRange": "%1$d blocks",
 
   "civil.config.subcategory.headAttract": "Mob Head Attraction",
   "civil.config.subcategory.headAttract.tooltip.1": "Mob heads act as totems that",

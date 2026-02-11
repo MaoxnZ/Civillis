@@ -48,6 +48,9 @@ public final class CivilConfig {
     /** Detection range: box side in blocks, range [112, 496] step 32, default 240. */
     public static int simpleDetectionRange = 240;
 
+    /** Patrol influence range: 2-8 slider (VC radius), val×16 = blocks. Default 4 → 64 blocks. */
+    public static int simplePatrolRange = 4;
+
     /** Head attraction strength: 1 (weak) to 10 (strong), default 5. Maps to headAttractLambda. */
     public static int simpleHeadAttractStrength = 5;
 
@@ -147,23 +150,25 @@ public final class CivilConfig {
     // -- Scoring / Aggregation --
     public static double sigmoidMid = 0.8;
     public static double sigmoidSteepness = 3.0;
-    public static double cohesionBeta = 0.8;
     public static double distanceAlphaSq = 0.5;
     public static double normalizationFactor = 5.0;
 
     // -- Detection Ranges (voxel chunks) --
-    public static int brushRadiusX = 2;
-    public static int brushRadiusZ = 2;
-    public static int brushRadiusY = 1;
     public static int detectionRadiusX = 7;
     public static int detectionRadiusZ = 7;
     public static int detectionRadiusY = 1;
     public static int coreRadiusX = 1;
     public static int coreRadiusZ = 1;
     public static int coreRadiusY = 0;
-    public static int headRangeCX = 1;
-    public static int headRangeCZ = 1;
-    public static int headRangeSY = 0;
+    public static int headRangeX = 1;
+    public static int headRangeZ = 1;
+    public static int headRangeY = 0;
+
+    // -- Patrol Influence (player presence keeping area alive) --
+    /** Patrol radius (voxel chunks). User slider sets X/Z together; Y defaults to 1. */
+    public static int patrolRadiusX = 4;
+    public static int patrolRadiusZ = 4;
+    public static int patrolRadiusY = 1;
 
     // -- Head Attraction (totem suppression of distant spawns) --
     public static boolean headAttractEnabled = true;
@@ -172,13 +177,12 @@ public final class CivilConfig {
     public static double headAttractLambda = 0.15;
 
     // -- Cache & Performance --
-    public static long hotCacheTtlMs = 30 * 60 * 1000L;
+    /** L1 information shard TTL. Short-lived: only needs to survive until ResultEntry is computed.
+     *  Prefetcher refreshes on VC change; stationary players rely on ResultEntry for spawn checks. */
+    public static long l1TtlMs = 5 * 60 * 1000L;         // 5 minutes
+    /** ResultEntry TTL. Long-lived: user-facing cache for O(1) spawn checks + decay tracking. */
+    public static long resultTtlMs = 60 * 60 * 1000L;    // 60 minutes
     public static int  clockPersistTicks = 6000;
-    public static int  prefetchL2Radius = 4;
-    public static int  prefetchL3Radius = 4;
-    public static int  maxAsyncLoadsPerSecond = 50;
-    public static int  maxQueueConsumePerTick = 20;
-    public static int  prefetchMoveThreshold = 1;
 
     // -- UI / Items --
     public static int detectorAnimationTicks = 40;
@@ -253,6 +257,11 @@ public final class CivilConfig {
             headAttractLambda    = 0.03 * simpleHeadAttractStrength;
             headAttractMaxRadius = simpleHeadAttractRange * 16.0;
         }
+
+        // 9. Patrol influence range (slider sets XZ together, Y fixed)
+        patrolRadiusX = simplePatrolRange;
+        patrolRadiusZ = simplePatrolRange;
+        // patrolRadiusY left at default (1) — not exposed to user slider
     }
 
     // ══════════════════════════════════════════════════════════
@@ -303,6 +312,9 @@ public final class CivilConfig {
         simpleHeadAttractRange = parseInt(p.getProperty("simple.headAttractRange"), simpleHeadAttractRange);
         simpleHeadAttractRange = Math.max(3, Math.min(10, simpleHeadAttractRange));
 
+        simplePatrolRange = parseInt(p.getProperty("simple.patrolRange"), simplePatrolRange);
+        simplePatrolRange = Math.max(2, Math.min(8, simplePatrolRange));
+
         // Snapshot simple values for change detection in GUI save flow
         loadedSimpleFreshness           = simpleFreshnessDuration;
         loadedSimpleDecaySpeed          = simpleDecaySpeed;
@@ -345,35 +357,27 @@ public final class CivilConfig {
 
         sigmoidMid         = parseDouble(p.getProperty("scoring.sigmoidMid"), sigmoidMid);
         sigmoidSteepness   = parseDouble(p.getProperty("scoring.sigmoidSteepness"), sigmoidSteepness);
-        cohesionBeta       = parseDouble(p.getProperty("scoring.cohesionBeta"), cohesionBeta);
         distanceAlphaSq    = parseDouble(p.getProperty("scoring.distanceAlphaSq"), distanceAlphaSq);
         normalizationFactor = parseDouble(p.getProperty("scoring.normalizationFactor"), normalizationFactor);
 
-        brushRadiusX       = parseInt(p.getProperty("range.brushRadiusX"), brushRadiusX);
-        brushRadiusZ       = parseInt(p.getProperty("range.brushRadiusZ"), brushRadiusZ);
-        brushRadiusY       = parseInt(p.getProperty("range.brushRadiusY"), brushRadiusY);
         detectionRadiusX   = parseInt(p.getProperty("range.detectionRadiusX"), detectionRadiusX);
         detectionRadiusZ   = parseInt(p.getProperty("range.detectionRadiusZ"), detectionRadiusZ);
         detectionRadiusY   = parseInt(p.getProperty("range.detectionRadiusY"), detectionRadiusY);
         coreRadiusX        = parseInt(p.getProperty("range.coreRadiusX"), coreRadiusX);
         coreRadiusZ        = parseInt(p.getProperty("range.coreRadiusZ"), coreRadiusZ);
         coreRadiusY        = parseInt(p.getProperty("range.coreRadiusY"), coreRadiusY);
-        headRangeCX        = parseInt(p.getProperty("range.headRangeCX"), headRangeCX);
-        headRangeCZ        = parseInt(p.getProperty("range.headRangeCZ"), headRangeCZ);
-        headRangeSY        = parseInt(p.getProperty("range.headRangeSY"), headRangeSY);
+        headRangeX         = parseInt(p.getProperty("range.headRangeX"), headRangeX);
+        headRangeZ         = parseInt(p.getProperty("range.headRangeZ"), headRangeZ);
+        headRangeY         = parseInt(p.getProperty("range.headRangeY"), headRangeY);
 
         headAttractEnabled    = parseBoolean(p.getProperty("headAttract.enabled"), headAttractEnabled);
         headAttractNearBlocks = parseDouble(p.getProperty("headAttract.nearBlocks"), headAttractNearBlocks);
         headAttractMaxRadius  = parseDouble(p.getProperty("headAttract.maxRadius"), headAttractMaxRadius);
         headAttractLambda     = parseDouble(p.getProperty("headAttract.lambda"), headAttractLambda);
 
-        hotCacheTtlMs      = parseLong(p.getProperty("cache.hotTtlMs"), hotCacheTtlMs);
+        l1TtlMs            = parseLong(p.getProperty("cache.l1TtlMs"), l1TtlMs);
+        resultTtlMs        = parseLong(p.getProperty("cache.resultTtlMs"), resultTtlMs);
         clockPersistTicks  = parseInt(p.getProperty("cache.clockPersistTicks"), clockPersistTicks);
-        prefetchL2Radius   = parseInt(p.getProperty("prefetch.l2Radius"), prefetchL2Radius);
-        prefetchL3Radius   = parseInt(p.getProperty("prefetch.l3Radius"), prefetchL3Radius);
-        maxAsyncLoadsPerSecond = parseInt(p.getProperty("prefetch.maxAsyncLoadsPerSec"), maxAsyncLoadsPerSecond);
-        maxQueueConsumePerTick = parseInt(p.getProperty("prefetch.maxQueuePerTick"), maxQueueConsumePerTick);
-        prefetchMoveThreshold  = parseInt(p.getProperty("prefetch.moveThreshold"), prefetchMoveThreshold);
 
         detectorAnimationTicks = parseInt(p.getProperty("ui.detectorAnimationTicks"), detectorAnimationTicks);
         detectorCooldownTicks  = parseInt(p.getProperty("ui.detectorCooldownTicks"), detectorCooldownTicks);
@@ -432,6 +436,7 @@ public final class CivilConfig {
             sb.append("simple.detectionRange=").append(simpleDetectionRange).append('\n');
             sb.append("simple.headAttractStrength=").append(simpleHeadAttractStrength).append('\n');
             sb.append("simple.headAttractRange=").append(simpleHeadAttractRange).append('\n');
+            sb.append("simple.patrolRange=").append(simplePatrolRange).append('\n');
             sb.append('\n');
 
             // Raw overrides: uncommented if active, commented otherwise
@@ -460,24 +465,20 @@ public final class CivilConfig {
             sb.append("# ── Advanced: Scoring ──\n");
             sb.append("#scoring.sigmoidMid=").append(sigmoidMid).append('\n');
             sb.append("#scoring.sigmoidSteepness=").append(sigmoidSteepness).append('\n');
-            sb.append("#scoring.cohesionBeta=").append(cohesionBeta).append('\n');
             sb.append("#scoring.distanceAlphaSq=").append(distanceAlphaSq).append('\n');
             sb.append("#scoring.normalizationFactor=").append(normalizationFactor).append('\n');
             sb.append('\n');
 
             sb.append("# ── Advanced: Detection Ranges (voxel chunks) ──\n");
-            sb.append("#range.brushRadiusX=").append(brushRadiusX).append('\n');
-            sb.append("#range.brushRadiusZ=").append(brushRadiusZ).append('\n');
-            sb.append("#range.brushRadiusY=").append(brushRadiusY).append('\n');
             sb.append(pRange).append("range.detectionRadiusX=").append(detectionRadiusX).append('\n');
             sb.append(pRange).append("range.detectionRadiusZ=").append(detectionRadiusZ).append('\n');
             sb.append("#range.detectionRadiusY=").append(detectionRadiusY).append('\n');
             sb.append("#range.coreRadiusX=").append(coreRadiusX).append('\n');
             sb.append("#range.coreRadiusZ=").append(coreRadiusZ).append('\n');
             sb.append("#range.coreRadiusY=").append(coreRadiusY).append('\n');
-            sb.append("#range.headRangeCX=").append(headRangeCX).append('\n');
-            sb.append("#range.headRangeCZ=").append(headRangeCZ).append('\n');
-            sb.append("#range.headRangeSY=").append(headRangeSY).append('\n');
+            sb.append("#range.headRangeX=").append(headRangeX).append('\n');
+            sb.append("#range.headRangeZ=").append(headRangeZ).append('\n');
+            sb.append("#range.headRangeY=").append(headRangeY).append('\n');
             sb.append('\n');
 
             sb.append("# ── Advanced: Head Attraction (totem spawn suppression) ──\n");
@@ -488,13 +489,9 @@ public final class CivilConfig {
             sb.append('\n');
 
             sb.append("# ── Advanced: Cache & Performance ──\n");
-            sb.append("#cache.hotTtlMs=").append(hotCacheTtlMs).append('\n');
+            sb.append("#cache.l1TtlMs=").append(l1TtlMs).append('\n');
+            sb.append("#cache.resultTtlMs=").append(resultTtlMs).append('\n');
             sb.append("#cache.clockPersistTicks=").append(clockPersistTicks).append('\n');
-            sb.append("#prefetch.l2Radius=").append(prefetchL2Radius).append('\n');
-            sb.append("#prefetch.l3Radius=").append(prefetchL3Radius).append('\n');
-            sb.append("#prefetch.maxAsyncLoadsPerSec=").append(maxAsyncLoadsPerSecond).append('\n');
-            sb.append("#prefetch.maxQueuePerTick=").append(maxQueueConsumePerTick).append('\n');
-            sb.append("#prefetch.moveThreshold=").append(prefetchMoveThreshold).append('\n');
             sb.append('\n');
 
             sb.append("# ── Advanced: UI ──\n");

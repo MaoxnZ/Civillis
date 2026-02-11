@@ -174,6 +174,18 @@ public final class CivilConfigScreen {
                 .setSaveConsumer(v -> CivilConfig.simpleFreshnessDuration = v)
                 .build());
 
+        // 3e. Patrol Influence Range (2-8 VCs → 32-128 blocks)
+        decay.add(eb.startIntSlider(
+                        Text.translatable("civil.config.simple.patrolRange"),
+                        CivilConfig.simplePatrolRange, 2, 8)
+                .setDefaultValue(4)
+                .setTextGetter(val -> {
+                    int blocks = val * 16;
+                    return Text.translatable("civil.config.slider.patrolRange", blocks);
+                })
+                .setSaveConsumer(v -> CivilConfig.simplePatrolRange = v)
+                .build());
+
         cat.addEntry(decay.build());
 
         // ── 4. Head Attraction (collapsible) ──

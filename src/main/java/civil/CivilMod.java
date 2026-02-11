@@ -1,14 +1,13 @@
 package civil;
 
+import civil.civilization.CScore;
 import civil.civilization.MobHeadRegistry;
 import civil.civilization.operator.BlockCivilization;
+import civil.civilization.structure.VoxelChunkKey;
 import civil.component.ModComponents;
 import civil.civilization.cache.TtlCacheService;
-import civil.civilization.structure.SimpleNeighborhoodSampler;
 import civil.item.CivilDetectorAnimationReset;
 import civil.civilization.core.ScalableCivilizationService;
-import civil.civilization.operator.CivilizationOperator;
-import civil.civilization.operator.SimpleCivilizationOperator;
 import civil.config.CivilConfig;
 import civil.perf.TpsLogger;
 import net.fabricmc.api.ModInitializer;
@@ -20,10 +19,11 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.SkullBlockEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraft.world.chunk.ChunkSection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
+
 
 public class CivilMod implements ModInitializer {
     public static final String MOD_ID = "civil";
@@ -46,17 +46,11 @@ public class CivilMod implements ModInitializer {
     public void onInitialize() {
         CivilConfig.load();
 
-        SimpleCivilizationOperator operator = new SimpleCivilizationOperator();
-        SimpleNeighborhoodSampler sampler = new SimpleNeighborhoodSampler(
-                CivilConfig.detectionRadiusX,
-                CivilConfig.detectionRadiusZ,
-                CivilConfig.detectionRadiusY);
-
-        // TTL cache service (30-minute hot cache, H2 database persistence, gradual decay)
+        // TTL cache service (60-minute hot cache, H2 database persistence, gradual decay)
         cacheService = new TtlCacheService();
 
         ScalableCivilizationService civilizationService =
-                new ScalableCivilizationService(sampler, List.of((CivilizationOperator) operator), cacheService);
+                new ScalableCivilizationService(cacheService);
         mobHeadRegistry = new MobHeadRegistry();
         CivilServices.initCivilizationService(civilizationService);
         CivilServices.initCivilizationCache(cacheService);
@@ -121,19 +115,61 @@ public class CivilMod implements ModInitializer {
             }
         });
 
-        // Chunk load event: discover pre-existing heads for world upgrade path.
-        // Scans BlockEntities (typically 0-10 per chunk) for skull blocks — negligible cost.
+        // Chunk load event: discover pre-existing heads + Fusion Architecture L1 palette pre-fill.
         ServerChunkEvents.CHUNK_LOAD.register((world, chunk) -> {
-            if (mobHeadRegistry == null || !mobHeadRegistry.isInitialized()) return;
-
             String dim = world.getRegistryKey().toString();
-            for (BlockPos bePos : chunk.getBlockEntityPositions()) {
-                if (chunk.getBlockEntity(bePos) instanceof SkullBlockEntity) {
-                    BlockState state = chunk.getBlockState(bePos);
-                    if (BlockCivilization.isMonsterHead(state)) {
-                        AbstractSkullBlock skull = (AbstractSkullBlock) state.getBlock();
-                        String skullType = skull.getSkullType().toString();
-                        mobHeadRegistry.onHeadAdded(dim, bePos.getX(), bePos.getY(), bePos.getZ(), skullType);
+
+            // 1. Discover pre-existing heads for world upgrade path (existing logic)
+            if (mobHeadRegistry != null && mobHeadRegistry.isInitialized()) {
+                for (BlockPos bePos : chunk.getBlockEntityPositions()) {
+                    if (chunk.getBlockEntity(bePos) instanceof SkullBlockEntity) {
+                        BlockState state = chunk.getBlockState(bePos);
+                        if (BlockCivilization.isMonsterHead(state)) {
+                            AbstractSkullBlock skull = (AbstractSkullBlock) state.getBlock();
+                            String skullType = skull.getSkullType().toString();
+                            mobHeadRegistry.onHeadAdded(dim, bePos.getX(), bePos.getY(), bePos.getZ(), skullType);
+                        }
+                    }
+                }
+            }
+
+            // 2. Fusion Architecture: pre-fill L1 shards from H2 cold storage or palette scan
+            if (cacheService != null && cacheService.isInitialized()) {
+                var cache = cacheService.getCache();
+                var storage = cacheService.getStorage();
+                ChunkSection[] sections = chunk.getSectionArray();
+                int bottomSy = Math.floorDiv(world.getDimension().minY(), 16);
+
+                for (int i = 0; i < sections.length; i++) {
+                    int sy = bottomSy + i;
+                    VoxelChunkKey key = new VoxelChunkKey(chunk.getPos().x, chunk.getPos().z, sy);
+
+                    // Already in hot cache? Skip.
+                    if (cache.containsL1(world, key)) continue;
+
+                    // Check H2 cold storage (sync — very fast, single row lookup)
+                    Double coldScore = storage.loadL1Sync(dim, key);
+                    if (coldScore != null) {
+                        cache.restoreL1(world, key, new CScore(coldScore), System.currentTimeMillis());
+                        continue;
+                    }
+
+                    // H2 miss: palette scan to determine if full computation is needed
+                    ChunkSection section = sections[i];
+                    if (!section.hasAny(BlockCivilization::isTargetBlock)) {
+                        // No target blocks in palette → guaranteed score 0.0.
+                        // Only store in hot cache — NOT persisted to H2.
+                        // Empty sections make up ~75-80% of all L1 entries (sky, deep stone);
+                        // skipping H2 saves massive storage.  On next chunk load after TTL
+                        // eviction, the palette check (~1μs) re-derives score=0 for free.
+                        cache.restoreL1(world, key, new CScore(0.0), System.currentTimeMillis());
+                        continue;
+                    } else {
+                        // Has target blocks — defer to first spawn check (computeAndCacheL1).
+                        // NOT storing 0.0 here: a zero-score L1 entry would be
+                        // indistinguishable from a truly empty section and would hide
+                        // real civilization value until the next block change delta.
+                        continue;
                     }
                 }
             }

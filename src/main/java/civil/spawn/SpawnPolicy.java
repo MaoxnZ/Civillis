@@ -13,14 +13,18 @@ import net.minecraft.util.math.random.Random;
 import java.util.List;
 
 /**
- * Spawn policy:
+ * Fusion Architecture spawn policy — head-first decision flow.
+ *
+ * <p>Decision priority:
  * <ol>
  *   <li>HEAD_MATCH: current mob matches neighborhood head → always allow</li>
  *   <li>HEAD_ANY: any monster head in neighborhood → allow + may convert</li>
- *   <li>HEAD_SUPPRESS: heads exist in wider area but spawn is far from them → probabilistic block
- *       (head attraction system — redirects spawns toward totem locations)</li>
- *   <li>LOW/MID/HIGH: civilization score thresholds (existing behavior)</li>
+ *   <li>HEAD_SUPPRESS: heads exist in wider area but spawn is far → probabilistic block</li>
+ *   <li>LOW/MID/HIGH: civilization score thresholds (result shard O(1) query)</li>
  * </ol>
+ *
+ * <p>Head logic queries MobHeadRegistry directly (decoupled from civilization scoring).
+ * Civilization score queries the ResultCache via ScalableCivilizationService (O(1)).
  */
 public final class SpawnPolicy {
 
@@ -28,35 +32,47 @@ public final class SpawnPolicy {
     }
 
     /**
-     * Returns complete decision (whether to block + civilization value + branch), for Mixin logging and debugging.
-     * entityType parameter used for "matching type head" judgment (e.g., zombie head → zombie always allowed).
+     * Returns complete decision (whether to block + civilization value + branch).
      */
     public static SpawnDecision decide(ServerWorld world, BlockPos pos, EntityType<?> entityType) {
+
+        // ===== Stage 1: Head Detection (single O(N) pass via MobHeadRegistry) =====
+        MobHeadRegistry registry = CivilServices.getMobHeadRegistry();
+        if (registry != null && registry.isInitialized()) {
+            String dim = world.getRegistryKey().toString();
+
+            // Combined query: nearby types (HEAD_MATCH/HEAD_ANY) + proximity (HEAD_SUPPRESS)
+            MobHeadRegistry.HeadQuery hq = registry.queryHeads(
+                    dim, pos,
+                    CivilConfig.headRangeX,
+                    CivilConfig.headRangeZ,
+                    CivilConfig.headRangeY);
+
+            // ① HEAD_MATCH / HEAD_ANY
+            if (hq.hasNearbyHeads()) {
+                List<EntityType<?>> headTypes = hq.nearbyTypes();
+                if (entityType != null && headTypes.contains(entityType)) {
+                    return new SpawnDecision(false, 0, "HEAD_MATCH", headTypes);
+                }
+                return new SpawnDecision(false, 0, "HEAD_ANY", headTypes);
+            }
+
+            // ② HEAD_SUPPRESS: heads exist in wider area but spawn is far
+            if (CivilConfig.headAttractEnabled && hq.proximity().hasHeads()) {
+                SpawnDecision suppressDecision = checkHeadSuppression(world, pos, hq.proximity());
+                if (suppressDecision != null) {
+                    return suppressDecision;
+                }
+            }
+        }
+
+        // ===== Stage 2: Civilization Score (Result Shard O(1), only if no heads) =====
         CScore cScore = CivilServices.getCivilizationService().getCScoreAt(world, pos);
         double score = cScore.score();
         double thresholdLow = CivilConfig.spawnThresholdLow;
         double thresholdMid = CivilConfig.spawnThresholdMid;
 
-        List<EntityType<?>> headTypes = cScore.headTypes() != null ? cScore.headTypes() : List.of();
-
-        // ① HEAD_MATCH: current mob type matches a head in the neighborhood — always allow
-        if (cScore.hasHeadFor(entityType)) {
-            return new SpawnDecision(false, score, "HEAD_MATCH", headTypes);
-        }
-        // ② HEAD_ANY: any monster head in 3×3×1 neighborhood — allow (may convert in mixin)
-        if (cScore.isForceAllow()) {
-            return new SpawnDecision(false, score, "HEAD_ANY", headTypes);
-        }
-
-        // ③ HEAD_SUPPRESS: heads exist in wider area but spawn is far — probabilistic block
-        if (CivilConfig.headAttractEnabled) {
-            SpawnDecision suppressDecision = checkHeadAttraction(world, pos, score);
-            if (suppressDecision != null) {
-                return suppressDecision;
-            }
-        }
-
-        // ④ Civilization score thresholds (existing behavior)
+        // ④ Civilization score thresholds
         if (score <= thresholdLow) {
             return new SpawnDecision(false, score, SpawnDecision.BRANCH_LOW);
         }
@@ -71,35 +87,21 @@ public final class SpawnPolicy {
     }
 
     /**
-     * Head attraction suppression check.
-     *
-     * <p>If mob heads exist in the dimension and the spawn point is far from
-     * all of them in 3D space, returns a blocking decision with probability
-     * determined by distance and total head count.
-     *
-     * @return blocking SpawnDecision if suppressed, or null to continue normal flow
+     * Head suppression check using pre-computed proximity from the combined query.
+     * No additional registry traversal needed.
      */
-    private static SpawnDecision checkHeadAttraction(ServerWorld world, BlockPos pos, double score) {
-        MobHeadRegistry registry = CivilServices.getMobHeadRegistry();
-        if (registry == null || !registry.isInitialized()) return null;
-
-        String dim = world.getRegistryKey().toString();
-        MobHeadRegistry.HeadProximity proximity = registry.queryNearest(
-                dim, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
-
-        if (!proximity.hasHeads()) return null;
-
+    private static SpawnDecision checkHeadSuppression(ServerWorld world, BlockPos pos,
+                                                       MobHeadRegistry.HeadProximity proximity) {
         double nearThreshold = CivilConfig.headAttractNearBlocks;
         double maxRadius = CivilConfig.headAttractMaxRadius;
 
-        // Outside max horizontal radius: attraction has no effect, fall through to normal flow.
-        // Uses XZ distance — players move horizontally, vertical caves shouldn't extend the range.
+        // Outside max horizontal radius: attraction has no effect
         if (proximity.nearestDistXZ() > maxRadius) return null;
 
         // Inside near threshold (3D): close to a head, no suppression needed
         if (proximity.nearestDist3D() <= nearThreshold) return null;
 
-        // Suppression curve uses full 3D distance for accuracy
+        // Suppression curve uses full 3D distance
         double d = proximity.nearestDist3D() - nearThreshold;
         double lambda = CivilConfig.headAttractLambda * (1.0 + Math.log1p(proximity.totalCount()));
         double suppressChance = 1.0 - Math.exp(-lambda * d / 16.0);
@@ -114,7 +116,7 @@ public final class SpawnPolicy {
                         String.format("%.3f", suppressChance),
                         proximity.totalCount());
             }
-            return new SpawnDecision(true, score, SpawnDecision.BRANCH_HEAD_SUPPRESS);
+            return new SpawnDecision(true, 0, SpawnDecision.BRANCH_HEAD_SUPPRESS);
         }
         if (CivilMod.DEBUG) {
             CivilMod.LOGGER.info(
@@ -129,7 +131,7 @@ public final class SpawnPolicy {
     }
 
     /**
-     * Whether to block hostile mob spawn at given position (compatible with old calls, does not distinguish entity types).
+     * Whether to block hostile mob spawn at given position.
      */
     public static boolean shouldBlockMonsterSpawn(ServerWorld world, BlockPos pos) {
         return decide(world, pos, null).block();

@@ -2,7 +2,8 @@ package civil.mixin;
 
 import civil.CivilServices;
 import civil.civilization.MobHeadRegistry;
-import civil.civilization.cache.CivilizationCache;
+
+import civil.civilization.core.ScalableCivilizationService;
 import civil.civilization.operator.BlockCivilization;
 import net.minecraft.block.AbstractSkullBlock;
 import net.minecraft.block.BlockState;
@@ -14,19 +15,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Listens to world block changes:
- * <ol>
- *   <li>Marks corresponding voxel chunks as "dirty" in civilization cache.</li>
- *   <li>Tracks monster head placement/removal in {@link MobHeadRegistry} for the
- *       head attraction system. Uses the registry itself to determine if the old
- *       block was a head (no need to capture old BlockState).</li>
- * </ol>
- *
- * All block operations (placement, destruction, replacement) go through
- * {@code World.setBlockState}, so monster head placement/removal also triggers.
- * Only effective on server side.
- */
 @Mixin(World.class)
 public abstract class CivilLevelBlockChangeMixin {
 
@@ -42,27 +30,38 @@ public abstract class CivilLevelBlockChangeMixin {
             return;
         }
 
-        // Mark civilization cache dirty (existing behavior)
-        CivilizationCache cache = CivilServices.getCivilizationCache();
-        if (cache != null) {
-            cache.markChunkDirtyAt(serverWorld, pos);
+        // ===== Fusion Architecture: Special block filtering + Delta propagation =====
+        // Only trigger L1 recompute + delta propagation when a "civilization block" is
+        // placed or removed. Non-civilization blocks (dirt, stone, redstone, etc.) are
+        // ignored — they don't affect civilization score.
+        //
+        // Note: We need the OLD block state to compare weights, but the mixin fires
+        // after the block change. We use a simplified approach: if the NEW block has
+        // non-zero weight OR the position changed (which we can't easily tell),
+        // we trigger the update. The ScalableCivilizationService.onCivilBlockChanged()
+        // handles the delta calculation by comparing cached vs recomputed L1 scores.
+
+        boolean isNowHead = BlockCivilization.isMonsterHead(state);
+
+        // Fusion Architecture: immediate L1 recompute + delta propagation.
+        // onCivilBlockChanged compares old vs new L1 scores; if delta is non-zero,
+        // it propagates to all affected ResultEntries. For non-special→non-special
+        // block changes, the delta will be 0 and propagation is skipped (cheap).
+        ScalableCivilizationService scalableService = CivilServices.getScalableService();
+        if (scalableService != null) {
+            scalableService.onCivilBlockChanged(serverWorld, pos);
         }
 
-        // Track head placement/removal in MobHeadRegistry.
-        // Uses the registry's own containsKey to determine old state — avoids
-        // needing to capture the old BlockState at HEAD injection point.
+        // Track head placement/removal in MobHeadRegistry (unchanged).
         MobHeadRegistry registry = CivilServices.getMobHeadRegistry();
         if (registry != null && registry.isInitialized()) {
             String dim = serverWorld.getRegistryKey().toString();
-            boolean isNowHead = BlockCivilization.isMonsterHead(state);
 
             if (isNowHead) {
-                // Head placed: register (idempotent, no-op if already known)
                 AbstractSkullBlock skull = (AbstractSkullBlock) state.getBlock();
                 String skullType = skull.getSkullType().toString();
                 registry.onHeadAdded(dim, pos.getX(), pos.getY(), pos.getZ(), skullType);
             } else {
-                // Non-head block set: remove head if one was here (no-op if none)
                 registry.onHeadRemoved(dim, pos.getX(), pos.getY(), pos.getZ());
             }
         }

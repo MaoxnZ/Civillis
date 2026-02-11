@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.0.0-beta]
+
+### Changed
+
+- **Fusion Architecture**: A 0-1 revamp of the entire engine.
+  It does everything it did before, but 100x faster
+
+### Added
+
+- **Patrol influence range**: New GUI slider for how far your
+  patrol sustains and restores settlements
+  (requires ModMenu + Cloth Config)
+
+### Note
+
+At last, I see the light.
+
+After two weeks of dedicated work, I am finally at peace with
+how this mod performs. Global civilization impact — something
+I long believed to be out of reach — is now real.
+
+Ready for beta.
+Will keep doing better. Will not disappoint.
+
 ## [1.2.0-alpha]
 
 ### Added

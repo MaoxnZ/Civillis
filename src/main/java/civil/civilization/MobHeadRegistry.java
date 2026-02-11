@@ -2,10 +2,12 @@ package civil.civilization;
 
 import civil.CivilMod;
 import civil.civilization.storage.H2Storage;
+import net.minecraft.entity.EntityType;
 import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -53,6 +55,20 @@ public final class MobHeadRegistry {
         public static final HeadProximity NONE = new HeadProximity(false, Double.MAX_VALUE, Double.MAX_VALUE, 0);
     }
 
+    /**
+     * Combined query result: nearby head types (for HEAD_MATCH/HEAD_ANY)
+     * + nearest distance info (for HEAD_SUPPRESS), computed in a single O(N) pass.
+     *
+     * @param nearbyTypes     Head entity types within the VC box (with duplicates for weighted sampling).
+     *                        Empty if no heads in the near range.
+     * @param proximity       Nearest head distance info across the entire dimension.
+     */
+    public record HeadQuery(List<EntityType<?>> nearbyTypes, HeadProximity proximity) {
+        public static final HeadQuery NONE = new HeadQuery(List.of(), HeadProximity.NONE);
+
+        public boolean hasNearbyHeads() { return !nearbyTypes.isEmpty(); }
+    }
+
     // ========== Lifecycle ==========
 
     /**
@@ -89,38 +105,96 @@ public final class MobHeadRegistry {
     // ========== Queries ==========
 
     /**
-     * Find the nearest mob head to the given position in full 3D space.
-     * Returns {@link HeadProximity#NONE} if no heads exist in this dimension.
+     * Combined query: single O(N) pass that returns both nearby head types (for HEAD_MATCH/HEAD_ANY)
+     * and nearest distance info (for HEAD_SUPPRESS). Replaces the old separate
+     * {@code getHeadTypesNear} + {@code queryNearest} two-pass pattern.
      *
-     * <p>Iterates all heads in the dimension (typically 10-100).
-     * Cost: ~200ns for 100 heads.
+     * <p>Cost: ~300ns for 100 heads (single traversal).
+     *
+     * @param dim     dimension key
+     * @param pos     center position (block coordinates)
+     * @param rangeCX nearby range in voxel chunks along X
+     * @param rangeCZ nearby range in voxel chunks along Z
+     * @param rangeSY nearby range in voxel chunks along Y
+     * @return combined result; {@link HeadQuery#NONE} if no heads in dimension
      */
-    public HeadProximity queryNearest(String dim, double x, double y, double z) {
+    public HeadQuery queryHeads(String dim, BlockPos pos, int rangeCX, int rangeCZ, int rangeSY) {
         var dimHeads = heads.get(dim);
-        if (dimHeads == null || dimHeads.isEmpty()) {
-            return HeadProximity.NONE;
-        }
+        if (dimHeads == null || dimHeads.isEmpty()) return HeadQuery.NONE;
 
+        double cx = pos.getX() + 0.5;
+        double cy = pos.getY() + 0.5;
+        double cz = pos.getZ() + 0.5;
+
+        int centerVCX = pos.getX() >> 4;
+        int centerVCZ = pos.getZ() >> 4;
+        int centerVCY = Math.floorDiv(pos.getY(), 16);
+
+        List<EntityType<?>> nearbyTypes = new ArrayList<>();
         double minDistSq3D = Double.MAX_VALUE;
         double minDistSqXZ = Double.MAX_VALUE;
-        int count = 0;
+        int totalCount = 0;
 
         for (HeadEntry h : dimHeads.values()) {
-            count++;
-            double dx = h.x() + 0.5 - x;  // center of block
-            double dy = h.y() + 0.5 - y;
-            double dz = h.z() + 0.5 - z;
+            totalCount++;
+
+            // Distance tracking (for HEAD_SUPPRESS)
+            double dx = h.x() + 0.5 - cx;
+            double dy = h.y() + 0.5 - cy;
+            double dz = h.z() + 0.5 - cz;
             double distSq3D = dx * dx + dy * dy + dz * dz;
             double distSqXZ = dx * dx + dz * dz;
-            if (distSq3D < minDistSq3D) {
-                minDistSq3D = distSq3D;
-            }
-            if (distSqXZ < minDistSqXZ) {
-                minDistSqXZ = distSqXZ;
+            if (distSq3D < minDistSq3D) minDistSq3D = distSq3D;
+            if (distSqXZ < minDistSqXZ) minDistSqXZ = distSqXZ;
+
+            // VC box check (for HEAD_MATCH / HEAD_ANY)
+            int hvcx = h.x() >> 4;
+            int hvcz = h.z() >> 4;
+            int hvcy = Math.floorDiv(h.y(), 16);
+            if (Math.abs(hvcx - centerVCX) <= rangeCX
+                    && Math.abs(hvcz - centerVCZ) <= rangeCZ
+                    && Math.abs(hvcy - centerVCY) <= rangeSY) {
+                EntityType<?> entityType = skullTypeStringToEntityType(h.skullType());
+                if (entityType != null) {
+                    nearbyTypes.add(entityType);
+                }
             }
         }
 
-        return new HeadProximity(true, Math.sqrt(minDistSq3D), Math.sqrt(minDistSqXZ), count);
+        HeadProximity proximity = new HeadProximity(true, Math.sqrt(minDistSq3D), Math.sqrt(minDistSqXZ), totalCount);
+        return new HeadQuery(nearbyTypes, proximity);
+    }
+
+    /**
+     * Simple nearby head check (for CivilDetectorItem and other non-spawn callers).
+     * Single O(N) pass, returns only the nearby types without distance info.
+     */
+    public List<EntityType<?>> getHeadTypesNear(String dim, BlockPos pos, int rangeCX, int rangeCZ, int rangeSY) {
+        var dimHeads = heads.get(dim);
+        if (dimHeads == null || dimHeads.isEmpty()) return List.of();
+
+        int centerCX = pos.getX() >> 4;
+        int centerCZ = pos.getZ() >> 4;
+        int centerSY = Math.floorDiv(pos.getY(), 16);
+
+        List<EntityType<?>> result = new ArrayList<>();
+
+        for (HeadEntry h : dimHeads.values()) {
+            int hcx = h.x() >> 4;
+            int hcz = h.z() >> 4;
+            int hsy = Math.floorDiv(h.y(), 16);
+
+            if (Math.abs(hcx - centerCX) <= rangeCX
+                    && Math.abs(hcz - centerCZ) <= rangeCZ
+                    && Math.abs(hsy - centerSY) <= rangeSY) {
+                EntityType<?> entityType = skullTypeStringToEntityType(h.skullType());
+                if (entityType != null) {
+                    result.add(entityType);
+                }
+            }
+        }
+
+        return result;
     }
 
     /**
@@ -138,6 +212,21 @@ public final class MobHeadRegistry {
     public int getHeadCount(String dim) {
         var dimHeads = heads.get(dim);
         return dimHeads == null ? 0 : dimHeads.size();
+    }
+
+    /**
+     * Convert skull type string (from H2 storage) to EntityType.
+     */
+    private static EntityType<?> skullTypeStringToEntityType(String skullType) {
+        if (skullType == null) return null;
+        return switch (skullType) {
+            case "ZOMBIE" -> EntityType.ZOMBIE;
+            case "SKELETON" -> EntityType.SKELETON;
+            case "WITHER_SKELETON" -> EntityType.WITHER_SKELETON;
+            case "CREEPER" -> EntityType.CREEPER;
+            case "PIGLIN" -> EntityType.PIGLIN;
+            default -> null; // PLAYER, DRAGON, etc. — not spawnable
+        };
     }
 
     // ========== Updates ==========
