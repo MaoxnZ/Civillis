@@ -36,6 +36,16 @@ public class CivilMod implements ModInitializer {
      */
     public static final boolean DEBUG = false;
 
+    /**
+     * Thread-local flag indicating the current spawn is from the natural mob
+     * spawning pipeline ({@code SpawnHelper.spawnEntitiesInChunk}).
+     * <p>Set to {@code true} by {@code CivilSpawnHelperMixin} on entry and cleared on
+     * return.  The spawn gate mixin checks this flag so that only natural spawns are
+     * subject to civilization scoring — spawn eggs, spawners, and commands bypass it.
+     */
+    public static final ThreadLocal<Boolean> NATURAL_SPAWN_CONTEXT =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+
     /** Cache service (TTL cache + H2 async persistence + gradual decay). */
     private static TtlCacheService cacheService;
 

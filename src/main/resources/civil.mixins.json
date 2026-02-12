@@ -4,7 +4,8 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "CivilLevelBlockChangeMixin",
-    "CivilServerLevelSpawnGateMixin"
+    "CivilServerLevelSpawnGateMixin",
+    "CivilSpawnHelperMixin"
   ],
   "injectors": {
     "defaultRequire": 1

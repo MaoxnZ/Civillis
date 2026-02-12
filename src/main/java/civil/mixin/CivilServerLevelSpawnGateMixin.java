@@ -39,6 +39,12 @@ public abstract class CivilServerLevelSpawnGateMixin {
             return;
         }
 
+        // Only intercept natural spawns (SpawnHelper pipeline).
+        // Spawn eggs, spawners, /summon, reinforcements etc. bypass civilization checks.
+        if (!CivilMod.NATURAL_SPAWN_CONTEXT.get()) {
+            return;
+        }
+
         ServerWorld world = (ServerWorld) (Object) this;
         BlockPos pos = entity.getBlockPos();
 

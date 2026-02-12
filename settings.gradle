@@ -18,4 +18,4 @@ if (org.gradle.util.GradleVersion.current() < org.gradle.util.GradleVersion.vers
     )
 }
 
-rootProject.name = "civil"
+rootProject.name = "civillis"

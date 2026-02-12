@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.1-beta]
+
+### Fixed
+
+- **Spawn eggs, spawners, and commands now work properly in civilized areas**:
+  Civilization scoring previously intercepted all monster spawns
+  regardless of origin. Now only natural spawns are subject to
+  civilization checks — spawn eggs, mob spawners, /summon, raid
+  events, and zombie reinforcements all bypass it as intended
+
 ## [1.0.0-beta]
 
 ### Changed
