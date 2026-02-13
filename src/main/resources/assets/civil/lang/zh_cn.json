@@ -36,14 +36,19 @@
   "civil.config.slider.freshness": "%1$d\u5c0f\u65f6",
 
   "civil.config.subcategory.headAttract": "怪物头聚怪",
-  "civil.config.subcategory.headAttract.tooltip.1": "\u602a\u7269\u5934\u4f5c\u4e3a\u56fe\u817e\uff0c",
-  "civil.config.subcategory.headAttract.tooltip.2": "\u5c06\u602a\u7269\u5438\u5f15\u5230\u5468\u56f4\uff0c",
-  "civil.config.subcategory.headAttract.tooltip.3": "\u00a77\u901a\u8fc7\u6291\u5236\u8fdc\u5904\u751f\u6210\u5b9e\u73b0\u3002",
+  "civil.config.subcategory.headAttract.tooltip.1": "怪物头充当图腾，",
+  "civil.config.subcategory.headAttract.tooltip.2": "吸引对应怪物到附近。",
+  "civil.config.subcategory.headAttract.tooltip.3": "\u00a77头颅越多，吸引力越强。",
 
   "civil.config.simple.headAttractStrength": "\u805a\u602a\u5f3a\u5ea6",
   "civil.config.simple.headAttractRange": "\u8679\u5438\u8303\u56f4",
   "civil.config.slider.headAttractStrength": "%1$d (\u03bb%2$s)",
   "civil.config.slider.headAttractRange": "%1$d \u683c",
+
+  "civil.config.auraEffect": "探测器声纳",
+  "civil.config.auraEffect.tooltip.1": "探测器触发的声纳扫描：",
+  "civil.config.auraEffect.tooltip.2": "边界光墙、激波粒子、音效。",
+  "civil.config.auraEffect.tooltip.3": "\u00a77关闭后仅保留基础检测反馈。",
 
   "civil.config.override.warning": "\u00a7e\u26a0 检测到 civil.properties 中存在手动自定义值。修改此滑块将覆盖您的自定义配置。"
 }

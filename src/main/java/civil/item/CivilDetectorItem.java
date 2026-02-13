@@ -4,6 +4,7 @@ import civil.CivilMod;
 import civil.CivilServices;
 import civil.config.CivilConfig;
 import civil.ModSounds;
+import civil.aura.SonarScanManager;
 import civil.component.ModComponents;
 import civil.civilization.CScore;
 import civil.civilization.MobHeadRegistry;
@@ -78,6 +79,11 @@ public class CivilDetectorItem extends Item {
                 if (CivilMod.DEBUG) {
                     CivilMod.LOGGER.info("[civil] detector sound played: displayState={}", displayState);
                 }
+            }
+
+            // Trigger sonar scan (protection aura visualization)
+            if (CivilConfig.auraEffectEnabled && player instanceof ServerPlayerEntity serverPlayer) {
+                SonarScanManager.startScan(serverPlayer, serverWorld);
             }
         }
 

@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.1.0-beta]
+
+### Added
+
+- **Detector Sonar**: The Civilization Detector now fires a sonar
+  pulse. Right-click to charge up — with a rising tone — then an
+  expanding shockwave booms outward, sweeping the terrain. Particle
+  colors tell you where you stand: white sparks mean protected
+  ground, soul-blue flames mean exposed territory, and orange fire
+  marks active totem zones
+- **Aura Walls**: Glowing barriers rise at your civilization
+  boundaries as the shockwave passes — gold for civilization edges,
+  amethyst for totem zones. They breathe, scroll, then gently fade.
+  Fire the detector again and existing walls hold steady while new
+  faces appear
+- **Aura toggle**: The sonar effect can be switched on or off in the
+  settings GUI (enabled by default). The detector's original color
+  and sound feedback is unaffected
+
+See your borders, my lord.
+
 ## [1.0.1-beta]
 
 ### Fixed

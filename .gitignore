@@ -36,6 +36,9 @@ venv/
 tests/output/*
 !tests/output/.gitkeep
 
+# Unrelated branch workspaces
+trailer/
+
 # OS
 .DS_Store
 Thumbs.db

@@ -6,7 +6,11 @@ import civil.civilization.operator.BlockCivilization;
 import civil.civilization.structure.VoxelChunkKey;
 import civil.component.ModComponents;
 import civil.civilization.cache.TtlCacheService;
+import civil.aura.SonarBoundaryPayload;
+import civil.aura.SonarChargePayload;
+import civil.aura.SonarScanManager;
 import civil.item.CivilDetectorAnimationReset;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import civil.civilization.core.ScalableCivilizationService;
 import civil.config.CivilConfig;
 import civil.perf.TpsLogger;
@@ -70,11 +74,16 @@ public class CivilMod implements ModInitializer {
         // Register cache lifecycle events
         registerCacheEvents();
 
+        // Register S2C payload types (must be before client receiver registration)
+        PayloadTypeRegistry.playS2C().register(SonarChargePayload.ID, SonarChargePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(SonarBoundaryPayload.ID, SonarBoundaryPayload.CODEC);
+
         ModComponents.initialize();
         ModSounds.initialize();
         ModItems.register();
         ModItems.registerItemGroups();
         CivilDetectorAnimationReset.register();
+        SonarScanManager.register();
 
         if (DEBUG) {
             LOGGER.info("Civil mod loaded. (service=ScalableCivilizationService, TTL={}min, TPS={})",

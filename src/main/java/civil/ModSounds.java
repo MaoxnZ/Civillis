@@ -51,6 +51,38 @@ public final class ModSounds {
         return Registries.SOUND_EVENT.get(id);
     }
 
+    // ========== Sonar shockwave sound effects ==========
+    // Vanilla sounds used for the two-phase sonar audio:
+    //   Phase 1 (charge-up):  beacon activate — gradual mystical power-up
+    //   Phase 2 (ring burst): breeze shoot     — short punchy release
+
+    private static final String SONAR_CHARGE_PATH = "block.beacon.activate";
+    private static final String SONAR_BOOM_PATH   = "entity.breeze.shoot";
+
+    /** Volume and pitch for the sonar charge-up sound (server-side). */
+    public static final float SONAR_CHARGE_VOLUME = 0.8f;
+    public static final float SONAR_CHARGE_PITCH  = 0.7f;
+
+    /** Volume and pitch for the sonar boom/burst sound (client-side). */
+    public static final float SONAR_BOOM_VOLUME = 1.0f;
+    public static final float SONAR_BOOM_PITCH  = 0.85f;
+
+    /**
+     * Returns the vanilla {@link SoundEvent} for the sonar charge-up phase (beacon activate).
+     * May return {@code null} if the sound registry is unavailable.
+     */
+    public static SoundEvent getSonarChargeSound() {
+        return getVanillaSound(MC, SONAR_CHARGE_PATH);
+    }
+
+    /**
+     * Returns the vanilla {@link SoundEvent} for the sonar ring-burst phase (breeze shoot).
+     * May return {@code null} if the sound registry is unavailable.
+     */
+    public static SoundEvent getSonarBoomSound() {
+        return getVanillaSound(MC, SONAR_BOOM_PATH);
+    }
+
     // Vanilla sound effect ids (1.21 dot format)
     private static final String MC = "minecraft";
     private static final String BASS = "block.note_block.bass";

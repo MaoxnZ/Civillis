@@ -215,6 +215,19 @@ public final class MobHeadRegistry {
     }
 
     /**
+     * Get all head entries in a dimension.
+     * Returns an unmodifiable view of the values; safe to iterate but may see
+     * concurrent modifications (which is acceptable for visualization).
+     *
+     * @return collection of head entries, or empty collection if no heads in dimension
+     */
+    public java.util.Collection<HeadEntry> getHeadsInDimension(String dim) {
+        var dimHeads = heads.get(dim);
+        if (dimHeads == null || dimHeads.isEmpty()) return List.of();
+        return dimHeads.values();
+    }
+
+    /**
      * Convert skull type string (from H2 storage) to EntityType.
      */
     private static EntityType<?> skullTypeStringToEntityType(String skullType) {

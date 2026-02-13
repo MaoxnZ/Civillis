@@ -96,6 +96,18 @@ public final class CivilConfigScreen {
                 .setSaveConsumer(idx -> CivilConfig.simpleDetectionRange = RANGE_STEPS[Math.max(0, Math.min(12, idx))])
                 .build());
 
+        // ── 2b. Aura Effect toggle ──
+        cat.addEntry(eb.startBooleanToggle(
+                        Text.translatable("civil.config.auraEffect"),
+                        CivilConfig.auraEffectEnabled)
+                .setDefaultValue(true)
+                .setTooltip(
+                        Text.translatable("civil.config.auraEffect.tooltip.1"),
+                        Text.translatable("civil.config.auraEffect.tooltip.2"),
+                        Text.translatable("civil.config.auraEffect.tooltip.3"))
+                .setSaveConsumer(v -> CivilConfig.auraEffectEnabled = v)
+                .build());
+
         // ── 3. Decay Details (collapsible) ──
         SubCategoryBuilder decay = eb.startSubCategory(
                 Text.translatable("civil.config.subcategory.decay"));

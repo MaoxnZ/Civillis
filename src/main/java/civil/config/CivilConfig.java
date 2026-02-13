@@ -57,6 +57,9 @@ public final class CivilConfig {
     /** Head attraction range: 3-10 slider, val×16 = blocks. Default 8 → 128 blocks. Maps to headAttractMaxRadius. */
     public static int simpleHeadAttractRange = 8;
 
+    /** Whether the protection aura visualization is enabled (sonar scan, particles, walls, sounds). */
+    public static boolean auraEffectEnabled = true;
+
     // ══════════════════════════════════════════════════════════
     //  Raw override detection
     // ══════════════════════════════════════════════════════════
@@ -315,6 +318,8 @@ public final class CivilConfig {
         simplePatrolRange = parseInt(p.getProperty("simple.patrolRange"), simplePatrolRange);
         simplePatrolRange = Math.max(2, Math.min(8, simplePatrolRange));
 
+        auraEffectEnabled = parseBoolean(p.getProperty("aura.enabled"), auraEffectEnabled);
+
         // Snapshot simple values for change detection in GUI save flow
         loadedSimpleFreshness           = simpleFreshnessDuration;
         loadedSimpleDecaySpeed          = simpleDecaySpeed;
@@ -437,6 +442,10 @@ public final class CivilConfig {
             sb.append("simple.headAttractStrength=").append(simpleHeadAttractStrength).append('\n');
             sb.append("simple.headAttractRange=").append(simpleHeadAttractRange).append('\n');
             sb.append("simple.patrolRange=").append(simplePatrolRange).append('\n');
+            sb.append('\n');
+
+            sb.append("# ── Aura Visualization ──\n");
+            sb.append("aura.enabled=").append(auraEffectEnabled).append('\n');
             sb.append('\n');
 
             // Raw overrides: uncommented if active, commented otherwise
