@@ -32,6 +32,8 @@ public record SonarBoundaryPayload(
         List<BoundaryFaceData> faces,
         List<HeadZoneFaceData> headFaces,
         long[] headZone2D,
+        float[] headZoneMinY,
+        float[] headZoneMaxY,
         long[] civHighZone2D
 ) implements CustomPayload {
 
@@ -58,8 +60,10 @@ public record SonarBoundaryPayload(
             hf.write(buf);
         }
         buf.writeVarInt(payload.headZone2D.length);
-        for (long v : payload.headZone2D) {
-            buf.writeLong(v);
+        for (int i = 0; i < payload.headZone2D.length; i++) {
+            buf.writeLong(payload.headZone2D[i]);
+            buf.writeFloat(payload.headZoneMinY[i]);
+            buf.writeFloat(payload.headZoneMaxY[i]);
         }
         buf.writeVarInt(payload.civHighZone2D.length);
         for (long v : payload.civHighZone2D) {
@@ -86,8 +90,12 @@ public record SonarBoundaryPayload(
         }
         int hzCount = buf.readVarInt();
         long[] headZone2D = new long[hzCount];
+        float[] headZoneMinY = new float[hzCount];
+        float[] headZoneMaxY = new float[hzCount];
         for (int i = 0; i < hzCount; i++) {
             headZone2D[i] = buf.readLong();
+            headZoneMinY[i] = buf.readFloat();
+            headZoneMaxY[i] = buf.readFloat();
         }
         int chCount = buf.readVarInt();
         long[] civHighZone2D = new long[chCount];
@@ -95,7 +103,7 @@ public record SonarBoundaryPayload(
             civHighZone2D[i] = buf.readLong();
         }
         return new SonarBoundaryPayload(playerInHigh, cx, cy, cz, wMinY, wMaxY,
-                faces, headFaces, headZone2D, civHighZone2D);
+                faces, headFaces, headZone2D, headZoneMinY, headZoneMaxY, civHighZone2D);
     }
 
     @Override

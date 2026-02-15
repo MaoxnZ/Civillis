@@ -132,27 +132,32 @@ public final class SonarScanManager {
     }
 
     /**
-     * Check if the player's voxel chunk is within any mob head's 3×3×1 Force Allow neighborhood.
+     * Check if the player is within any mob head's Force Allow neighborhood.
+     * Uses VC-level XZ range checks and strict same-sy Y check, consistent
+     * with the detector sound's {@code getHeadTypesNear(headRangeY=0)} and
+     * the shockwave ring's particle zone lookup.
      */
     private static boolean isPlayerInHeadZone(ServerPlayerEntity player, ServerWorld world) {
         MobHeadRegistry registry = CivilServices.getMobHeadRegistry();
         if (registry == null || !registry.isInitialized()) return false;
 
-        String dim = world.getRegistryKey().getValue().toString();
+        String dim = world.getRegistryKey().toString();
         var allHeads = registry.getHeadsInDimension(dim);
         if (allHeads.isEmpty()) return false;
 
         VoxelChunkKey playerVC = VoxelChunkKey.from(player.getBlockPos());
         int pcx = playerVC.getCx();
         int pcz = playerVC.getCz();
-        int psy = playerVC.getSy();
+        int playerBlockY = player.getBlockPos().getY();
         int rangeCX = CivilConfig.headRangeX;
         int rangeCZ = CivilConfig.headRangeZ;
+
+        int psy = Math.floorDiv(playerBlockY, 16);
 
         for (MobHeadRegistry.HeadEntry head : allHeads) {
             int hcx = head.x() >> 4;
             int hcz = head.z() >> 4;
-            int hsy = head.y() >> 4;
+            int hsy = Math.floorDiv(head.y(), 16);
             if (Math.abs(pcx - hcx) <= rangeCX
                     && Math.abs(pcz - hcz) <= rangeCZ
                     && psy == hsy) {
@@ -247,11 +252,19 @@ public final class SonarScanManager {
         double wallMinY = cy - WALL_HALF_HEIGHT;
         double wallMaxY = cy + WALL_HALF_HEIGHT;
 
-        // Convert force-allow 2D footprint to array for the payload.
-        // The client uses this for sonar particle effects (FLAME in head zones).
-        long[] headZone2DArray = new long[headResult.forceAllow2D.size()];
+        // Convert force-allow 2D footprint + Y ranges to parallel arrays for the payload.
+        // The client uses this for sonar particle effects (FLAME in head zones with Y check).
+        int headZoneSize = headResult.headZoneYRanges.size();
+        long[] headZone2DArray = new long[headZoneSize];
+        float[] headZoneMinYArray = new float[headZoneSize];
+        float[] headZoneMaxYArray = new float[headZoneSize];
         int idx = 0;
-        for (long v : headResult.forceAllow2D) headZone2DArray[idx++] = v;
+        for (var entry : headResult.headZoneYRanges.entrySet()) {
+            headZone2DArray[idx] = entry.getKey();
+            headZoneMinYArray[idx] = entry.getValue()[0];
+            headZoneMaxYArray[idx] = entry.getValue()[1];
+            idx++;
+        }
 
         // Build 2D (XZ) footprint of HIGH civilization VCs for position-based sonar
         // particle type selection: particles in HIGH VCs → END_ROD (gold), else → SOUL_FIRE_FLAME.
@@ -295,7 +308,8 @@ public final class SonarScanManager {
 
         SonarBoundaryPayload payload = new SonarBoundaryPayload(
                 scan.isPlayerInHigh(), cx, cy, cz, wallMinY, wallMaxY,
-                faces, headResult.faces, headZone2DArray, civHighZone2DArray);
+                faces, headResult.faces, headZone2DArray,
+                headZoneMinYArray, headZoneMaxYArray, civHighZone2DArray);
 
         ServerPlayNetworking.send(player, payload);
 
@@ -328,9 +342,12 @@ public final class SonarScanManager {
      * @param forceAllow2D 2D (XZ) footprint of all force-allow VCs, packed as
      *                     {@link #packXZ(int, int)}. Used to filter civilization faces
      *                     that overlap with head zones (purple takes priority over gold).
+     * @param headZoneYRanges per (cx,cz) Y range: packed long key → float[]{minY, maxY}.
+     *                        Used for sonar particle Y-aware head zone checks.
      */
-    private record HeadZoneResult(List<HeadZoneFaceData> faces, Set<Long> forceAllow2D) {
-        static final HeadZoneResult EMPTY = new HeadZoneResult(List.of(), Set.of());
+    private record HeadZoneResult(List<HeadZoneFaceData> faces, Set<Long> forceAllow2D,
+                                  Map<Long, float[]> headZoneYRanges) {
+        static final HeadZoneResult EMPTY = new HeadZoneResult(List.of(), Set.of(), Map.of());
     }
 
     /**
@@ -400,11 +417,24 @@ public final class SonarScanManager {
 
         if (forceAllowVCs.isEmpty()) return HeadZoneResult.EMPTY;
 
-        // Build 2D (XZ) footprint for civilization face filtering.
-        // Any VC whose (cx, cz) appears here is inside a head zone at some Y level.
+        // Build 2D (XZ) footprint for civilization face filtering,
+        // and per-(cx,cz) Y ranges for sonar particle head zone checks.
         Set<Long> forceAllow2D = new HashSet<>();
+        Map<Long, float[]> headZoneYRanges = new HashMap<>();
         for (VC3 vc : forceAllowVCs) {
-            forceAllow2D.add(packXZ(vc.cx, vc.cz));
+            long packedXZ = packXZ(vc.cx, vc.cz);
+            forceAllow2D.add(packedXZ);
+            // Merge Y range: exact VC height [sy*16 .. (sy+1)*16), strict same-sy
+            float vcMinY = vc.sy * 16.0f;
+            float vcMaxY = (vc.sy + 1) * 16.0f;
+            float[] existing = headZoneYRanges.get(packedXZ);
+            if (existing == null) {
+                headZoneYRanges.put(packedXZ, new float[]{vcMinY, vcMaxY});
+            } else {
+                // Multiple heads at same XZ but different Y — expand range
+                existing[0] = Math.min(existing[0], vcMinY);
+                existing[1] = Math.max(existing[1], vcMaxY);
+            }
         }
 
         // XZ neighbor offsets:     +X,      -X,       +Z,      -Z
@@ -464,7 +494,7 @@ public final class SonarScanManager {
                     faces.size(), forceAllowVCs.size(), forceAllow2D.size());
         }
 
-        return new HeadZoneResult(faces, forceAllow2D);
+        return new HeadZoneResult(faces, forceAllow2D, headZoneYRanges);
     }
 
     /**

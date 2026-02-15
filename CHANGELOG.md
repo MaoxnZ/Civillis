@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.1-beta]
+
+### Fixed
+
+- **Sonar charge-up particle mismatch**: The charge-up column
+  previously showed civilization particles (white or soul-blue) even
+  when standing inside an active totem zone. It now displays orange
+  fire consistently
+
 ## [1.1.0-beta]
 
 ### Added

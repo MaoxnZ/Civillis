@@ -11,7 +11,9 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -41,11 +43,12 @@ public class CivilModClient implements ClientModInitializer {
                     AuraWallRenderer.updateBoundaries(payload);
                     var player = MinecraftClient.getInstance().player;
                     if (player != null) {
-                        Set<Long> headZone2DSet = buildLongSet(payload.headZone2D());
+                        Map<Long, float[]> headZoneYMap = buildHeadZoneYMap(
+                                payload.headZone2D(), payload.headZoneMinY(), payload.headZoneMaxY());
                         Set<Long> civHighZone2DSet = buildLongSet(payload.civHighZone2D());
 
                         SonarShockwaveEffect.startRing(
-                                payload.playerInHigh(), headZone2DSet, civHighZone2DSet);
+                                payload.playerInHigh(), headZoneYMap, civHighZone2DSet);
                     }
                 });
         AuraWallRenderer.register();
@@ -57,5 +60,15 @@ public class CivilModClient implements ClientModInitializer {
         Set<Long> set = new HashSet<>(array.length);
         for (long v : array) set.add(v);
         return set;
+    }
+
+    /** Build head zone Y-range map from parallel arrays. Returns {@code Map.of()} if empty. */
+    private static Map<Long, float[]> buildHeadZoneYMap(long[] keys, float[] minY, float[] maxY) {
+        if (keys.length == 0) return Map.of();
+        Map<Long, float[]> map = new HashMap<>(keys.length);
+        for (int i = 0; i < keys.length; i++) {
+            map.put(keys[i], new float[]{minY[i], maxY[i]});
+        }
+        return map;
     }
 }

@@ -6,6 +6,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.ParticleTypes;
 
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -83,10 +84,11 @@ public final class SonarShockwaveEffect {
     private static boolean playerInHigh = true;
 
     /**
-     * 2D (XZ) footprint of force-allow head zones, packed as {@code (cx << 32) | (cz & 0xFFFFFFFFL)}.
-     * Particles landing inside these VCs are rendered as {@code FLAME} (orange).
+     * Head zone footprint with Y ranges: packed XZ key → float[]{minY, maxY}.
+     * Particles landing inside these VCs (with matching Y) are rendered as {@code FLAME} (orange).
+     * Y range is the exact VC height [sy*16, (sy+1)*16) — strict same-sy, matching detector sound.
      */
-    private static Set<Long> headZone2D = Set.of();
+    private static Map<Long, float[]> headZoneYMap = Map.of();
 
     /**
      * 2D (XZ) footprint of HIGH civilization VCs, packed the same way.
@@ -123,13 +125,13 @@ public final class SonarShockwaveEffect {
      * Called when the {@link SonarBoundaryPayload} arrives. If charge-up is still
      * playing, it transitions immediately to the ring phase.
      *
-     * @param inHigh       true if the player is in a HIGH zone
-     * @param headZones    2D footprint of head zones (packed VC coords)
-     * @param civHighZones 2D footprint of HIGH civilization VCs (packed VC coords)
+     * @param inHigh          true if the player is in a HIGH zone
+     * @param headZonesYMap   head zone footprint with Y ranges (packed XZ → {minY, maxY})
+     * @param civHighZones    2D footprint of HIGH civilization VCs (packed VC coords)
      */
-    public static void startRing(boolean inHigh, Set<Long> headZones, Set<Long> civHighZones) {
+    public static void startRing(boolean inHigh, Map<Long, float[]> headZonesYMap, Set<Long> civHighZones) {
         playerInHigh = inHigh;
-        headZone2D = headZones;
+        headZoneYMap = headZonesYMap;
         civHighZone2D = civHighZones;
         // Keep cx/cy/cz from charge phase for visual continuity
         phaseStartNano = System.nanoTime();
@@ -182,9 +184,14 @@ public final class SonarShockwaveEffect {
 
     // ========== Zone checks ==========
 
-    private static boolean isInHeadZone(double worldX, double worldZ) {
-        if (headZone2D.isEmpty()) return false;
-        return zoneLookup(headZone2D, worldX, worldZ);
+    private static boolean isInHeadZone(double worldX, double worldY, double worldZ) {
+        if (headZoneYMap.isEmpty()) return false;
+        int vcx = ((int) Math.floor(worldX)) >> 4;
+        int vcz = ((int) Math.floor(worldZ)) >> 4;
+        long key = ((long) vcx << 32) | (vcz & 0xFFFFFFFFL);
+        float[] yRange = headZoneYMap.get(key);
+        if (yRange == null) return false;
+        return worldY >= yRange[0] && worldY < yRange[1];
     }
 
     private static boolean isInHighZone(double worldX, double worldZ) {
@@ -271,7 +278,7 @@ public final class SonarShockwaveEffect {
             double vx = cos * outwardVelocity;
             double vz = sin * outwardVelocity;
 
-            var particleType = isInHeadZone(px, pz)
+            var particleType = isInHeadZone(px, py, pz)
                     ? ParticleTypes.FLAME
                     : isInHighZone(px, pz)
                             ? ParticleTypes.END_ROD
