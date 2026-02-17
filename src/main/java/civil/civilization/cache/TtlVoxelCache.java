@@ -4,7 +4,7 @@ import civil.CivilMod;
 import civil.civilization.CScore;
 import civil.config.CivilConfig;
 import civil.civilization.storage.H2Storage;
-import civil.civilization.structure.VoxelChunkKey;
+import civil.civilization.VoxelChunkKey;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;

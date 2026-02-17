@@ -1,5 +1,70 @@
 # Changelog
 
+## [1.2.0-beta]
+
+### Changed
+
+- **Head mechanics reworked**: Monster skulls now follow clearer,
+  more intuitive rules. One or two skulls simply allow extra spawns
+  nearby — no conversion, just a breach in your civilization's
+  defenses. Place three or more skulls in the same chunk and mobs
+  start converting into the skull types you've placed, with conversion
+  strength scaling smoothly up to ten heads. By default, wither
+  skeleton skulls do not participate in conversion — they shouldn't
+  be wandering out of the Nether just because you decorated your base
+- **Block scoring rebalanced**: Civilization scores now follow a
+  consistent design framework based on crafting complexity and
+  symbolic weight. Simple stone-age crafts — crafting tables,
+  furnaces, chests — contribute modestly, as they should. Iron-age
+  workstations carry more weight. Nether and End materials — brewing
+  stands, enchanting tables, lodestones — are serious civilization
+  anchors. Boss-tier structures like beacons and conduits remain the
+  strongest pillars. Glowing or magical blocks get a bonus on top
+
+### Added
+
+- **New scored blocks**: Bells, respawn anchors, lodestones, end rods,
+  and decorated pots now contribute to your civilization score
+- **Built-in mod compatibility**: Civillis can now recognize blocks
+  from other mods as part of your civilization. This version ships
+  with built-in support for:
+  - **Farmer's Delight** — stoves, cooking pots, cutting boards,
+    baskets, and all cabinet types
+  - **Supplementaries** — safes, globes, clock blocks, sconces, jars
+  - **Create** — steam engines, blaze burners, mechanical mixers and
+    presses, basins, depots
+
+  More mods will be added in future updates
+- **Datapack-driven registries**: Both civilization block scoring and
+  monster head types are now loaded from JSON data files, fully
+  overridable via datapacks. Every default value can be tweaked,
+  replaced, or extended without touching the mod's code
+
+#### For modpack authors and bridge-mod developers
+
+Block scores and head types are now fully data-driven:
+
+- **Blocks**: `data/<namespace>/civil_blocks/*.json` — add entries to
+  register new blocks or override existing weights. Use tags
+  (`#minecraft:beds`) or individual block IDs
+- **Heads**: `data/<namespace>/civil_heads/*.json` — map custom skull
+  type strings to entity types. Toggle any head with `"enabled": false`
+  to make it purely decorative, or set `"convert": false` to keep it
+  active but exclude it from the conversion pool
+
+Both support `"replace": true` to wipe all previously loaded entries
+and start from a clean slate (use with caution — this clears everything,
+including defaults from other mods).
+
+Mods that add new skull types via custom `SkullBlock` subclasses are
+automatically compatible. Player-head-based mob heads (as used by mods
+like All The Heads or Just Mob Heads) cannot be distinguished by skull
+type and are not currently supported.
+
+### Note
+
+Learning to listen before building. Still a long way to go.
+
 ## [1.1.1-beta]
 
 ### Fixed

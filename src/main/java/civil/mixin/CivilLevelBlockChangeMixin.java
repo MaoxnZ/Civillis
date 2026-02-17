@@ -1,10 +1,9 @@
 package civil.mixin;
 
 import civil.CivilServices;
-import civil.civilization.MobHeadRegistry;
-
-import civil.civilization.core.ScalableCivilizationService;
-import civil.civilization.operator.BlockCivilization;
+import civil.civilization.BlockScanner;
+import civil.civilization.HeadTracker;
+import civil.civilization.scoring.ScalableCivilizationService;
 import net.minecraft.block.AbstractSkullBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.world.ServerWorld;
@@ -41,7 +40,7 @@ public abstract class CivilLevelBlockChangeMixin {
         // we trigger the update. The ScalableCivilizationService.onCivilBlockChanged()
         // handles the delta calculation by comparing cached vs recomputed L1 scores.
 
-        boolean isNowHead = BlockCivilization.isMonsterHead(state);
+        boolean isNowHead = BlockScanner.isSkullBlock(state);
 
         // Fusion Architecture: immediate L1 recompute + delta propagation.
         // onCivilBlockChanged compares old vs new L1 scores; if delta is non-zero,
@@ -52,8 +51,8 @@ public abstract class CivilLevelBlockChangeMixin {
             scalableService.onCivilBlockChanged(serverWorld, pos);
         }
 
-        // Track head placement/removal in MobHeadRegistry (unchanged).
-        MobHeadRegistry registry = CivilServices.getMobHeadRegistry();
+        // Track head placement/removal in HeadTracker.
+        HeadTracker registry = CivilServices.getHeadTracker();
         if (registry != null && registry.isInitialized()) {
             String dim = serverWorld.getRegistryKey().toString();
 

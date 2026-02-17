@@ -1,6 +1,6 @@
 package civil.aura;
 
-import civil.civilization.structure.VoxelChunkKey;
+import civil.civilization.VoxelChunkKey;
 import net.minecraft.util.math.Direction;
 
 /**

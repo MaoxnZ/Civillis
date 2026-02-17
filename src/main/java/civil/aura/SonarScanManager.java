@@ -3,8 +3,9 @@ package civil.aura;
 import civil.CivilMod;
 import civil.CivilServices;
 import civil.ModSounds;
-import civil.civilization.MobHeadRegistry;
-import civil.civilization.structure.VoxelChunkKey;
+import civil.civilization.HeadTracker;
+import civil.civilization.VoxelChunkKey;
+import civil.registry.HeadTypeRegistry;
 import civil.config.CivilConfig;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -119,7 +120,7 @@ public final class SonarScanManager {
         SonarScan scan = new SonarScan(serverWorld, player.getBlockPos(), worldTick);
 
         // Pre-compute whether the player is in a head zone (for charge-up particle type).
-        // Cheap O(N) check against MobHeadRegistry where N is typically 10–100 heads.
+        // Cheap O(N) check against HeadTracker where N is typically 10–100 heads.
         boolean playerInHeadZone = isPlayerInHeadZone(player, serverWorld);
 
         ScanSession session = new ScanSession(scan, SonarScan.MAX_RADIUS, playerInHeadZone);
@@ -138,7 +139,7 @@ public final class SonarScanManager {
      * the shockwave ring's particle zone lookup.
      */
     private static boolean isPlayerInHeadZone(ServerPlayerEntity player, ServerWorld world) {
-        MobHeadRegistry registry = CivilServices.getMobHeadRegistry();
+        HeadTracker registry = CivilServices.getHeadTracker();
         if (registry == null || !registry.isInitialized()) return false;
 
         String dim = world.getRegistryKey().toString();
@@ -154,7 +155,9 @@ public final class SonarScanManager {
 
         int psy = Math.floorDiv(playerBlockY, 16);
 
-        for (MobHeadRegistry.HeadEntry head : allHeads) {
+        for (HeadTracker.HeadEntry head : allHeads) {
+            if (!HeadTypeRegistry.isEnabled(head.skullType())) continue;
+
             int hcx = head.x() >> 4;
             int hcz = head.z() >> 4;
             int hsy = Math.floorDiv(head.y(), 16);
@@ -366,7 +369,7 @@ public final class SonarScanManager {
      *
      * <p>Algorithm:
      * <ol>
-     *   <li>Collect all heads in the current dimension from {@link MobHeadRegistry}.</li>
+     *   <li>Collect all heads in the current dimension from {@link HeadTracker}.</li>
      *   <li>For each head within range, expand its 3×3×1 VC force-allow zone.</li>
      *   <li>Build a set of all force-allow VCs (union of all head zones).</li>
      *   <li>Project to 2D for civilization face filtering.</li>
@@ -381,7 +384,7 @@ public final class SonarScanManager {
     private static HeadZoneResult computeHeadZoneData(SonarScan scan) {
         ServerWorld world = scan.getWorld();
         String dim = world.getRegistryKey().toString();
-        MobHeadRegistry registry = CivilServices.getMobHeadRegistry();
+        HeadTracker registry = CivilServices.getHeadTracker();
         if (registry == null || !registry.isInitialized()) return HeadZoneResult.EMPTY;
 
         var allHeads = registry.getHeadsInDimension(dim);
@@ -396,7 +399,9 @@ public final class SonarScanManager {
         // Build set of all force-allow VCs from nearby heads
         Set<VC3> forceAllowVCs = new HashSet<>();
 
-        for (MobHeadRegistry.HeadEntry head : allHeads) {
+        for (HeadTracker.HeadEntry head : allHeads) {
+            if (!HeadTypeRegistry.isEnabled(head.skullType())) continue;
+
             int hcx = head.x() >> 4;
             int hcz = head.z() >> 4;
             int hsy = Math.floorDiv(head.y(), 16);

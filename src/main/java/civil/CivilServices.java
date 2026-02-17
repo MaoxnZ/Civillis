@@ -1,10 +1,10 @@
 package civil;
 
-import civil.civilization.MobHeadRegistry;
+import civil.civilization.HeadTracker;
 import civil.civilization.cache.CivilizationCache;
 import civil.civilization.cache.ResultCache;
-import civil.civilization.core.CivilizationService;
-import civil.civilization.core.ScalableCivilizationService;
+import civil.civilization.scoring.CivilizationService;
+import civil.civilization.scoring.ScalableCivilizationService;
 
 /**
  * Global service access entry point for Civil module.
@@ -16,7 +16,7 @@ public final class CivilServices {
 
     private static CivilizationService civilizationService;
     private static CivilizationCache civilizationCache;
-    private static MobHeadRegistry mobHeadRegistry;
+    private static HeadTracker headTracker;
 
     private CivilServices() {
     }
@@ -29,8 +29,8 @@ public final class CivilServices {
         civilizationCache = cache;
     }
 
-    public static void initMobHeadRegistry(MobHeadRegistry registry) {
-        mobHeadRegistry = registry;
+    public static void initHeadTracker(HeadTracker tracker) {
+        headTracker = tracker;
     }
 
     public static CivilizationService getCivilizationService() {
@@ -42,9 +42,9 @@ public final class CivilServices {
         return civilizationCache;
     }
 
-    /** Mob head registry for head attraction system. null if not initialized. */
-    public static MobHeadRegistry getMobHeadRegistry() {
-        return mobHeadRegistry;
+    /** Head tracker for head attraction system. null if not initialized. */
+    public static HeadTracker getHeadTracker() {
+        return headTracker;
     }
 
     /**

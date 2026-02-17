@@ -2,7 +2,7 @@ package civil.civilization.storage;
 
 import civil.CivilMod;
 import civil.civilization.CScore;
-import civil.civilization.structure.VoxelChunkKey;
+import civil.civilization.VoxelChunkKey;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.WorldSavePath;
 import org.slf4j.Logger;

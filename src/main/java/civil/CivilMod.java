@@ -1,9 +1,11 @@
 package civil;
 
 import civil.civilization.CScore;
-import civil.civilization.MobHeadRegistry;
-import civil.civilization.operator.BlockCivilization;
-import civil.civilization.structure.VoxelChunkKey;
+import civil.civilization.BlockScanner;
+import civil.civilization.HeadTracker;
+import civil.registry.BlockWeightLoader;
+import civil.registry.HeadTypeLoader;
+import civil.civilization.VoxelChunkKey;
 import civil.component.ModComponents;
 import civil.civilization.cache.TtlCacheService;
 import civil.aura.SonarBoundaryPayload;
@@ -11,7 +13,7 @@ import civil.aura.SonarChargePayload;
 import civil.aura.SonarScanManager;
 import civil.item.CivilDetectorAnimationReset;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import civil.civilization.core.ScalableCivilizationService;
+import civil.civilization.scoring.ScalableCivilizationService;
 import civil.config.CivilConfig;
 import civil.perf.TpsLogger;
 import net.fabricmc.api.ModInitializer;
@@ -53,8 +55,8 @@ public class CivilMod implements ModInitializer {
     /** Cache service (TTL cache + H2 async persistence + gradual decay). */
     private static TtlCacheService cacheService;
 
-    /** Mob head registry (persistent head position tracking for attraction system). */
-    private static MobHeadRegistry mobHeadRegistry;
+    /** Head tracker (persistent head position tracking for attraction system). */
+    private static HeadTracker headTracker;
 
     @Override
     public void onInitialize() {
@@ -65,11 +67,17 @@ public class CivilMod implements ModInitializer {
 
         ScalableCivilizationService civilizationService =
                 new ScalableCivilizationService(cacheService);
-        mobHeadRegistry = new MobHeadRegistry();
+        headTracker = new HeadTracker();
         CivilServices.initCivilizationService(civilizationService);
         CivilServices.initCivilizationCache(cacheService);
-        CivilServices.initMobHeadRegistry(mobHeadRegistry);
+        CivilServices.initHeadTracker(headTracker);
         TpsLogger.register();
+
+        // Register datapack reload listeners (block weights + head types)
+        net.fabricmc.fabric.api.resource.ResourceManagerHelper.get(net.minecraft.resource.ResourceType.SERVER_DATA)
+                .registerReloadListener(new BlockWeightLoader());
+        net.fabricmc.fabric.api.resource.ResourceManagerHelper.get(net.minecraft.resource.ResourceType.SERVER_DATA)
+                .registerReloadListener(new HeadTypeLoader());
 
         // Register cache lifecycle events
         registerCacheEvents();
@@ -99,7 +107,7 @@ public class CivilMod implements ModInitializer {
      * Register cache lifecycle events: initialization, per-tick maintenance, and shutdown.
      */
     private void registerCacheEvents() {
-        // Initialize H2 database, ServerClock, and MobHeadRegistry when overworld loads
+        // Initialize H2 database, ServerClock, and HeadTracker when overworld loads
         ServerWorldEvents.LOAD.register((server, world) -> {
             if (world.getRegistryKey() == World.OVERWORLD) {
                 if (DEBUG) {
@@ -107,9 +115,9 @@ public class CivilMod implements ModInitializer {
                 }
                 cacheService.initialize(world);
 
-                // Initialize MobHeadRegistry after H2 is ready
-                if (mobHeadRegistry != null) {
-                    mobHeadRegistry.initialize(cacheService.getStorage());
+                // Initialize HeadTracker after H2 is ready
+                if (headTracker != null) {
+                    headTracker.initialize(cacheService.getStorage());
                 }
             }
         });
@@ -121,14 +129,14 @@ public class CivilMod implements ModInitializer {
             }
         });
 
-        // Shutdown cache service and MobHeadRegistry when overworld unloads
+        // Shutdown cache service and HeadTracker when overworld unloads
         ServerWorldEvents.UNLOAD.register((server, world) -> {
             if (world.getRegistryKey() == World.OVERWORLD) {
                 if (DEBUG) {
                     LOGGER.info("[civil] Cache service shutting down...");
                 }
-                if (mobHeadRegistry != null) {
-                    mobHeadRegistry.shutdown();
+                if (headTracker != null) {
+                    headTracker.shutdown();
                 }
                 cacheService.shutdown();
             }
@@ -139,14 +147,14 @@ public class CivilMod implements ModInitializer {
             String dim = world.getRegistryKey().toString();
 
             // 1. Discover pre-existing heads for world upgrade path (existing logic)
-            if (mobHeadRegistry != null && mobHeadRegistry.isInitialized()) {
+            if (headTracker != null && headTracker.isInitialized()) {
                 for (BlockPos bePos : chunk.getBlockEntityPositions()) {
                     if (chunk.getBlockEntity(bePos) instanceof SkullBlockEntity) {
                         BlockState state = chunk.getBlockState(bePos);
-                        if (BlockCivilization.isMonsterHead(state)) {
+                        if (BlockScanner.isSkullBlock(state)) {
                             AbstractSkullBlock skull = (AbstractSkullBlock) state.getBlock();
                             String skullType = skull.getSkullType().toString();
-                            mobHeadRegistry.onHeadAdded(dim, bePos.getX(), bePos.getY(), bePos.getZ(), skullType);
+                            headTracker.onHeadAdded(dim, bePos.getX(), bePos.getY(), bePos.getZ(), skullType);
                         }
                     }
                 }
@@ -175,7 +183,7 @@ public class CivilMod implements ModInitializer {
 
                     // H2 miss: palette scan to determine if full computation is needed
                     ChunkSection section = sections[i];
-                    if (!section.hasAny(BlockCivilization::isTargetBlock)) {
+                    if (!section.hasAny(BlockScanner::isTargetBlock)) {
                         // No target blocks in palette → guaranteed score 0.0.
                         // Only store in hot cache — NOT persisted to H2.
                         // Empty sections make up ~75-80% of all L1 entries (sky, deep stone);

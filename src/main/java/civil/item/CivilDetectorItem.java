@@ -7,7 +7,7 @@ import civil.ModSounds;
 import civil.aura.SonarScanManager;
 import civil.component.ModComponents;
 import civil.civilization.CScore;
-import civil.civilization.MobHeadRegistry;
+import civil.civilization.HeadTracker;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
@@ -105,7 +105,7 @@ public class CivilDetectorItem extends Item {
      * below thresholdLow = low/red, between thresholdLow..thresholdMid = medium/yellow,
      * above thresholdMid = high/green.  Thresholds follow CivilConfig (GUI suppression slider).
      *
-     * <p>Head detection queries MobHeadRegistry directly (consistent with SpawnPolicy),
+     * <p>Head detection queries HeadTracker directly (consistent with SpawnPolicy),
      * since CScore no longer carries headTypes in the Fusion Architecture.
      */
     private static String scoreToDisplayState(CScore cScore, ServerWorld world, BlockPos pos) {
@@ -113,8 +113,8 @@ public class CivilDetectorItem extends Item {
             return "default";
         }
 
-        // Check MobHeadRegistry directly (fusion architecture: heads decoupled from CScore)
-        MobHeadRegistry registry = CivilServices.getMobHeadRegistry();
+        // Check HeadTracker directly (fusion architecture: heads decoupled from CScore)
+        HeadTracker registry = CivilServices.getHeadTracker();
         if (registry != null && registry.isInitialized()) {
             String dim = world.getRegistryKey().toString();
             List<EntityType<?>> headTypes = registry.getHeadTypesNear(

@@ -1,0 +1,75 @@
+{
+  "_comment": [
+    "Default civilization block weights for the Civil mod.",
+    "Modpack authors and players can add custom JSON files in",
+    "data/<namespace>/civil_blocks/ to add or override weights.",
+    "",
+    "Entries support block IDs (e.g. 'minecraft:beacon') and",
+    "block tags prefixed with '#' (e.g. '#minecraft:beds').",
+    "",
+    "Weight design framework — Era x Deterrence:",
+    "  Stone Age   (0.2-0.3): wood/cobblestone, first minutes of play",
+    "  Iron Age    (0.4-0.5): iron or moderately complex materials",
+    "  Advanced    (0.7-1.0): nether/end materials, diamonds",
+    "  Legendary   (3.0-5.0): boss fights or rare structures",
+    "  Deterrence multiplier: light x1.2-1.5, magic x1.5-2.0",
+    "",
+    "Loading order: files are loaded alphabetically per namespace.",
+    "Later entries override earlier ones for the same block ID.",
+    "Tip: to give a specific color a different weight, list the",
+    "tag first, then override the individual block afterward.",
+    "Example: '#minecraft:beds' at 0.7, then 'minecraft:red_bed' at 1.0.",
+    "",
+    "Set 'replace': true to clear ALL previously loaded weights",
+    "(useful for modpacks that want a complete custom table)."
+  ],
+  "replace": false,
+  "entries": [
+    { "block": "minecraft:beacon",           "weight": 5.0 },
+    { "block": "minecraft:conduit",          "weight": 5.0 },
+
+    { "block": "minecraft:respawn_anchor",   "weight": 2.0 },
+
+    { "block": "minecraft:enchanting_table", "weight": 1.5 },
+    { "block": "minecraft:lodestone",        "weight": 1.5 },
+
+    { "block": "minecraft:brewing_stand",    "weight": 1.0 },
+    { "block": "minecraft:sea_lantern",      "weight": 1.0 },
+
+    { "block": "minecraft:bell",             "weight": 0.8 },
+    { "block": "minecraft:ender_chest",      "weight": 0.8 },
+
+    { "block": "#minecraft:beds",            "weight": 0.7 },
+    { "block": "minecraft:redstone_lamp",    "weight": 0.7 },
+
+    { "block": "#minecraft:anvil",           "weight": 0.6 },
+    { "block": "#minecraft:shulker_boxes",   "weight": 0.6 },
+
+    { "block": "#minecraft:campfires",       "weight": 0.5 },
+    { "block": "minecraft:stonecutter",      "weight": 0.5 },
+    { "block": "minecraft:cartography_table","weight": 0.5 },
+    { "block": "minecraft:smithing_table",   "weight": 0.5 },
+    { "block": "minecraft:fletching_table",  "weight": 0.5 },
+    { "block": "minecraft:loom",             "weight": 0.5 },
+    { "block": "minecraft:grindstone",       "weight": 0.5 },
+    { "block": "minecraft:blast_furnace",    "weight": 0.5 },
+    { "block": "minecraft:smoker",           "weight": 0.5 },
+    { "block": "minecraft:lectern",          "weight": 0.5 },
+    { "block": "minecraft:end_rod",          "weight": 0.5 },
+
+    { "block": "minecraft:lantern",          "weight": 0.4 },
+    { "block": "minecraft:soul_lantern",     "weight": 0.4 },
+    { "block": "minecraft:trapped_chest",    "weight": 0.4 },
+
+    { "block": "minecraft:crafting_table",   "weight": 0.3 },
+    { "block": "minecraft:furnace",          "weight": 0.3 },
+    { "block": "minecraft:chest",            "weight": 0.3 },
+    { "block": "minecraft:barrel",           "weight": 0.3 },
+    { "block": "minecraft:farmland",         "weight": 0.3 },
+    { "block": "minecraft:composter",        "weight": 0.3 },
+    { "block": "minecraft:beehive",          "weight": 0.3 },
+    { "block": "minecraft:decorated_pot",    "weight": 0.3 },
+
+    { "block": "minecraft:bee_nest",         "weight": 0.2 }
+  ]
+}

@@ -17,17 +17,25 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.List;
 
 /**
- * Performs civilization judgment when entity actually joins world: block / allow / HEAD_ANY probabilistically "replace with neighborhood head corresponding mob".
+ * Performs civilization judgment when entity actually joins world:
+ * block / allow / HEAD_NEARBY conversion.
  *
- * <p>HEAD_MATCH: Current mob matches neighborhood head type, directly allow.
- * <p>HEAD_ANY: Neighborhood has any monster head; conversion probability linearly determined by head count ({@link #HEAD_COUNT_FOR_FULL_CONVERT} heads = probability 1.0),
- * which mob to convert to is randomly sampled from headTypes list weighted by repetition count (heads that appear more often correspond to mobs more likely to be selected).
+ * <p>HEAD_NEARBY conversion logic (new design):
+ * <ul>
+ *   <li>1-2 nearby heads: allow spawn as-is (bypass civilization suppression, no conversion).</li>
+ *   <li>3+ nearby heads: conversion probability scales linearly from ~12.5% (3 heads)
+ *       to 100% (10+ heads). Conversion target is weighted by placed head proportions
+ *       (from the convertPool).</li>
+ * </ul>
  */
 @Mixin(ServerWorld.class)
 public abstract class CivilServerLevelSpawnGateMixin {
 
-    /** When head count in neighborhood reaches this value, conversion probability is 1.0; less than this grows linearly (e.g., 1 head=0.2, 5 heads=1.0). */
-    private static final int HEAD_COUNT_FOR_FULL_CONVERT = 5;
+    /** Minimum nearby head count to trigger conversion. Below this, heads only bypass civilization. */
+    private static final int MIN_CONVERT_COUNT = 3;
+
+    /** At this head count, conversion probability reaches 1.0. Formula: min(1, (count-2)/8). */
+    private static final int HEAD_COUNT_FOR_FULL_CONVERT = 10;
 
     @Inject(
             method = "spawnEntity(Lnet/minecraft/entity/Entity;)Z",
@@ -64,14 +72,17 @@ public abstract class CivilServerLevelSpawnGateMixin {
             return;
         }
 
-        // HEAD_ANY: conversion probability = head count linear growth, full HEAD_COUNT_FOR_FULL_CONVERT heads = 1.0; which mob to convert to sampled from headTypes weighted
-        if ("HEAD_ANY".equals(decision.branch())) {
-            List<EntityType<?>> headTypes = decision.headTypes();
-            if (headTypes != null && !headTypes.isEmpty()) {
-                int headCount = headTypes.size();
-                double convertProbability = Math.min(1.0, (double) headCount / HEAD_COUNT_FOR_FULL_CONVERT);
+        // HEAD_NEARBY: conversion only when >= MIN_CONVERT_COUNT heads and convertPool is non-empty
+        if (SpawnDecision.BRANCH_HEAD_NEARBY.equals(decision.branch())) {
+            int headCount = decision.nearbyHeadCount();
+            List<EntityType<?>> convertPool = decision.headTypes();
+
+            if (headCount >= MIN_CONVERT_COUNT && convertPool != null && !convertPool.isEmpty()) {
+                double convertProbability = Math.min(1.0,
+                        (double) (headCount - (MIN_CONVERT_COUNT - 1)) / (HEAD_COUNT_FOR_FULL_CONVERT - (MIN_CONVERT_COUNT - 1)));
+
                 if (world.getRandom().nextDouble() < convertProbability) {
-                    EntityType<?> chosen = headTypes.get(world.getRandom().nextInt(headTypes.size()));
+                    EntityType<?> chosen = convertPool.get(world.getRandom().nextInt(convertPool.size()));
                     if (chosen != null && chosen != entity.getType() && chosen.getSpawnGroup() == SpawnGroup.MONSTER) {
                         Entity replacement = chosen.spawn(world, pos, SpawnReason.NATURAL);
                         if (replacement != null) {
@@ -81,10 +92,10 @@ public abstract class CivilServerLevelSpawnGateMixin {
                             cir.cancel();
                             if (CivilMod.DEBUG) {
                                 CivilMod.LOGGER.info(
-                                        "[civil] allow spawn pos=({}, {}, {}) score={} branch=HEAD_ANY convert to {}",
+                                        "[civil] allow spawn pos=({}, {}, {}) branch=HEAD_NEARBY convert {} -> {} (heads={} prob={})",
                                         pos.getX(), pos.getY(), pos.getZ(),
-                                        String.format("%.2f", decision.score()),
-                                        chosen.toString()
+                                        entity.getType().toString(), chosen.toString(),
+                                        headCount, String.format("%.3f", convertProbability)
                                 );
                             }
                             return;

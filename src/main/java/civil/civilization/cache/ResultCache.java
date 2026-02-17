@@ -3,7 +3,7 @@ package civil.civilization.cache;
 import civil.CivilMod;
 import civil.civilization.ServerClock;
 import civil.config.CivilConfig;
-import civil.civilization.structure.VoxelChunkKey;
+import civil.civilization.VoxelChunkKey;
 import net.minecraft.server.world.ServerWorld;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

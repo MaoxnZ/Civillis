@@ -26,7 +26,7 @@ The mod evaluates a 240×240×48 block area (configurable) around each potential
 The blocks you already use to build your world are what keep you safe. Campfires, beds, furnaces, crafting tables — the things that make a place feel *lived in* — are exactly what the mod looks for. Build the home you've always wanted, and safety follows.
 
 ### 💀 Monster Head Mechanic
-Want danger back? Place a monster skull to override the protection. A skeleton skull increases the chance of skeletons spawning nearby, a zombie head draws more zombies, and so on. Mix and match to fine-tune the threats you face.
+Want danger back? Place a monster skull to override the protection. A skeleton skull increases the chance of skeletons spawning nearby, a zombie head draws more zombies, and so on. Stack three or more skulls in an area and mobs start converting into the types you've placed. Mix and match to fine-tune the threats you face.
 
 ### 🧭 Civilization Detector
 Craft a detector from a compass surrounded by emeralds, and scan your local civilization level. Color-coded visual feedback and custom sound cues tell you exactly how safe — or exposed — your surroundings are.
@@ -34,11 +34,17 @@ Craft a detector from a compass surrounded by emeralds, and scan your local civi
 ### ⏳ Civilization Decay
 The world doesn't stay tamed forever. Unvisited areas gradually lose their protection over time, creating a living, breathing sense of territory that rewards active presence.
 
+### 📦 Datapack & Mod Extensible
+Block scores and head types are loaded from JSON data files — fully overridable via datapacks. Modpack authors can tweak weights, disable specific heads, or add support for any mod's blocks without writing code. Mods that add custom skull types are automatically compatible.
+
+### 🤝 Built-in Mod Compatibility
+Ships with scoring support for blocks from Farmer's Delight, Supplementaries, and Create. More mods will be added over time.
+
 ### 🖥️ Server-Ready
 Built from the ground up for multiplayer. Async database persistence and player-aware cache prefetching keep performance smooth even on large servers with many players exploring vast worlds.
 
 ## Requirements
 
-- Minecraft **1.21.1 ~ 1.21.11**
-- Fabric Loader **≥ 0.18.2**
+- Minecraft **1.20.1 ~ 1.21.11**
+- Fabric Loader **≥ 0.15.0**
 - [Fabric API](https://modrinth.com/mod/fabric-api)

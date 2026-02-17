@@ -6,7 +6,7 @@ import net.minecraft.network.RegistryByteBuf;
  * Lightweight boundary face data for client-side rendering.
  *
  * <p>Contains only numeric values needed to draw the wall quad — no references
- * to server-side classes like {@link civil.civilization.structure.VoxelChunkKey}.
+ * to server-side classes like {@link civil.civilization.VoxelChunkKey}.
  *
  * <p>Only X and Z axis faces are transmitted (vertical walls). The vertical extent
  * is defined globally per payload ({@code wallMinY/wallMaxY}) rather than per face,

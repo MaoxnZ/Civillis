@@ -3,7 +3,7 @@ package civil.civilization.cache;
 import civil.CivilServices;
 import civil.config.CivilConfig;
 import civil.civilization.storage.H2Storage;
-import civil.civilization.structure.VoxelChunkKey;
+import civil.civilization.VoxelChunkKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;

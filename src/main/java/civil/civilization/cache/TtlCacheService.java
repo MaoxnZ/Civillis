@@ -5,7 +5,7 @@ import civil.civilization.CScore;
 import civil.civilization.ServerClock;
 import civil.config.CivilConfig;
 import civil.civilization.storage.H2Storage;
-import civil.civilization.structure.VoxelChunkKey;
+import civil.civilization.VoxelChunkKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -19,7 +19,7 @@ import java.util.Optional;
  *
  * <p>Manages L1 info shard cache lifecycle (TTL, H2 persistence, ServerClock).
  * L2/L3 layers have been retired; result shards are managed by {@link ResultCache}
- * via {@link civil.civilization.core.ScalableCivilizationService}.
+ * via {@link civil.civilization.scoring.ScalableCivilizationService}.
  */
 public final class TtlCacheService implements CivilizationCache {
 

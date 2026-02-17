@@ -3,7 +3,7 @@ package civil.aura;
 import civil.CivilMod;
 import civil.CivilServices;
 import civil.civilization.CScore;
-import civil.civilization.structure.VoxelChunkKey;
+import civil.civilization.VoxelChunkKey;
 import civil.config.CivilConfig;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;

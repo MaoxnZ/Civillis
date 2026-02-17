@@ -1,7 +1,7 @@
 package civil.civilization.cache;
 
 import civil.civilization.CScore;
-import civil.civilization.structure.VoxelChunkKey;
+import civil.civilization.VoxelChunkKey;
 import net.minecraft.server.world.ServerWorld;
 
 import java.util.Optional;
