@@ -30,8 +30,7 @@ Optional: install [Mod Menu](https://modrinth.com/mod/modmenu) + [Cloth Config](
 
 ## For Modpack Authors
 
-- [Data-Driven Registries](modpack/data-driven.md) — adding blocks via JSON datapacks
-- [Head Type Registry](modpack/head-types.md) — custom skull types and conversion rules
+- [Data-Driven Registries](modpack/data-driven.md) — adding blocks and skull types via JSON datapacks
 - [Built-in Compatibility](modpack/compatibility.md) — Farmer's Delight, Supplementaries, Create
 
 ## Technical

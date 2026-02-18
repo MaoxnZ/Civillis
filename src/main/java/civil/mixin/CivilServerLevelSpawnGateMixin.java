@@ -84,7 +84,15 @@ public abstract class CivilServerLevelSpawnGateMixin {
                 if (world.getRandom().nextDouble() < convertProbability) {
                     EntityType<?> chosen = convertPool.get(world.getRandom().nextInt(convertPool.size()));
                     if (chosen != null && chosen != entity.getType() && chosen.getSpawnGroup() == SpawnGroup.MONSTER) {
-                        Entity replacement = chosen.spawn(world, pos, SpawnReason.NATURAL);
+                        // Clear natural-spawn context so the replacement entity
+                        // bypasses this mixin entirely (prevents recursive conversion).
+                        CivilMod.NATURAL_SPAWN_CONTEXT.set(false);
+                        Entity replacement;
+                        try {
+                            replacement = chosen.spawn(world, pos, SpawnReason.NATURAL);
+                        } finally {
+                            CivilMod.NATURAL_SPAWN_CONTEXT.set(true);
+                        }
                         if (replacement != null) {
                             replacement.setYaw(entity.getYaw());
                             replacement.setPitch(entity.getPitch());

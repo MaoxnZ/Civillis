@@ -36,6 +36,9 @@ venv/
 tests/output/*
 !tests/output/.gitkeep
 
+# MkDocs build output
+site/
+
 # Unrelated branch workspaces
 trailer/
 

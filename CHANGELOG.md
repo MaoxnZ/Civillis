@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.2.1-beta]
+
+### Changed
+
+- **Dimension-aware monster heads**: Skull types now respect the
+  dimension they belong to. Wither skeleton skulls and piglin heads
+  are Nether-only by default — bypass, attraction, and conversion
+  all stay silent outside `the_nether`. Every other vanilla head
+  remains active in all dimensions. Modpack authors can customize
+  per-head dimension rules through the head type datapack
+- **Wither skeleton conversion restored**: With dimension boundaries
+  now in place, wither skeleton skulls participate in conversion
+  again. Cluster three or more in a Nether fortress and let them
+  do what they were always meant to
+
+### Fixed
+
+- **Conversion ping-pong**: When multiple skull types were clustered
+  together, a converted mob could occasionally re-enter the spawn
+  gate and flip to another type before settling. Conversion now
+  bypasses the gate entirely — one transformation, done
+
+### Added
+
+- **Documentation wiki**: A comprehensive wiki covering mechanics,
+  configuration, modpack authoring guides, and technical architecture
+  is now live on GitHub Pages. This has been a labor of love and I'm
+  genuinely excited to share it with you — feedback is very welcome
+
 ## [1.2.0-beta]
 
 ### Changed

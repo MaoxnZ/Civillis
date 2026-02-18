@@ -146,6 +146,8 @@ public final class SonarScanManager {
         var allHeads = registry.getHeadsInDimension(dim);
         if (allHeads.isEmpty()) return false;
 
+        String dimId = world.getRegistryKey().getValue().toString();
+
         VoxelChunkKey playerVC = VoxelChunkKey.from(player.getBlockPos());
         int pcx = playerVC.getCx();
         int pcz = playerVC.getCz();
@@ -156,7 +158,7 @@ public final class SonarScanManager {
         int psy = Math.floorDiv(playerBlockY, 16);
 
         for (HeadTracker.HeadEntry head : allHeads) {
-            if (!HeadTypeRegistry.isEnabled(head.skullType())) continue;
+            if (!HeadTypeRegistry.isEnabled(head.skullType(), dimId)) continue;
 
             int hcx = head.x() >> 4;
             int hcz = head.z() >> 4;
@@ -390,6 +392,8 @@ public final class SonarScanManager {
         var allHeads = registry.getHeadsInDimension(dim);
         if (allHeads.isEmpty()) return HeadZoneResult.EMPTY;
 
+        String dimId = world.getRegistryKey().getValue().toString();
+
         VoxelChunkKey center = scan.getCenter();
         int maxRange = SonarScan.MAX_RADIUS + 2; // Include heads slightly beyond scan range
 
@@ -400,7 +404,7 @@ public final class SonarScanManager {
         Set<VC3> forceAllowVCs = new HashSet<>();
 
         for (HeadTracker.HeadEntry head : allHeads) {
-            if (!HeadTypeRegistry.isEnabled(head.skullType())) continue;
+            if (!HeadTypeRegistry.isEnabled(head.skullType(), dimId)) continue;
 
             int hcx = head.x() >> 4;
             int hcz = head.z() >> 4;
