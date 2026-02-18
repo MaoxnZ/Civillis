@@ -114,6 +114,19 @@ public final class HeadTracker {
         return initialized;
     }
 
+    /**
+     * Extract the dimension identifier from a {@code RegistryKey.toString()} string.
+     * Converts {@code "ResourceKey[minecraft:dimension / minecraft:the_nether]"}
+     * to {@code "minecraft:the_nether"}.
+     */
+    static String dimIdOf(String registryKeyStr) {
+        int idx = registryKeyStr.lastIndexOf(" / ");
+        if (idx >= 0 && registryKeyStr.endsWith("]")) {
+            return registryKeyStr.substring(idx + 3, registryKeyStr.length() - 1);
+        }
+        return registryKeyStr;
+    }
+
     // ========== Queries ==========
 
     /**
@@ -138,6 +151,8 @@ public final class HeadTracker {
         var dimHeads = heads.get(dim);
         if (dimHeads == null || dimHeads.isEmpty()) return HeadQuery.NONE;
 
+        String dimId = dimIdOf(dim);
+
         double cx = pos.getX() + 0.5;
         double cy = pos.getY() + 0.5;
         double cz = pos.getZ() + 0.5;
@@ -153,9 +168,9 @@ public final class HeadTracker {
         int totalEnabledCount = 0;
 
         for (HeadEntry h : dimHeads.values()) {
-            // Registry gate: skip unregistered or disabled heads entirely
+            // Registry gate: skip unregistered, disabled, or dimension-restricted heads
             HeadTypeEntry entry = HeadTypeRegistry.get(h.skullType());
-            if (entry == null || !entry.enabled()) continue;
+            if (entry == null || !entry.enabled() || !entry.isActiveIn(dimId)) continue;
 
             totalEnabledCount++;
 
@@ -201,6 +216,8 @@ public final class HeadTracker {
         var dimHeads = heads.get(dim);
         if (dimHeads == null || dimHeads.isEmpty()) return List.of();
 
+        String dimId = dimIdOf(dim);
+
         int centerCX = pos.getX() >> 4;
         int centerCZ = pos.getZ() >> 4;
         int centerSY = Math.floorDiv(pos.getY(), 16);
@@ -209,7 +226,7 @@ public final class HeadTracker {
 
         for (HeadEntry h : dimHeads.values()) {
             HeadTypeEntry entry = HeadTypeRegistry.get(h.skullType());
-            if (entry == null || !entry.enabled()) continue;
+            if (entry == null || !entry.enabled() || !entry.isActiveIn(dimId)) continue;
 
             int hcx = h.x() >> 4;
             int hcz = h.z() >> 4;

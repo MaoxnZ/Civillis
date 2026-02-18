@@ -3,7 +3,12 @@ plugins {
     id 'maven-publish'
 }
 
-version = project.mod_version
+// Auto-append +mcX.Y.Z or +mcX.Y.Z-X.Y.W from fabric.mod.json depends.minecraft
+def mcDep = new groovy.json.JsonSlurper()
+        .parse(file("src/main/resources/fabric.mod.json"))
+        .depends.minecraft as String
+def mcLabel = mcDep.replaceAll(/>=\s*(\S+)\s+<=\s*(\S+)/, '$1-$2').trim()
+version = "${project.mod_version}+mc${mcLabel}"
 group = project.maven_group
 
 base {

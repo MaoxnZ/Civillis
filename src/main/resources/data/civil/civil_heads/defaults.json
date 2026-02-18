@@ -14,6 +14,11 @@
     "         (default true). A head with convert=false still counts",
     "         toward nearby head count and suppress range, but will",
     "         never be a conversion target.",
+    "dimensions: optional array of dimension IDs where this head type",
+    "            is active (e.g. [\"minecraft:the_nether\"]).",
+    "            If omitted, the head type is active in ALL dimensions.",
+    "            In non-matching dimensions the head is purely decorative —",
+    "            suppress, bypass, and conversion are all inactive.",
     "",
     "Spawn behavior:",
     "  1-2 nearby heads: bypass civilization suppression (extra spawns),",
@@ -51,8 +56,8 @@
   "entries": [
     { "skull_type": "ZOMBIE",          "entity_type": "minecraft:zombie" },
     { "skull_type": "SKELETON",        "entity_type": "minecraft:skeleton" },
-    { "skull_type": "WITHER_SKELETON", "entity_type": "minecraft:wither_skeleton", "convert": false },
+    { "skull_type": "WITHER_SKELETON", "entity_type": "minecraft:wither_skeleton", "dimensions": ["minecraft:the_nether"] },
     { "skull_type": "CREEPER",         "entity_type": "minecraft:creeper" },
-    { "skull_type": "PIGLIN",          "entity_type": "minecraft:piglin" }
+    { "skull_type": "PIGLIN",          "entity_type": "minecraft:piglin", "dimensions": ["minecraft:the_nether"] }
   ]
 }

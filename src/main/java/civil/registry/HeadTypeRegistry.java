@@ -3,6 +3,7 @@ package civil.registry;
 import net.minecraft.entity.EntityType;
 
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Data-driven head type registry.
@@ -34,13 +35,28 @@ public final class HeadTypeRegistry {
      *                       pool (weighted random replacement when >= 3 heads).
      *                       A head with enabled=true but convert=false still
      *                       counts toward nearby head count and suppress range.
+     * @param dimensions     optional dimension whitelist (e.g. {@code ["minecraft:the_nether"]}).
+     *                       If null, the head type is active in all dimensions.
+     *                       If non-null, only active in the listed dimensions;
+     *                       in other dimensions the head is treated as purely decorative.
      */
     public record HeadTypeEntry(
             String skullType,
             EntityType<?> entityType,
             boolean enabled,
-            boolean convertEnabled
-    ) {}
+            boolean convertEnabled,
+            Set<String> dimensions
+    ) {
+        /**
+         * Check if this head type is active in the given dimension.
+         *
+         * @param dimId dimension identifier (e.g. "minecraft:the_nether")
+         * @return true if no dimension restriction or dimId is whitelisted
+         */
+        public boolean isActiveIn(String dimId) {
+            return dimensions == null || dimensions.contains(dimId);
+        }
+    }
 
     private static volatile Map<String, HeadTypeEntry> entries = Map.of();
 
@@ -67,6 +83,20 @@ public final class HeadTypeRegistry {
     public static boolean isEnabled(String skullType) {
         HeadTypeEntry entry = entries.get(skullType);
         return entry != null && entry.enabled();
+    }
+
+    /**
+     * Dimension-aware variant: checks registered, enabled, <b>and</b> active
+     * in the given dimension.
+     *
+     * @param skullType the skull type name
+     * @param dimId     dimension identifier (e.g. "minecraft:the_nether")
+     * @return true if the type exists, is enabled, and its dimension whitelist
+     *         permits the given dimension
+     */
+    public static boolean isEnabled(String skullType, String dimId) {
+        HeadTypeEntry entry = entries.get(skullType);
+        return entry != null && entry.enabled() && entry.isActiveIn(dimId);
     }
 
     /**

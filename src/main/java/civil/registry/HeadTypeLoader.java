@@ -18,7 +18,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Datapack reload listener that populates {@link HeadTypeRegistry} from
@@ -81,7 +83,17 @@ public final class HeadTypeLoader implements SimpleSynchronousResourceReloadList
                     boolean enabled = !obj.has("enabled") || obj.get("enabled").getAsBoolean();
                     boolean convertEnabled = !obj.has("convert") || obj.get("convert").getAsBoolean();
 
-                    accumulated.put(skullType, new HeadTypeEntry(skullType, entityType, enabled, convertEnabled));
+                    Set<String> dimensions = null;
+                    if (obj.has("dimensions") && obj.get("dimensions").isJsonArray()) {
+                        JsonArray dimArr = obj.getAsJsonArray("dimensions");
+                        Set<String> dimSet = new LinkedHashSet<>();
+                        for (JsonElement de : dimArr) {
+                            dimSet.add(de.getAsString());
+                        }
+                        dimensions = Set.copyOf(dimSet);
+                    }
+
+                    accumulated.put(skullType, new HeadTypeEntry(skullType, entityType, enabled, convertEnabled, dimensions));
                 }
             } catch (Exception e) {
                 LOGGER.error("[civil-registry] Failed to load head types from {}: {}",
