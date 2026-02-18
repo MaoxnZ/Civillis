@@ -1,0 +1,57 @@
+site_name: Civillis Wiki
+site_url: https://maoxnz.github.io/Civillis/
+site_description: Documentation for the Civillis Minecraft mod
+repo_url: https://github.com/MaoxnZ/Civillis
+repo_name: MaoxnZ/Civillis
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: amber
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: amber
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - How It Works: how-it-works.md
+  - Blocks & Scoring: blocks-and-scoring.md
+  - Civilization Decay: civilization-decay.md
+  - Monster Heads: monster-heads.md
+  - Civilization Detector: detector.md
+  - Configuration: configuration.md
+  - For Modpack Authors:
+    - Data-Driven Registries: modpack/data-driven.md
+    - Head Type Registry: modpack/head-types.md
+    - Built-in Compatibility: modpack/compatibility.md
+  - Technical:
+    - Architecture Overview: technical/architecture.md
+    - Performance: technical/performance.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
