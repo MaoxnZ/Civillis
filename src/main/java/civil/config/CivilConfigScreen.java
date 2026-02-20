@@ -96,7 +96,19 @@ public final class CivilConfigScreen {
                 .setSaveConsumer(idx -> CivilConfig.simpleDetectionRange = RANGE_STEPS[Math.max(0, Math.min(12, idx))])
                 .build());
 
-        // ── 2b. Aura Effect toggle ──
+        // ── 2b. Mob Flee AI toggle ──
+        cat.addEntry(eb.startBooleanToggle(
+                        Text.translatable("civil.config.mobFlee.enabled"),
+                        CivilConfig.mobFleeEnabled)
+                .setDefaultValue(true)
+                .setTooltip(
+                        Text.translatable("civil.config.subcategory.mobFlee.tooltip.1"),
+                        Text.translatable("civil.config.subcategory.mobFlee.tooltip.2"),
+                        Text.translatable("civil.config.subcategory.mobFlee.tooltip.3"))
+                .setSaveConsumer(v -> CivilConfig.mobFleeEnabled = v)
+                .build());
+
+        // ── 2c. Aura Effect toggle ──
         cat.addEntry(eb.startBooleanToggle(
                         Text.translatable("civil.config.auraEffect"),
                         CivilConfig.auraEffectEnabled)
@@ -239,6 +251,17 @@ public final class CivilConfigScreen {
                 .build());
 
         cat.addEntry(headAttract.build());
+
+        // ── 5. Mob Flee AI (collapsible) ──
+        SubCategoryBuilder mobFlee = eb.startSubCategory(
+                Text.translatable("civil.config.subcategory.mobFlee"));
+        mobFlee.setExpanded(false);
+        mobFlee.setTooltip(
+                Text.translatable("civil.config.subcategory.mobFlee.tooltip.1"),
+                Text.translatable("civil.config.subcategory.mobFlee.tooltip.2"),
+                Text.translatable("civil.config.subcategory.mobFlee.tooltip.3"));
+
+        cat.addEntry(mobFlee.build());
 
         return builder.build();
     }

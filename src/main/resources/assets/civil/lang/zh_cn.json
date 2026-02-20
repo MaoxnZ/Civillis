@@ -50,5 +50,11 @@
   "civil.config.auraEffect.tooltip.2": "边界光墙、激波粒子、音效。",
   "civil.config.auraEffect.tooltip.3": "\u00a77关闭后仅保留基础检测反馈。",
 
-  "civil.config.override.warning": "\u00a7e\u26a0 检测到 civil.properties 中存在手动自定义值。修改此滑块将覆盖您的自定义配置。"
+  "civil.config.override.warning": "\u00a7e\u26a0 检测到 civil.properties 中存在手动自定义值。修改此滑块将覆盖您的自定义配置。",
+
+  "civil.config.subcategory.mobFlee": "怪物逃离行为",
+  "civil.config.subcategory.mobFlee.tooltip.1": "文明区域中的敌对生物",
+  "civil.config.subcategory.mobFlee.tooltip.2": "会主动逃离，在市中心甚至会临阵脱逃。",
+  "civil.config.subcategory.mobFlee.tooltip.3": "\u00a77与刷怪抑制强度联动。",
+  "civil.config.mobFlee.enabled": "怪物逃离 AI"
 }

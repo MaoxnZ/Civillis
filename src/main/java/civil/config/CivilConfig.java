@@ -187,6 +187,24 @@ public final class CivilConfig {
     public static long resultTtlMs = 60 * 60 * 1000L;    // 60 minutes
     public static int  clockPersistTicks = 6000;
 
+    // -- Mob Flee AI --
+    /** Master toggle for mob flee behavior in civilized areas. */
+    public static boolean mobFleeEnabled = true;
+    /** Ratio of (greenLine → 1.0) interval where combat panic begins. 0.5 = halfway. */
+    public static double mobFleeCombatFleeRatio = 0.5;
+    /** Base interval (ticks) between flee evaluations per mob. */
+    public static int mobFleeCheckIntervalTicks = 80;
+    /** Random jitter added to check interval (ticks) for desynchronization. */
+    public static int mobFleeJitterTicks = 40;
+    /** Max duration of a combat panic burst (ticks). */
+    public static int mobFleePanicDurationTicks = 80;
+    /** Max duration of an idle flee movement (ticks). */
+    public static int mobFleeMaxDurationTicks = 200;
+    /** Movement speed multiplier during flee. 1.0 = normal walk speed. */
+    public static double mobFleeSpeed = 1.0;
+    /** Block distance for 8-direction gradient sampling. */
+    public static int mobFleeSampleDistance = 14;
+
     // -- UI / Items --
     public static int detectorAnimationTicks = 40;
     public static int detectorCooldownTicks = 10;
@@ -387,6 +405,15 @@ public final class CivilConfig {
         detectorAnimationTicks = parseInt(p.getProperty("ui.detectorAnimationTicks"), detectorAnimationTicks);
         detectorCooldownTicks  = parseInt(p.getProperty("ui.detectorCooldownTicks"), detectorCooldownTicks);
 
+        mobFleeEnabled            = parseBoolean(p.getProperty("mobFlee.enabled"), mobFleeEnabled);
+        mobFleeCombatFleeRatio    = parseDouble(p.getProperty("mobFlee.combatFleeRatio"), mobFleeCombatFleeRatio);
+        mobFleeCheckIntervalTicks = parseInt(p.getProperty("mobFlee.checkIntervalTicks"), mobFleeCheckIntervalTicks);
+        mobFleeJitterTicks        = parseInt(p.getProperty("mobFlee.jitterTicks"), mobFleeJitterTicks);
+        mobFleePanicDurationTicks = parseInt(p.getProperty("mobFlee.panicDurationTicks"), mobFleePanicDurationTicks);
+        mobFleeMaxDurationTicks   = parseInt(p.getProperty("mobFlee.maxDurationTicks"), mobFleeMaxDurationTicks);
+        mobFleeSpeed              = parseDouble(p.getProperty("mobFlee.speed"), mobFleeSpeed);
+        mobFleeSampleDistance     = parseInt(p.getProperty("mobFlee.sampleDistance"), mobFleeSampleDistance);
+
         // ── Phase 5: Detect raw overrides ──
         rawOverrides[PARAM_FRESHNESS]   = !approxEq(gracePeriodHours, compGracePeriod);
         rawOverrides[PARAM_DECAY_SPEED] = !approxEq(decayLambda, compDecayLambda);
@@ -501,6 +528,17 @@ public final class CivilConfig {
             sb.append("#cache.l1TtlMs=").append(l1TtlMs).append('\n');
             sb.append("#cache.resultTtlMs=").append(resultTtlMs).append('\n');
             sb.append("#cache.clockPersistTicks=").append(clockPersistTicks).append('\n');
+            sb.append('\n');
+
+            sb.append("# ── Mob Flee AI ──\n");
+            sb.append("mobFlee.enabled=").append(mobFleeEnabled).append('\n');
+            sb.append("#mobFlee.combatFleeRatio=").append(mobFleeCombatFleeRatio).append('\n');
+            sb.append("#mobFlee.checkIntervalTicks=").append(mobFleeCheckIntervalTicks).append('\n');
+            sb.append("#mobFlee.jitterTicks=").append(mobFleeJitterTicks).append('\n');
+            sb.append("#mobFlee.panicDurationTicks=").append(mobFleePanicDurationTicks).append('\n');
+            sb.append("#mobFlee.maxDurationTicks=").append(mobFleeMaxDurationTicks).append('\n');
+            sb.append("#mobFlee.speed=").append(mobFleeSpeed).append('\n');
+            sb.append("#mobFlee.sampleDistance=").append(mobFleeSampleDistance).append('\n');
             sb.append('\n');
 
             sb.append("# ── Advanced: UI ──\n");

@@ -52,5 +52,11 @@
   "civil.config.auraEffect.tooltip.2": "boundary walls, shockwave particles, sounds.",
   "civil.config.auraEffect.tooltip.3": "\u00a77Disable to keep only basic feedback.",
 
-  "civil.config.override.warning": "\u00a7e\u26a0 Advanced override detected in civil.properties. Changing this slider will overwrite your custom value."
+  "civil.config.override.warning": "\u00a7e\u26a0 Advanced override detected in civil.properties. Changing this slider will overwrite your custom value.",
+
+  "civil.config.subcategory.mobFlee": "Mob Flee Behavior",
+  "civil.config.subcategory.mobFlee.tooltip.1": "Hostile mobs in civilized areas",
+  "civil.config.subcategory.mobFlee.tooltip.2": "will flee — even deserting mid-combat in city centers.",
+  "civil.config.subcategory.mobFlee.tooltip.3": "\u00a77Linked to Spawn Suppression strength.",
+  "civil.config.mobFlee.enabled": "Mob Flee AI"
 }

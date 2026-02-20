@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.0-beta]
+
+### Added
+
+- **Mob Flee AI**: Hostile mobs in civilized areas now actively
+  try to leave. Idle mobs will wander toward less civilized ground,
+  and in heavily built-up areas they may even panic and flee
+  mid-combat. The stronger your civilization, the more likely they
+  are to run — tied to your Spawn Suppression strength setting
+- **Head zone awareness**: Mobs near a monster head totem are
+  drawn toward its zone rather than wandering blindly. Mobs already
+  inside a head zone won't try to leave — they belong there
+- **Mob Flee AI toggle**: On/off switch in the config GUI, right
+  next to Detector Sonar. Turn it off if you prefer mobs to stay
+  and fight
+
 ## [1.2.1-beta]
 
 ### Changed
