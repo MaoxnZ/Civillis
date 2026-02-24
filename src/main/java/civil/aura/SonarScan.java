@@ -5,9 +5,9 @@ import civil.CivilServices;
 import civil.civilization.CScore;
 import civil.civilization.VoxelChunkKey;
 import civil.config.CivilConfig;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +61,7 @@ public final class SonarScan {
 
     // ========== Scan state ==========
 
-    private final ServerWorld world;
+    private final ServerLevel world;
     private final VoxelChunkKey center;
     private final boolean playerInHigh;
     private final double threshold;
@@ -99,7 +99,7 @@ public final class SonarScan {
      * @param playerPos the player's block position at scan start
      * @param worldTick the current world tick (for linger timing)
      */
-    public SonarScan(ServerWorld world, BlockPos playerPos, long worldTick) {
+    public SonarScan(ServerLevel world, BlockPos playerPos, long worldTick) {
         this.world = world;
         this.center = VoxelChunkKey.from(playerPos);
         this.threshold = CivilConfig.spawnThresholdMid;
@@ -277,7 +277,7 @@ public final class SonarScan {
 
     // ========== Accessors ==========
 
-    public ServerWorld getWorld() {
+    public ServerLevel getWorld() {
         return world;
     }
 

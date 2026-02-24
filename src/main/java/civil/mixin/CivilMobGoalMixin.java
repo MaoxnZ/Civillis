@@ -1,13 +1,13 @@
 package civil.mixin;
 
 import civil.mob.FleeCivilizationGoal;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.SpawnGroup;
-import net.minecraft.entity.ai.goal.GoalSelector;
-import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.entity.mob.PathAwareEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.world.World;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.ai.goal.GoalSelector;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Injects civilization flee goals into all hostile {@link PathAwareEntity} mobs.
+ * Injects civilization flee goals into all hostile {@link PathfinderMob} mobs.
  *
  * <p>Two goal instances per mob:
  * <ul>
@@ -29,18 +29,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * civilized areas, adding negligible overhead (~10ns per tick per goal for
  * the throttle check).
  */
-@Mixin(MobEntity.class)
+@Mixin(Mob.class)
 public abstract class CivilMobGoalMixin {
 
     @Shadow @Final protected GoalSelector goalSelector;
 
     @Inject(method = "<init>", at = @At("TAIL"))
-    private void civil$injectFleeGoals(EntityType<?> type, World world, CallbackInfo ci) {
-        if (type.getSpawnGroup() == SpawnGroup.MONSTER
-                && (Object) this instanceof PathAwareEntity pae
-                && world instanceof ServerWorld) {
-            this.goalSelector.add(5, new FleeCivilizationGoal(pae, FleeCivilizationGoal.Mode.IDLE));
-            this.goalSelector.add(1, new FleeCivilizationGoal(pae, FleeCivilizationGoal.Mode.COMBAT_PANIC));
+    private void civil$injectFleeGoals(EntityType<?> type, Level world, CallbackInfo ci) {
+        if (type.getCategory() == MobCategory.MONSTER
+                && (Object) this instanceof PathfinderMob pae
+                && world instanceof ServerLevel) {
+            this.goalSelector.addGoal(5, new FleeCivilizationGoal(pae, FleeCivilizationGoal.Mode.IDLE));
+            this.goalSelector.addGoal(1, new FleeCivilizationGoal(pae, FleeCivilizationGoal.Mode.COMBAT_PANIC));
         }
     }
 }

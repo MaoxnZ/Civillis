@@ -4,8 +4,8 @@ import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
 import me.shedaniel.clothconfig2.impl.builders.SubCategoryBuilder;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 
 /**
  * User-friendly Cloth Config GUI for Civil mod settings.
@@ -50,7 +50,7 @@ public final class CivilConfigScreen {
     public static Screen create(Screen parent) {
         ConfigBuilder builder = ConfigBuilder.create()
                 .setParentScreen(parent)
-                .setTitle(Text.translatable("civil.config.title"))
+                .setTitle(Component.translatable("civil.config.title"))
                 .setSavingRunnable(() -> {
                     CivilConfig.clearOverridesForChangedSimple();
                     CivilConfig.computeInternalFromSimple();
@@ -59,23 +59,23 @@ public final class CivilConfigScreen {
 
         ConfigEntryBuilder eb = builder.entryBuilder();
         ConfigCategory cat = builder.getOrCreateCategory(
-                Text.translatable("civil.config.category.main"));
+                Component.translatable("civil.config.category.main"));
 
         // ── 1. Spawn Suppression (1-10) ──
         if (CivilConfig.hasRawOverride(CivilConfig.PARAM_SPAWN)) {
             cat.addEntry(eb.startTextDescription(
-                    Text.translatable("civil.config.override.warning")).build());
+                    Component.translatable("civil.config.override.warning")).build());
         }
         cat.addEntry(eb.startIntSlider(
-                        Text.translatable("civil.config.simple.spawnSuppression"),
+                        Component.translatable("civil.config.simple.spawnSuppression"),
                         CivilConfig.simpleSpawnSuppression, 1, 10)
                 .setDefaultValue(5)
                 .setTextGetter(val -> {
                     int moat = VILLAGE_MOAT[Math.max(1, Math.min(10, val))];
                     if (val <= 2) {
-                        return Text.translatable("civil.config.slider.spawn.unsafe", val, moat);
+                        return Component.translatable("civil.config.slider.spawn.unsafe", val, moat);
                     }
-                    return Text.translatable("civil.config.slider.spawn", val, moat);
+                    return Component.translatable("civil.config.slider.spawn", val, moat);
                 })
                 .setSaveConsumer(v -> CivilConfig.simpleSpawnSuppression = v)
                 .build());
@@ -83,59 +83,59 @@ public final class CivilConfigScreen {
         // ── 2. Detection Range (discrete: 13 steps → 112..496 blocks) ──
         if (CivilConfig.hasRawOverride(CivilConfig.PARAM_RANGE)) {
             cat.addEntry(eb.startTextDescription(
-                    Text.translatable("civil.config.override.warning")).build());
+                    Component.translatable("civil.config.override.warning")).build());
         }
         cat.addEntry(eb.startIntSlider(
-                        Text.translatable("civil.config.simple.detectionRange"),
+                        Component.translatable("civil.config.simple.detectionRange"),
                         rangeToIndex(CivilConfig.simpleDetectionRange), 0, 12)
                 .setDefaultValue(rangeToIndex(240))
                 .setTextGetter(idx -> {
                     int blocks = RANGE_STEPS[Math.max(0, Math.min(12, idx))];
-                    return Text.translatable("civil.config.slider.range", blocks, blocks);
+                    return Component.translatable("civil.config.slider.range", blocks, blocks);
                 })
                 .setSaveConsumer(idx -> CivilConfig.simpleDetectionRange = RANGE_STEPS[Math.max(0, Math.min(12, idx))])
                 .build());
 
         // ── 2b. Mob Flee AI toggle ──
         cat.addEntry(eb.startBooleanToggle(
-                        Text.translatable("civil.config.mobFlee.enabled"),
+                        Component.translatable("civil.config.mobFlee.enabled"),
                         CivilConfig.mobFleeEnabled)
                 .setDefaultValue(true)
                 .setTooltip(
-                        Text.translatable("civil.config.subcategory.mobFlee.tooltip.1"),
-                        Text.translatable("civil.config.subcategory.mobFlee.tooltip.2"),
-                        Text.translatable("civil.config.subcategory.mobFlee.tooltip.3"))
+                        Component.translatable("civil.config.subcategory.mobFlee.tooltip.1"),
+                        Component.translatable("civil.config.subcategory.mobFlee.tooltip.2"),
+                        Component.translatable("civil.config.subcategory.mobFlee.tooltip.3"))
                 .setSaveConsumer(v -> CivilConfig.mobFleeEnabled = v)
                 .build());
 
         // ── 2c. Aura Effect toggle ──
         cat.addEntry(eb.startBooleanToggle(
-                        Text.translatable("civil.config.auraEffect"),
+                        Component.translatable("civil.config.auraEffect"),
                         CivilConfig.auraEffectEnabled)
                 .setDefaultValue(true)
                 .setTooltip(
-                        Text.translatable("civil.config.auraEffect.tooltip.1"),
-                        Text.translatable("civil.config.auraEffect.tooltip.2"),
-                        Text.translatable("civil.config.auraEffect.tooltip.3"))
+                        Component.translatable("civil.config.auraEffect.tooltip.1"),
+                        Component.translatable("civil.config.auraEffect.tooltip.2"),
+                        Component.translatable("civil.config.auraEffect.tooltip.3"))
                 .setSaveConsumer(v -> CivilConfig.auraEffectEnabled = v)
                 .build());
 
         // ── 3. Decay Details (collapsible) ──
         SubCategoryBuilder decay = eb.startSubCategory(
-                Text.translatable("civil.config.subcategory.decay"));
+                Component.translatable("civil.config.subcategory.decay"));
         decay.setExpanded(false);
         decay.setTooltip(
-                Text.translatable("civil.config.subcategory.decay.tooltip.1"),
-                Text.translatable("civil.config.subcategory.decay.tooltip.2"),
-                Text.translatable("civil.config.subcategory.decay.tooltip.3"));
+                Component.translatable("civil.config.subcategory.decay.tooltip.1"),
+                Component.translatable("civil.config.subcategory.decay.tooltip.2"),
+                Component.translatable("civil.config.subcategory.decay.tooltip.3"));
 
         // 3a. Decay Speed (1-10)
         if (CivilConfig.hasRawOverride(CivilConfig.PARAM_DECAY_SPEED)) {
             decay.add(eb.startTextDescription(
-                    Text.translatable("civil.config.override.warning")).build());
+                    Component.translatable("civil.config.override.warning")).build());
         }
         decay.add(eb.startIntSlider(
-                        Text.translatable("civil.config.simple.decaySpeed"),
+                        Component.translatable("civil.config.simple.decaySpeed"),
                         CivilConfig.simpleDecaySpeed, 1, 10)
                 .setDefaultValue(5)
                 .setTextGetter(val -> {
@@ -143,10 +143,10 @@ public final class CivilConfigScreen {
                     double halfLifeHours = Math.log(2) / lambda;
                     if (halfLifeHours >= 48) {
                         String hl = String.format("%.1f", halfLifeHours / 24.0);
-                        return Text.translatable("civil.config.slider.decay.days", val, hl);
+                        return Component.translatable("civil.config.slider.decay.days", val, hl);
                     } else {
                         String hl = String.format("%.1f", halfLifeHours);
-                        return Text.translatable("civil.config.slider.decay.hours", val, hl);
+                        return Component.translatable("civil.config.slider.decay.hours", val, hl);
                     }
                 })
                 .setSaveConsumer(v -> CivilConfig.simpleDecaySpeed = v)
@@ -155,10 +155,10 @@ public final class CivilConfigScreen {
         // 3b. Recovery Speed (1-10)
         if (CivilConfig.hasRawOverride(CivilConfig.PARAM_RECOVERY)) {
             decay.add(eb.startTextDescription(
-                    Text.translatable("civil.config.override.warning")).build());
+                    Component.translatable("civil.config.override.warning")).build());
         }
         decay.add(eb.startIntSlider(
-                        Text.translatable("civil.config.simple.recoverySpeed"),
+                        Component.translatable("civil.config.simple.recoverySpeed"),
                         CivilConfig.simpleRecoverySpeed, 1, 10)
                 .setDefaultValue(5)
                 .setTextGetter(val -> {
@@ -167,7 +167,7 @@ public final class CivilConfigScreen {
                     double cooldownSec = (120_000 + (15_000 - 120_000) * t) / 1000.0;
                     double steps = Math.log(24) / -Math.log(1 - fraction);
                     int totalMin = (int) Math.ceil(steps * cooldownSec / 60.0);
-                    return Text.translatable("civil.config.slider.recovery", val, totalMin);
+                    return Component.translatable("civil.config.slider.recovery", val, totalMin);
                 })
                 .setSaveConsumer(v -> CivilConfig.simpleRecoverySpeed = v)
                 .build());
@@ -175,37 +175,37 @@ public final class CivilConfigScreen {
         // 3c. Decay Floor (0-50 %)
         if (CivilConfig.hasRawOverride(CivilConfig.PARAM_DECAY_FLOOR)) {
             decay.add(eb.startTextDescription(
-                    Text.translatable("civil.config.override.warning")).build());
+                    Component.translatable("civil.config.override.warning")).build());
         }
         decay.add(eb.startIntSlider(
-                        Text.translatable("civil.config.simple.decayFloor"),
+                        Component.translatable("civil.config.simple.decayFloor"),
                         CivilConfig.simpleDecayFloor, 0, 50)
                 .setDefaultValue(25)
-                .setTextGetter(val -> Text.literal(val + "%"))
+                .setTextGetter(val -> Component.literal(val + "%"))
                 .setSaveConsumer(v -> CivilConfig.simpleDecayFloor = v)
                 .build());
 
         // 3d. Freshness Duration (1-48 hours)
         if (CivilConfig.hasRawOverride(CivilConfig.PARAM_FRESHNESS)) {
             decay.add(eb.startTextDescription(
-                    Text.translatable("civil.config.override.warning")).build());
+                    Component.translatable("civil.config.override.warning")).build());
         }
         decay.add(eb.startIntSlider(
-                        Text.translatable("civil.config.simple.freshnessDuration"),
+                        Component.translatable("civil.config.simple.freshnessDuration"),
                         CivilConfig.simpleFreshnessDuration, 1, 48)
                 .setDefaultValue(6)
-                .setTextGetter(val -> Text.translatable("civil.config.slider.freshness", val))
+                .setTextGetter(val -> Component.translatable("civil.config.slider.freshness", val))
                 .setSaveConsumer(v -> CivilConfig.simpleFreshnessDuration = v)
                 .build());
 
         // 3e. Patrol Influence Range (2-8 VCs → 32-128 blocks)
         decay.add(eb.startIntSlider(
-                        Text.translatable("civil.config.simple.patrolRange"),
+                        Component.translatable("civil.config.simple.patrolRange"),
                         CivilConfig.simplePatrolRange, 2, 8)
                 .setDefaultValue(4)
                 .setTextGetter(val -> {
                     int blocks = val * 16;
-                    return Text.translatable("civil.config.slider.patrolRange", blocks);
+                    return Component.translatable("civil.config.slider.patrolRange", blocks);
                 })
                 .setSaveConsumer(v -> CivilConfig.simplePatrolRange = v)
                 .build());
@@ -214,54 +214,43 @@ public final class CivilConfigScreen {
 
         // ── 4. Head Attraction (collapsible) ──
         SubCategoryBuilder headAttract = eb.startSubCategory(
-                Text.translatable("civil.config.subcategory.headAttract"));
+                Component.translatable("civil.config.subcategory.headAttract"));
         headAttract.setExpanded(false);
         headAttract.setTooltip(
-                Text.translatable("civil.config.subcategory.headAttract.tooltip.1"),
-                Text.translatable("civil.config.subcategory.headAttract.tooltip.2"),
-                Text.translatable("civil.config.subcategory.headAttract.tooltip.3"));
+                Component.translatable("civil.config.subcategory.headAttract.tooltip.1"),
+                Component.translatable("civil.config.subcategory.headAttract.tooltip.2"),
+                Component.translatable("civil.config.subcategory.headAttract.tooltip.3"));
 
         // 4a. Attraction Strength (1-10) → headAttractLambda
         if (CivilConfig.hasRawOverride(CivilConfig.PARAM_HEAD_ATTRACT)) {
             headAttract.add(eb.startTextDescription(
-                    Text.translatable("civil.config.override.warning")).build());
+                    Component.translatable("civil.config.override.warning")).build());
         }
         headAttract.add(eb.startIntSlider(
-                        Text.translatable("civil.config.simple.headAttractStrength"),
+                        Component.translatable("civil.config.simple.headAttractStrength"),
                         CivilConfig.simpleHeadAttractStrength, 1, 10)
                 .setDefaultValue(5)
                 .setTextGetter(val -> {
                     double lambda = 0.03 * val;
                     String lambdaStr = String.format("%.2f", lambda);
-                    return Text.translatable("civil.config.slider.headAttractStrength", val, lambdaStr);
+                    return Component.translatable("civil.config.slider.headAttractStrength", val, lambdaStr);
                 })
                 .setSaveConsumer(v -> CivilConfig.simpleHeadAttractStrength = v)
                 .build());
 
         // 4b. Attraction Range (3-10) → headAttractMaxRadius (val × 16 blocks)
         headAttract.add(eb.startIntSlider(
-                        Text.translatable("civil.config.simple.headAttractRange"),
+                        Component.translatable("civil.config.simple.headAttractRange"),
                         CivilConfig.simpleHeadAttractRange, 3, 10)
                 .setDefaultValue(8)
                 .setTextGetter(val -> {
                     int blocks = val * 16;
-                    return Text.translatable("civil.config.slider.headAttractRange", blocks);
+                    return Component.translatable("civil.config.slider.headAttractRange", blocks);
                 })
                 .setSaveConsumer(v -> CivilConfig.simpleHeadAttractRange = v)
                 .build());
 
         cat.addEntry(headAttract.build());
-
-        // ── 5. Mob Flee AI (collapsible) ──
-        SubCategoryBuilder mobFlee = eb.startSubCategory(
-                Text.translatable("civil.config.subcategory.mobFlee"));
-        mobFlee.setExpanded(false);
-        mobFlee.setTooltip(
-                Text.translatable("civil.config.subcategory.mobFlee.tooltip.1"),
-                Text.translatable("civil.config.subcategory.mobFlee.tooltip.2"),
-                Text.translatable("civil.config.subcategory.mobFlee.tooltip.3"));
-
-        cat.addEntry(mobFlee.build());
 
         return builder.build();
     }

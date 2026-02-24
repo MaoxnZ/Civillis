@@ -1,8 +1,8 @@
 package civil.civilization.scoring;
 
 import civil.civilization.CScore;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
 
 /**
  * Civilization scoring service: returns civilization score for any world position.
@@ -13,8 +13,8 @@ import net.minecraft.util.math.BlockPos;
 public interface CivilizationService {
 
     /** Convenience: returns just the numeric score. */
-    double getScoreAt(ServerWorld world, BlockPos pos);
+    double getScoreAt(ServerLevel world, BlockPos pos);
 
     /** Full CScore at this position. */
-    CScore getCScoreAt(ServerWorld world, BlockPos pos);
+    CScore getCScoreAt(ServerLevel world, BlockPos pos);
 }

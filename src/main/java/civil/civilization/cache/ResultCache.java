@@ -4,7 +4,7 @@ import civil.CivilMod;
 import civil.civilization.ServerClock;
 import civil.config.CivilConfig;
 import civil.civilization.VoxelChunkKey;
-import net.minecraft.server.world.ServerWorld;
+import net.minecraft.server.level.ServerLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,8 +55,8 @@ public final class ResultCache {
 
     // ========== Cache key ==========
 
-    private static String key(ServerWorld world, VoxelChunkKey vc) {
-        return world.getRegistryKey().toString() + "|" + vc.getCx() + "|" + vc.getCz() + "|" + vc.getSy();
+    private static String key(ServerLevel world, VoxelChunkKey vc) {
+        return world.dimension().toString() + "|" + vc.getCx() + "|" + vc.getCz() + "|" + vc.getSy();
     }
 
     private static String key(String dim, VoxelChunkKey vc) {
@@ -80,8 +80,8 @@ public final class ResultCache {
      * @param computer function (world, centerVC) → fresh ResultEntry
      * @return the result entry (never null)
      */
-    public ResultEntry getOrCompute(ServerWorld world, VoxelChunkKey centerVC,
-                                    BiFunction<ServerWorld, VoxelChunkKey, ResultEntry> computer) {
+    public ResultEntry getOrCompute(ServerLevel world, VoxelChunkKey centerVC,
+                                    BiFunction<ServerLevel, VoxelChunkKey, ResultEntry> computer) {
         String k = key(world, centerVC);
         TimestampedEntry<ResultEntry> cached = cache.get(k);
 
@@ -109,7 +109,7 @@ public final class ResultCache {
         // computeResultEntry would find no H2 data and reset presenceTime to now(),
         // perpetually restarting the grace period → decay never takes effect.
         pendingPresenceWrites.putIfAbsent(k, new H2Storage.PresenceSaveRequest(
-                world.getRegistryKey().toString(), centerVC,
+                world.dimension().toString(), centerVC,
                 entry.presenceTime, entry.lastRecoveryTime));
 
         return entry;
@@ -120,7 +120,7 @@ public final class ResultCache {
      *
      * @return the entry, or null if not cached / expired
      */
-    public ResultEntry getIfPresent(ServerWorld world, VoxelChunkKey vc) {
+    public ResultEntry getIfPresent(ServerLevel world, VoxelChunkKey vc) {
         String k = key(world, vc);
         TimestampedEntry<ResultEntry> cached = cache.get(k);
         if (cached == null || cached.isExpired(ttlMillis)) return null;
@@ -204,9 +204,9 @@ public final class ResultCache {
      * Called once per second from PlayerAwarePrefetcher. Without the touch(),
      * entries would silently expire after 60min even with a player standing on them.
      */
-    public void visitAround(ServerWorld world, VoxelChunkKey center, int radiusX, int radiusZ, int radiusY) {
+    public void visitAround(ServerLevel world, VoxelChunkKey center, int radiusX, int radiusZ, int radiusY) {
         long serverNow = ServerClock.now();
-        String dim = world.getRegistryKey().toString();
+        String dim = world.dimension().toString();
         for (int dx = -radiusX; dx <= radiusX; dx++) {
             for (int dz = -radiusZ; dz <= radiusZ; dz++) {
                 for (int dy = -radiusY; dy <= radiusY; dy++) {

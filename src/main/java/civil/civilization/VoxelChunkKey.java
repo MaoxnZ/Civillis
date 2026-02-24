@@ -1,8 +1,8 @@
 package civil.civilization;
 
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.dimension.DimensionType;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.dimension.DimensionType;
 
 import java.util.Objects;
 
@@ -59,7 +59,7 @@ public final class VoxelChunkKey {
     public record WorldBounds(BlockPos min, BlockPos max) {}
 
     /** Use pre-calculated dimension Y range to avoid 27 repeated dimensionType queries under the same world. */
-    public WorldBounds getWorldBounds(ServerWorld world, int dimMinY, int dimMaxY) {
+    public WorldBounds getWorldBounds(ServerLevel world, int dimMinY, int dimMaxY) {
         int minY = Math.max(idealMinY, dimMinY);
         int maxY = Math.min(idealMaxY, dimMaxY);
         return new WorldBounds(
@@ -67,8 +67,8 @@ public final class VoxelChunkKey {
                 new BlockPos(blockMaxX, maxY, blockMaxZ));
     }
 
-    public WorldBounds getWorldBounds(ServerWorld world) {
-        DimensionType dim = world.getDimension();
+    public WorldBounds getWorldBounds(ServerLevel world) {
+        DimensionType dim = world.dimensionType();
         return getWorldBounds(world, dim.minY(), dim.minY() + dim.height() - 1);
     }
 
@@ -86,29 +86,29 @@ public final class VoxelChunkKey {
     /**
      * Get key from world coordinates and dimension (equivalent to from(pos), kept overload for convenience with level).
      */
-    public static VoxelChunkKey from(ServerWorld world, BlockPos pos) {
+    public static VoxelChunkKey from(ServerLevel world, BlockPos pos) {
         return from(pos);
     }
 
     /**
      * Returns minimum and maximum BlockPos of this voxel chunk in world (clamped to dimension).
-     * If both min and max are needed, prefer {@link #getWorldBounds(ServerWorld)} to do only one dimension query.
+     * If both min and max are needed, prefer {@link #getWorldBounds(ServerLevel)} to do only one dimension query.
      */
-    public BlockPos getWorldMin(ServerWorld world) {
+    public BlockPos getWorldMin(ServerLevel world) {
         return getWorldBounds(world).min();
     }
 
-    public BlockPos getWorldMax(ServerWorld world) {
+    public BlockPos getWorldMax(ServerLevel world) {
         return getWorldBounds(world).max();
     }
 
     /** Whether this key is valid in current dimension (Y has intersection with dimension). Can pass pre-calculated dimMinY/dimMaxY to avoid repeated queries. */
-    public boolean isValidIn(ServerWorld world, int dimMinY, int dimMaxY) {
+    public boolean isValidIn(ServerLevel world, int dimMinY, int dimMaxY) {
         return idealMaxY >= dimMinY && idealMinY <= dimMaxY;
     }
 
-    public boolean isValidIn(ServerWorld world) {
-        DimensionType dim = world.getDimension();
+    public boolean isValidIn(ServerLevel world) {
+        DimensionType dim = world.dimensionType();
         return isValidIn(world, dim.minY(), dim.minY() + dim.height() - 1);
     }
 

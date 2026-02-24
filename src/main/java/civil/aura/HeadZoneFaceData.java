@@ -1,6 +1,6 @@
 package civil.aura;
 
-import net.minecraft.network.RegistryByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 
 /**
  * Boundary face for a mob head "Force Allow" zone (3×3×1 VC neighborhood).
@@ -29,7 +29,7 @@ public record HeadZoneFaceData(
 ) {
 
     /** Serialize to a network buffer. */
-    public void write(RegistryByteBuf buf) {
+    public void write(RegistryFriendlyByteBuf buf) {
         buf.writeByte(axis);
         buf.writeDouble(planeCoord);
         buf.writeDouble(minU);
@@ -39,7 +39,7 @@ public record HeadZoneFaceData(
     }
 
     /** Deserialize from a network buffer. */
-    public static HeadZoneFaceData read(RegistryByteBuf buf) {
+    public static HeadZoneFaceData read(RegistryFriendlyByteBuf buf) {
         return new HeadZoneFaceData(
                 buf.readByte(),
                 buf.readDouble(),

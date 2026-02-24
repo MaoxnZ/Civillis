@@ -1,7 +1,7 @@
 package civil.mixin;
 
 import civil.CivilMod;
-import net.minecraft.world.SpawnHelper;
+import net.minecraft.world.level.NaturalSpawner;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -16,15 +16,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * no spawn logic runs here.  Cost: one {@code ThreadLocal.set()} at entry and
  * one at return — effectively zero overhead.
  */
-@Mixin(SpawnHelper.class)
+@Mixin(NaturalSpawner.class)
 public abstract class CivilSpawnHelperMixin {
 
-    @Inject(method = "spawnEntitiesInChunk", at = @At("HEAD"))
+    @Inject(method = "spawnForChunk", at = @At("HEAD"))
     private static void civil$onNaturalSpawnStart(CallbackInfo ci) {
         CivilMod.NATURAL_SPAWN_CONTEXT.set(Boolean.TRUE);
     }
 
-    @Inject(method = "spawnEntitiesInChunk", at = @At("RETURN"))
+    @Inject(method = "spawnForChunk", at = @At("RETURN"))
     private static void civil$onNaturalSpawnEnd(CallbackInfo ci) {
         CivilMod.NATURAL_SPAWN_CONTEXT.set(Boolean.FALSE);
     }

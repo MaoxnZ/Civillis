@@ -2,43 +2,50 @@ package civil.component;
 
 import civil.CivilMod;
 import com.mojang.serialization.Codec;
-import net.minecraft.component.ComponentType;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.component.DataComponentType;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
+import net.minecraft.resources.Identifier;
 
 /**
  * Custom item Data Components registration.
  * Civilization detector uses {@link #DETECTOR_DISPLAY} to store display state (for item model select),
  * uses {@link #DETECTOR_ANIMATION_END} to store animation end game tick, for restoring default after 2 seconds and controlling particles.
+ *
+ * <p>Fields are populated by platform-specific registration code:
+ * Fabric calls {@link #registerDirect()}, NeoForge uses DeferredRegister and sets fields via setters.
  */
 public final class ModComponents {
 
     /** Display state: default | low | medium | high | monster, for items model definition's select usage. */
-    public static final ComponentType<String> DETECTOR_DISPLAY = registerString("detector_display", Codec.STRING);
+    public static DataComponentType<String> DETECTOR_DISPLAY;
 
     /** Animation end game tick (level.getTime() + 40), for restoring default after 2 seconds and client particle judgment. */
-    public static final ComponentType<Long> DETECTOR_ANIMATION_END = registerLong("detector_animation_end", Codec.LONG);
+    public static DataComponentType<Long> DETECTOR_ANIMATION_END;
 
     private ModComponents() {
     }
 
-    public static void initialize() {
-        CivilMod.LOGGER.debug("Mod data components registered");
+    /**
+     * Direct registration via vanilla Registry API. Called by Fabric entry point
+     * where registries are not frozen during mod init.
+     */
+    public static void registerDirect() {
+        DETECTOR_DISPLAY = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE,
+                Identifier.fromNamespaceAndPath(CivilMod.MOD_ID, "detector_display"),
+                DataComponentType.<String>builder().persistent(Codec.STRING).build());
+        DETECTOR_ANIMATION_END = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE,
+                Identifier.fromNamespaceAndPath(CivilMod.MOD_ID, "detector_animation_end"),
+                DataComponentType.<Long>builder().persistent(Codec.LONG).build());
+        CivilMod.LOGGER.debug("Mod data components registered (direct)");
     }
 
-    private static ComponentType<String> registerString(String path, Codec<String> codec) {
-        ComponentType<String> type = ComponentType.<String>builder().codec(codec).build();
-        return register(path, type);
+    /** Builder helpers for platform-specific deferred registration (NeoForge). */
+    public static DataComponentType<String> buildDetectorDisplay() {
+        return DataComponentType.<String>builder().persistent(Codec.STRING).build();
     }
 
-    private static ComponentType<Long> registerLong(String path, Codec<Long> codec) {
-        ComponentType<Long> type = ComponentType.<Long>builder().codec(codec).build();
-        return register(path, type);
-    }
-
-    private static <T> ComponentType<T> register(String path, ComponentType<T> type) {
-        Identifier id = Identifier.of(CivilMod.MOD_ID, path);
-        return Registry.register(Registries.DATA_COMPONENT_TYPE, id, type);
+    public static DataComponentType<Long> buildDetectorAnimationEnd() {
+        return DataComponentType.<Long>builder().persistent(Codec.LONG).build();
     }
 }

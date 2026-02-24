@@ -4,28 +4,28 @@ import civil.CivilServices;
 import civil.civilization.BlockScanner;
 import civil.civilization.HeadTracker;
 import civil.civilization.scoring.ScalableCivilizationService;
-import net.minecraft.block.AbstractSkullBlock;
-import net.minecraft.block.BlockState;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.world.level.block.AbstractSkullBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(World.class)
+@Mixin(Level.class)
 public abstract class CivilLevelBlockChangeMixin {
 
     @Inject(
-            method = "setBlockState(Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/BlockState;II)Z",
+            method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",
             at = @At("RETURN")
     )
     private void civil$onBlockSet(BlockPos pos, BlockState state, int flags, int maxUpdateDepth, CallbackInfoReturnable<Boolean> cir) {
         if (!cir.getReturnValueZ()) {
             return;
         }
-        if (!((Object) this instanceof ServerWorld serverWorld)) {
+        if (!((Object) this instanceof ServerLevel serverWorld)) {
             return;
         }
 
@@ -54,11 +54,11 @@ public abstract class CivilLevelBlockChangeMixin {
         // Track head placement/removal in HeadTracker.
         HeadTracker registry = CivilServices.getHeadTracker();
         if (registry != null && registry.isInitialized()) {
-            String dim = serverWorld.getRegistryKey().toString();
+            String dim = serverWorld.dimension().toString();
 
             if (isNowHead) {
                 AbstractSkullBlock skull = (AbstractSkullBlock) state.getBlock();
-                String skullType = skull.getSkullType().toString();
+                String skullType = skull.getType().toString();
                 registry.onHeadAdded(dim, pos.getX(), pos.getY(), pos.getZ(), skullType);
             } else {
                 registry.onHeadRemoved(dim, pos.getX(), pos.getY(), pos.getZ());

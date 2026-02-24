@@ -1,9 +1,9 @@
 package civil;
 
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.resources.Identifier;
 
 /**
  * Civilization detector sound effects played by detection state: default / low / medium / high / monster.
@@ -14,11 +14,11 @@ import net.minecraft.util.Identifier;
  */
 public final class ModSounds {
 
-    public static final SoundEvent DETECTOR_DEFAULT = register("detector_default");
-    public static final SoundEvent DETECTOR_LOW = register("detector_low");
-    public static final SoundEvent DETECTOR_MEDIUM = register("detector_medium");
-    public static final SoundEvent DETECTOR_HIGH = register("detector_high");
-    public static final SoundEvent DETECTOR_MONSTER = register("detector_monster");
+    public static SoundEvent DETECTOR_DEFAULT;
+    public static SoundEvent DETECTOR_LOW;
+    public static SoundEvent DETECTOR_MEDIUM;
+    public static SoundEvent DETECTOR_HIGH;
+    public static SoundEvent DETECTOR_MONSTER;
 
     /**
      * Whether to prefer mod custom sound effects (civil:detector_*).
@@ -33,22 +33,36 @@ public final class ModSounds {
     private ModSounds() {
     }
 
-    public static void initialize() {
+    /**
+     * Direct registration via vanilla Registry API. Called by Fabric entry point
+     * where registries are not frozen during mod init.
+     */
+    public static void registerDirect() {
+        DETECTOR_DEFAULT = registerSingle("detector_default");
+        DETECTOR_LOW = registerSingle("detector_low");
+        DETECTOR_MEDIUM = registerSingle("detector_medium");
+        DETECTOR_HIGH = registerSingle("detector_high");
+        DETECTOR_MONSTER = registerSingle("detector_monster");
         if (CivilMod.DEBUG) {
-            CivilMod.LOGGER.info("[civil] sounds registered: detector_default, detector_low, detector_medium, detector_high, detector_monster");
+            CivilMod.LOGGER.info("[civil] sounds registered (direct): detector_default, detector_low, detector_medium, detector_high, detector_monster");
         }
     }
 
-    private static SoundEvent register(String path) {
-        Identifier id = Identifier.of(CivilMod.MOD_ID, path);
-        SoundEvent event = SoundEvent.of(id);
-        return Registry.register(Registries.SOUND_EVENT, id, event);
+    private static SoundEvent registerSingle(String path) {
+        Identifier id = Identifier.fromNamespaceAndPath(CivilMod.MOD_ID, path);
+        SoundEvent event = SoundEvent.createVariableRangeEvent(id);
+        return Registry.register(BuiltInRegistries.SOUND_EVENT, id, event);
+    }
+
+    /** Create a SoundEvent for deferred registration (NeoForge). */
+    public static SoundEvent buildSoundEvent(String path) {
+        return SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath(CivilMod.MOD_ID, path));
     }
 
     /** Get SoundEvent from vanilla registry by id (client must have loaded), to ensure sound can be heard; returns null on failure. */
     private static SoundEvent getVanillaSound(String namespace, String path) {
-        Identifier id = Identifier.of(namespace, path);
-        return Registries.SOUND_EVENT.get(id);
+        Identifier id = Identifier.fromNamespaceAndPath(namespace, path);
+        return BuiltInRegistries.SOUND_EVENT.getValue(id);
     }
 
     // ========== Sonar shockwave sound effects ==========

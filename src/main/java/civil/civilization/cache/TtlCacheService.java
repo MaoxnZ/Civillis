@@ -7,8 +7,8 @@ import civil.config.CivilConfig;
 import civil.civilization.storage.H2Storage;
 import civil.civilization.VoxelChunkKey;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +49,7 @@ public final class TtlCacheService implements CivilizationCache {
     /**
      * Initialize the service (called on world load).
      */
-    public void initialize(ServerWorld world) {
+    public void initialize(ServerLevel world) {
         if (initialized) return;
 
         try {
@@ -157,12 +157,12 @@ public final class TtlCacheService implements CivilizationCache {
     // ========== CivilizationCache interface ==========
 
     @Override
-    public Optional<CScore> getChunkCScore(ServerWorld level, VoxelChunkKey key) {
+    public Optional<CScore> getChunkCScore(ServerLevel level, VoxelChunkKey key) {
         return cache.getChunkCScore(level, key);
     }
 
     @Override
-    public void putChunkCScore(ServerWorld level, VoxelChunkKey key, CScore cScore) {
+    public void putChunkCScore(ServerLevel level, VoxelChunkKey key, CScore cScore) {
         cache.putChunkCScore(level, key, cScore);
     }
 

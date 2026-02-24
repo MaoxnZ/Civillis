@@ -1,0 +1,22 @@
+architectury {
+    platformSetupLoomIde()
+    fabric()
+}
+
+dependencies {
+    modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+    modApi "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
+
+    // Optional: Mod Menu + Cloth Config (for in-game settings GUI)
+    modImplementation("com.terraformersmc:modmenu:${rootProject.modmenu_version}")
+    modImplementation("me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}") {
+        exclude(group: "net.fabricmc.fabric-api")
+    }
+
+    common(project(path: ':', configuration: 'namedElements')) { transitive false }
+    shadowBundle project(path: ':', configuration: 'transformProductionFabric')
+
+    // H2 Database: implementation for dev runtime, shadowBundle for release jar
+    implementation 'com.h2database:h2:2.2.224'
+    shadowBundle 'com.h2database:h2:2.2.224'
+}

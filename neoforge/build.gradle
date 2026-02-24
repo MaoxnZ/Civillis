@@ -1,0 +1,19 @@
+architectury {
+    platformSetupLoomIde()
+    neoForge()
+}
+
+dependencies {
+    neoForge "net.neoforged:neoforge:${rootProject.neoforge_version}"
+
+    // Cloth Config (in-game settings GUI, same API as Fabric variant)
+    modImplementation("me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}")
+
+    common(project(path: ':', configuration: 'namedElements')) { transitive false }
+    shadowBundle project(path: ':', configuration: 'transformProductionNeoForge')
+
+    // H2 Database: ensure FML runtime classpath can discover JDBC driver
+    implementation 'com.h2database:h2:2.2.224'
+    forgeRuntimeLibrary 'com.h2database:h2:2.2.224'
+    shadowBundle 'com.h2database:h2:2.2.224'
+}

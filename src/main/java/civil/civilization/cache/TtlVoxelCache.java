@@ -5,8 +5,8 @@ import civil.civilization.CScore;
 import civil.config.CivilConfig;
 import civil.civilization.storage.H2Storage;
 import civil.civilization.VoxelChunkKey;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,18 +56,18 @@ public final class TtlVoxelCache implements CivilizationCache {
 
     // ========== Cache key generation ==========
 
-    private static String l1Key(ServerWorld level, VoxelChunkKey key) {
-        return level.getRegistryKey().toString() + "|" + key.getCx() + "|" + key.getCz() + "|" + key.getSy();
+    private static String l1Key(ServerLevel level, VoxelChunkKey key) {
+        return level.dimension().toString() + "|" + key.getCx() + "|" + key.getCz() + "|" + key.getSy();
     }
 
-    private static String getDim(ServerWorld level) {
-        return level.getRegistryKey().toString();
+    private static String getDim(ServerLevel level) {
+        return level.dimension().toString();
     }
 
     // ========== L1 operations ==========
 
     @Override
-    public Optional<CScore> getChunkCScore(ServerWorld level, VoxelChunkKey key) {
+    public Optional<CScore> getChunkCScore(ServerLevel level, VoxelChunkKey key) {
         String k = l1Key(level, key);
         TimestampedEntry<CScore> entry = l1Cache.get(k);
 
@@ -84,7 +84,7 @@ public final class TtlVoxelCache implements CivilizationCache {
     }
 
     @Override
-    public void putChunkCScore(ServerWorld level, VoxelChunkKey key, CScore cScore) {
+    public void putChunkCScore(ServerLevel level, VoxelChunkKey key, CScore cScore) {
         String k = l1Key(level, key);
         l1Cache.put(k, new TimestampedEntry<>(cScore));
 
@@ -106,7 +106,7 @@ public final class TtlVoxelCache implements CivilizationCache {
     /**
      * Check if L1 cache contains the specified key (not expired).
      */
-    public boolean containsL1(ServerWorld level, VoxelChunkKey key) {
+    public boolean containsL1(ServerLevel level, VoxelChunkKey key) {
         String k = l1Key(level, key);
         TimestampedEntry<CScore> entry = l1Cache.get(k);
         if (entry == null) return false;
@@ -122,7 +122,7 @@ public final class TtlVoxelCache implements CivilizationCache {
      * Called by PlayerAwarePrefetcher once per second for entries near online players.
      * No-op if the entry does not exist or is already expired.
      */
-    public void touchL1(ServerWorld level, VoxelChunkKey key) {
+    public void touchL1(ServerLevel level, VoxelChunkKey key) {
         String k = l1Key(level, key);
         TimestampedEntry<CScore> entry = l1Cache.get(k);
         if (entry != null && !entry.isExpired(ttlMillis)) {
@@ -133,7 +133,7 @@ public final class TtlVoxelCache implements CivilizationCache {
     /**
      * Restore L1 entry (from H2 cold storage or chunk load palette scan).
      */
-    public void restoreL1(ServerWorld level, VoxelChunkKey key, CScore cScore, long createTime) {
+    public void restoreL1(ServerLevel level, VoxelChunkKey key, CScore cScore, long createTime) {
         String k = l1Key(level, key);
         if (System.currentTimeMillis() - createTime > ttlMillis) {
             return; // Expired, do not restore

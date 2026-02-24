@@ -1,6 +1,6 @@
 package civil.aura;
 
-import net.minecraft.network.RegistryByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 
 /**
  * Lightweight boundary face data for client-side rendering.
@@ -39,7 +39,7 @@ public record BoundaryFaceData(
     }
 
     /** Serialize to a network buffer. */
-    public void write(RegistryByteBuf buf) {
+    public void write(RegistryFriendlyByteBuf buf) {
         buf.writeByte(axis);
         buf.writeDouble(planeCoord);
         buf.writeDouble(minU);
@@ -47,7 +47,7 @@ public record BoundaryFaceData(
     }
 
     /** Deserialize from a network buffer. */
-    public static BoundaryFaceData read(RegistryByteBuf buf) {
+    public static BoundaryFaceData read(RegistryFriendlyByteBuf buf) {
         return new BoundaryFaceData(
                 buf.readByte(),
                 buf.readDouble(),

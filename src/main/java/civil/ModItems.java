@@ -2,19 +2,19 @@ package civil;
 
 import civil.component.ModComponents;
 import civil.item.CivilDetectorItem;
-import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemGroups;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.util.Identifier;
+import net.minecraft.world.item.Item;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
 
 /**
- * Item registration. 1.21+ requires Item.Settings to set registryKey before constructing item, otherwise runtime error "Item id not set".
- * Uses Identifier / RegistryKey / Registry under Yarn mappings for direct registration.
+ * Item registration. 1.21+ requires Item.Properties to set registryKey before
+ * constructing item, otherwise runtime error "Item id not set".
+ *
+ * <p>Item group registration is platform-specific and handled by the
+ * platform entry point (Fabric: ItemGroupEvents, NeoForge: BuildCreativeModeTabContentsEvent).
  */
 public final class ModItems {
 
@@ -25,7 +25,11 @@ public final class ModItems {
     private ModItems() {
     }
 
-    public static void register() {
+    /**
+     * Direct registration via vanilla Registry API. Called by Fabric entry point
+     * where registries are not frozen during mod init.
+     */
+    public static void registerDirect() {
         CIVIL_DETECTOR = registerWithKey(CIVIL_DETECTOR_ID, CivilDetectorItem::new);
     }
 
@@ -33,23 +37,22 @@ public final class ModItems {
         return CIVIL_DETECTOR;
     }
 
-    private static Item registerWithKey(String id, java.util.function.Function<Item.Settings, Item> factory) {
-        Identifier identifier = Identifier.of(CivilMod.MOD_ID, id);
-        RegistryKey<Item> key = RegistryKey.of(RegistryKeys.ITEM, identifier);
-
-        Item.Settings settings = new Item.Settings()
-                .registryKey(key)
-                .maxCount(1);
-        if (CIVIL_DETECTOR_ID.equals(id)) {
-            settings = settings.component(ModComponents.DETECTOR_DISPLAY, "default");
-        }
-        Item item = factory.apply(settings);
-        return Registry.register(Registries.ITEM, key, item);
+    /** Set by NeoForge deferred registration after registry events fire. */
+    public static void setCivilDetector(Item item) {
+        CIVIL_DETECTOR = item;
     }
 
-    public static void registerItemGroups() {
-        ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register(entries ->
-                entries.addAfter(Items.COMPASS, getCivilDetector())
-        );
+    private static Item registerWithKey(String id, java.util.function.Function<Item.Properties, Item> factory) {
+        Identifier identifier = Identifier.fromNamespaceAndPath(CivilMod.MOD_ID, id);
+        ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, identifier);
+
+        Item.Properties properties = new Item.Properties()
+                .setId(key)
+                .stacksTo(1);
+        if (CIVIL_DETECTOR_ID.equals(id)) {
+            properties = properties.component(ModComponents.DETECTOR_DISPLAY, "default");
+        }
+        Item item = factory.apply(properties);
+        return Registry.register(BuiltInRegistries.ITEM, key, item);
     }
 }

@@ -1,94 +1,223 @@
 plugins {
-    id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
+    id 'java'
     id 'maven-publish'
+    id 'architectury-plugin' version '3.4-SNAPSHOT'
+    id 'dev.architectury.loom' version '1.13-SNAPSHOT'
+    id 'com.gradleup.shadow' version '9.0.0-beta4' apply false
 }
-
-// Auto-append +mcX.Y.Z or +mcX.Y.Z-X.Y.W from fabric.mod.json depends.minecraft
-def mcDep = new groovy.json.JsonSlurper()
-        .parse(file("src/main/resources/fabric.mod.json"))
-        .depends.minecraft as String
-def mcLabel = mcDep.replaceAll(/>=\s*(\S+)\s+<=\s*(\S+)/, '$1-$2').trim()
-version = "${project.mod_version}+mc${mcLabel}"
-group = project.maven_group
 
 base {
-    archivesName = project.archives_base_name
+    archivesName = "$rootProject.archive_base_name-common"
 }
 
-repositories {
-    // Loom 会自动添加下载 Minecraft 与其依赖所需的仓库
-    maven { url "https://maven.shedaniel.me/" }            // Cloth Config
-    maven { url "https://maven.terraformersmc.com/releases/" }  // Mod Menu
+architectury {
+    common(project.enabled_platforms.split(','))
 }
 
 loom {
-    // 需要仅客户端/仅服务端代码时可取消注释
-    // splitEnvironmentSourceSets()
-
-    mods {
-        "civil" {
-            sourceSet sourceSets.main
-        }
+    runConfigs.configureEach {
+        ideConfigGenerated = false
     }
 }
 
+def mcRangeToLabel = { String range ->
+    if (!range) return "mc${rootProject.minecraft_version}"
+    def normalized = range.trim()
+
+    if (normalized ==~ /^\d+\.\d+\.\d+$/) {
+        return "mc${normalized}"
+    }
+
+    def fabricRange = (normalized =~ /^>=\s*(\d+\.\d+\.\d+)\s*<=\s*(\d+\.\d+\.\d+)$/)
+    if (fabricRange.matches()) {
+        def lower = fabricRange[0][1]
+        def upper = fabricRange[0][2]
+        return lower == upper ? "mc${lower}" : "mc${lower}-${upper}"
+    }
+
+    // Forge/NeoForge metadata usually uses [lower, upper)
+    def bracketRange = (normalized =~ /^\[\s*(\d+\.\d+\.\d+)\s*,\s*(\d+\.\d+\.\d+)\s*\)$/)
+    if (bracketRange.matches()) {
+        def lower = bracketRange[0][1]
+        def upperParts = bracketRange[0][2].tokenize('.').collect { it as int }
+        if (upperParts.size() == 3 && upperParts[2] > 0) {
+            upperParts[2] = upperParts[2] - 1
+        }
+        def inclusiveUpper = upperParts.join('.')
+        return lower == inclusiveUpper ? "mc${lower}" : "mc${lower}-${inclusiveUpper}"
+    }
+
+    return "mc${rootProject.minecraft_version}"
+}
+
+def declaredMcRange =
+        (findProperty('neoforge_minecraft_version_range')
+                ?: findProperty('forge_minecraft_version_range')
+                ?: findProperty('fabric_minecraft_version_range')) as String
+ext.mcSupportSuffix = mcRangeToLabel(declaredMcRange)
+
 dependencies {
-    // 对应版本号在 gradle.properties 中配置
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_version}:v2"
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+    mappings loom.layered {
+        officialMojangMappings()
+    }
 
-    // Fabric API（通常都需要）
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    // Fabric loader for @Environment annotations in common code
+    modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
 
-    // H2 Database（纯 Java 嵌入式数据库，用于缓存持久化）
-    implementation include('com.h2database:h2:2.2.224')
+    // H2 Database (embedded, used in common code)
+    implementation 'com.h2database:h2:2.2.224'
 
-    // Optional: Mod Menu + Cloth Config（in-game settings GUI, not bundled）
-    // modImplementation makes them available in runClient for testing;
-    // end users must install these separately (they are NOT included in the jar).
-    modImplementation("com.terraformersmc:modmenu:${project.modmenu_version}")
-    modImplementation("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}") {
+    // Cloth Config (common API, available on both platforms)
+    modCompileOnly("me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}") {
         exclude(group: "net.fabricmc.fabric-api")
     }
 }
 
-processResources {
-    inputs.property "version", project.version
+allprojects {
+    apply plugin: 'java'
+    apply plugin: 'maven-publish'
+    apply plugin: 'architectury-plugin'
+    apply plugin: 'dev.architectury.loom'
 
-    filesMatching("fabric.mod.json") {
-        expand "version": inputs.properties.version
-    }
-}
+    group = rootProject.maven_group
+    version = rootProject.mod_version
 
-tasks.withType(JavaCompile).configureEach {
-    it.options.release = 21
-}
-
-java {
-    withSourcesJar()
-
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-}
-
-jar {
-    inputs.property "archivesName", project.base.archivesName
-
-    from("LICENSE") {
-        rename { "${it}_${inputs.properties.archivesName}" }
-    }
-}
-
-publishing {
-    publications {
-        create("mavenJava", MavenPublication) {
-            artifactId = project.archives_base_name
-            from components.java
-        }
+    architectury {
+        minecraft = rootProject.minecraft_version
     }
 
     repositories {
-        // 如果需要发布到 maven 仓库，可以在这里配置
+        maven { url 'https://maven.shedaniel.me/' }
+        maven { url 'https://maven.terraformersmc.com/releases/' }
+        maven { url 'https://maven.neoforged.net/releases/' }
+        mavenCentral()
+    }
+
+    dependencies {
+        minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+        mappings loom.layered {
+            officialMojangMappings()
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.release = 21
+    }
+
+    java {
+        withSourcesJar()
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    jar {
+        from('LICENSE') {
+            rename { "${it}_${rootProject.archive_base_name}" }
+        }
+    }
+
+    publishing {
+        repositories {
+            mavenLocal()
+        }
+    }
+
+    var generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
+        var props = [
+                mod_id                          : rootProject.mod_id,
+                mod_version                     : rootProject.mod_version,
+                mod_name                        : rootProject.mod_name,
+                mod_description                 : rootProject.mod_description,
+                mod_authors                     : rootProject.mod_authors,
+                mod_license                     : rootProject.mod_license,
+                mod_homepage                    : rootProject.mod_homepage,
+                maven_group                     : rootProject.maven_group,
+                archive_base_name               : rootProject.archive_base_name,
+                minecraft_version               : rootProject.minecraft_version,
+                fabric_loader_version           : rootProject.fabric_loader_version,
+                fabric_api_version              : rootProject.fabric_api_version,
+                fabric_minecraft_version_range  : rootProject.fabric_minecraft_version_range,
+                fabric_loader_version_range     : rootProject.fabric_loader_version_range,
+                neoforge_version                : rootProject.neoforge_version,
+                neoforge_minecraft_version_range: rootProject.neoforge_minecraft_version_range,
+                neoforge_loader_version_range   : rootProject.neoforge_loader_version_range,
+                neoforge_version_range          : rootProject.neoforge_version_range,
+        ]
+        inputs.properties props
+        expand props
+        from 'src/main/templates'
+        into 'build/generated/sources/mod-metadata'
+    }
+    sourceSets.main.resources.srcDir generateModMetadata
+    processResources.dependsOn generateModMetadata
+}
+
+subprojects {
+    apply plugin: 'com.gradleup.shadow'
+
+    base {
+        archivesName = "$rootProject.archive_base_name-${loom.platform.get().id()}"
+    }
+
+    loom {
+        runs {
+            client {
+                client()
+                runDir '../run'
+                property 'file.encoding', 'COMPAT'
+            }
+            server {
+                server()
+                runDir '../run'
+                property 'file.encoding', 'COMPAT'
+            }
+        }
+    }
+
+    configurations {
+        common {
+            canBeResolved = true
+            canBeConsumed = false
+        }
+        compileClasspath.extendsFrom common
+        runtimeClasspath.extendsFrom common
+        developmentFabric.extendsFrom common
+        try { developmentNeoForge.extendsFrom common } catch (Exception ignored) {}
+
+        shadowBundle {
+            canBeResolved = true
+            canBeConsumed = false
+        }
+    }
+
+    shadowJar {
+        exclude 'architectury.common.json'
+        configurations = [project.configurations.shadowBundle]
+        archiveClassifier = 'dev-shadow'
+        archiveFileName.set("${project.base.archivesName.get()}-${project.version}+${rootProject.mcSupportSuffix}-dev-shadow.jar")
+    }
+
+    remapJar {
+        input.set shadowJar.archiveFile
+        archiveFileName.set("${project.base.archivesName.get()}-${project.version}+${rootProject.mcSupportSuffix}.jar")
+    }
+
+    sourcesJar {
+        def commonSources = rootProject.sourcesJar
+        dependsOn commonSources
+        from commonSources.archiveFile.map { zipTree(it) }
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        archiveFileName.set("${project.base.archivesName.get()}-${project.version}+${rootProject.mcSupportSuffix}-sources.jar")
+    }
+
+    publishing {
+        publications {
+            maven(MavenPublication) {
+                artifactId = project.base.archivesName.get()
+                from components.java
+            }
+        }
     }
 }

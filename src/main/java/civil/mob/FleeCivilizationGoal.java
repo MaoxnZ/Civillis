@@ -7,10 +7,11 @@ import civil.civilization.HeadTracker.HeadEntry;
 import civil.config.CivilConfig;
 import civil.registry.HeadTypeRegistry;
 import civil.registry.HeadTypeRegistry.HeadTypeEntry;
-import net.minecraft.entity.ai.goal.Goal;
-import net.minecraft.entity.mob.PathAwareEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +55,7 @@ public final class FleeCivilizationGoal extends Goal {
             {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}
     };
 
-    private final PathAwareEntity mob;
+    private final PathfinderMob mob;
     private final Mode mode;
 
     private long nextEvalTick = -1;
@@ -65,10 +66,10 @@ public final class FleeCivilizationGoal extends Goal {
     private double startScore;
     private String stopReason;
 
-    public FleeCivilizationGoal(PathAwareEntity mob, Mode mode) {
+    public FleeCivilizationGoal(PathfinderMob mob, Mode mode) {
         this.mob = mob;
         this.mode = mode;
-        this.setControls(EnumSet.of(Control.MOVE));
+        this.setFlags(EnumSet.of(Flag.MOVE));
     }
 
     // ────────────────────────────────────────────────────────────
@@ -76,23 +77,23 @@ public final class FleeCivilizationGoal extends Goal {
     // ────────────────────────────────────────────────────────────
 
     @Override
-    public boolean canStart() {
+    public boolean canUse() {
         if (!CivilConfig.mobFleeEnabled) return false;
-        if (!(mob.getEntityWorld() instanceof ServerWorld world)) return false;
+        if (!(mob.level() instanceof ServerLevel world)) return false;
         if (world.getServer() == null) return false;
 
-        long currentTick = world.getServer().getTicks();
+        long currentTick = world.getServer().getTickCount();
 
         if (nextEvalTick < 0) {
-            nextEvalTick = currentTick + mob.getRandom().nextBetween(5, 20);
+            nextEvalTick = currentTick + mob.getRandom().nextIntBetweenInclusive(5, 20);
             return false;
         }
         if (currentTick < nextEvalTick) return false;
 
         nextEvalTick = currentTick + CivilConfig.mobFleeCheckIntervalTicks
-                + mob.getRandom().nextBetween(0, CivilConfig.mobFleeJitterTicks);
+                + mob.getRandom().nextIntBetweenInclusive(0, CivilConfig.mobFleeJitterTicks);
 
-        if (mob.hasVehicle()) return false;
+        if (mob.isPassenger()) return false;
 
         boolean hasTarget = mob.getTarget() != null;
         if (mode == Mode.IDLE && hasTarget) return false;
@@ -104,12 +105,12 @@ public final class FleeCivilizationGoal extends Goal {
         HeadTracker tracker = CivilServices.getHeadTracker();
         if (tracker != null && tracker.isInitialized()) {
             HeadTracker.HeadQuery hq = tracker.queryHeads(
-                    world.getRegistryKey().toString(), mob.getBlockPos(),
+                    world.dimension().toString(), mob.blockPosition(),
                     CivilConfig.headRangeX, CivilConfig.headRangeZ, CivilConfig.headRangeY);
             if (hq.hasNearbyHeads()) return false;
         }
 
-        double score = civService.getScoreAt(world, mob.getBlockPos());
+        double score = civService.getScoreAt(world, mob.blockPosition());
         double greenLine = CivilConfig.spawnThresholdMid;
         if (score < greenLine) return false;
 
@@ -132,24 +133,34 @@ public final class FleeCivilizationGoal extends Goal {
         return fleeTarget != null;
     }
 
+    private static final int PANIC_PARTICLE_COUNT = 10;
+    private static final double PANIC_PARTICLE_SPREAD = 0.4;
+
     @Override
     public void start() {
         if (mode == Mode.COMBAT_PANIC) {
             mob.setTarget(null);
+            if (mob.level() instanceof ServerLevel sw) {
+                sw.sendParticles(ParticleTypes.SOUL_FIRE_FLAME,
+                        mob.getX(), mob.getY(0.5), mob.getZ(),
+                        PANIC_PARTICLE_COUNT,
+                        PANIC_PARTICLE_SPREAD, PANIC_PARTICLE_SPREAD, PANIC_PARTICLE_SPREAD,
+                        0.02);
+            }
         }
         ticksFleeing = 0;
         ticksSinceRepath = 0;
-        startPos = mob.getBlockPos();
+        startPos = mob.blockPosition();
         stopReason = "unknown";
         navigateToTarget();
 
         if (CivilMod.DEBUG) {
-            ServerWorld world = (ServerWorld) mob.getEntityWorld();
+            ServerLevel world = (ServerLevel) mob.level();
             var svc = CivilServices.getCivilizationService();
-            startScore = svc != null ? svc.getScoreAt(world, mob.getBlockPos()) : -1;
+            startScore = svc != null ? svc.getScoreAt(world, mob.blockPosition()) : -1;
             LOGGER.info("[civil-mob] start mode={} mob={} pos=({},{},{}) score={} target=({},{},{})",
                     mode == Mode.IDLE ? "flee" : "panic",
-                    mob.getType().getUntranslatedName(),
+                    mob.getType().toShortString(),
                     mob.getBlockX(), mob.getBlockY(), mob.getBlockZ(),
                     String.format("%.3f", startScore),
                     fleeTarget.getX(), fleeTarget.getY(), fleeTarget.getZ());
@@ -157,27 +168,26 @@ public final class FleeCivilizationGoal extends Goal {
     }
 
     @Override
-    public boolean shouldContinue() {
+    public boolean canContinueToUse() {
         if (mode == Mode.IDLE && mob.getTarget() != null) { stopReason = "aggro"; return false; }
         if (mode == Mode.COMBAT_PANIC && ticksFleeing > CivilConfig.mobFleePanicDurationTicks) { stopReason = "panic_timeout"; return false; }
 
-        if (!(mob.getEntityWorld() instanceof ServerWorld world)) { stopReason = "no_world"; return false; }
+        if (!(mob.level() instanceof ServerLevel world)) { stopReason = "no_world"; return false; }
 
         var civService = CivilServices.getCivilizationService();
         if (civService == null) { stopReason = "no_service"; return false; }
 
-        double score = civService.getScoreAt(world, mob.getBlockPos());
-        if (score < CivilConfig.spawnThresholdMid) { stopReason = "safe"; return false; }
+        double score = civService.getScoreAt(world, mob.blockPosition());
 
         HeadTracker tracker = CivilServices.getHeadTracker();
         if (tracker != null && tracker.isInitialized()) {
             HeadTracker.HeadQuery hq = tracker.queryHeads(
-                    world.getRegistryKey().toString(), mob.getBlockPos(),
+                    world.dimension().toString(), mob.blockPosition(),
                     CivilConfig.headRangeX, CivilConfig.headRangeZ, CivilConfig.headRangeY);
             if (hq.hasNearbyHeads()) { stopReason = "head_zone"; return false; }
         }
 
-        if (mob.getNavigation().isIdle() && ticksFleeing > 20) { stopReason = "stuck"; return false; }
+        if (mob.getNavigation().isDone() && ticksFleeing > 20) { stopReason = "stuck"; return false; }
         if (mode == Mode.IDLE && ticksFleeing > CivilConfig.mobFleeMaxDurationTicks) { stopReason = "max_duration"; return false; }
 
         ticksSinceRepath++;
@@ -189,7 +199,7 @@ public final class FleeCivilizationGoal extends Goal {
                 if (CivilMod.DEBUG) {
                     LOGGER.info("[civil-mob] repath mode={} mob={} pos=({},{},{}) score={} target=({},{},{})",
                             mode == Mode.IDLE ? "flee" : "panic",
-                            mob.getType().getUntranslatedName(),
+                            mob.getType().toShortString(),
                             mob.getBlockX(), mob.getBlockY(), mob.getBlockZ(),
                             String.format("%.3f", score),
                             fleeTarget.getX(), fleeTarget.getY(), fleeTarget.getZ());
@@ -207,13 +217,13 @@ public final class FleeCivilizationGoal extends Goal {
         mob.getNavigation().stop();
         if (CivilMod.DEBUG) {
             double endScore = -1;
-            if (mob.getEntityWorld() instanceof ServerWorld world) {
+            if (mob.level() instanceof ServerLevel world) {
                 var svc = CivilServices.getCivilizationService();
-                if (svc != null) endScore = svc.getScoreAt(world, mob.getBlockPos());
+                if (svc != null) endScore = svc.getScoreAt(world, mob.blockPosition());
             }
             LOGGER.info("[civil-mob] stop mode={} mob={} pos=({},{},{}) score={} ticks={} reason={} start=({},{},{})",
                     mode == Mode.IDLE ? "flee" : "panic",
-                    mob.getType().getUntranslatedName(),
+                    mob.getType().toShortString(),
                     mob.getBlockX(), mob.getBlockY(), mob.getBlockZ(),
                     String.format("%.3f", endScore),
                     ticksFleeing, stopReason,
@@ -229,8 +239,8 @@ public final class FleeCivilizationGoal extends Goal {
     //  Target selection
     // ────────────────────────────────────────────────────────────
 
-    private BlockPos findFleeTarget(ServerWorld world) {
-        BlockPos pos = mob.getBlockPos();
+    private BlockPos findFleeTarget(ServerLevel world) {
+        BlockPos pos = mob.blockPosition();
         int mobX = pos.getX();
         int mobY = pos.getY();
         int mobZ = pos.getZ();
@@ -246,12 +256,12 @@ public final class FleeCivilizationGoal extends Goal {
      * Finds the nearest Force Allow zone within the search ring (ForceAllow + 1 VC).
      * Pure integer arithmetic, zero sqrt.
      */
-    private BlockPos findHeadZoneTarget(ServerWorld world, int mobX, int mobY, int mobZ) {
+    private BlockPos findHeadZoneTarget(ServerLevel world, int mobX, int mobY, int mobZ) {
         HeadTracker tracker = CivilServices.getHeadTracker();
         if (tracker == null || !tracker.isInitialized()) return null;
 
-        String dim = world.getRegistryKey().toString();
-        String dimId = world.getRegistryKey().getValue().toString();
+        String dim = world.dimension().toString();
+        String dimId = world.dimension().identifier().toString();
 
         int mobCx = mobX >> 4;
         int mobCz = mobZ >> 4;
@@ -281,18 +291,7 @@ public final class FleeCivilizationGoal extends Goal {
                 if (vcDist < bestVcDist) {
                     bestVcDist = vcDist;
 
-                    int zoneMinX = (headCx - CivilConfig.headRangeX) * 16;
-                    int zoneMaxX = (headCx + CivilConfig.headRangeX) * 16 + 15;
-                    int zoneMinZ = (headCz - CivilConfig.headRangeZ) * 16;
-                    int zoneMaxZ = (headCz + CivilConfig.headRangeZ) * 16 + 15;
-                    int zoneMinY = (headSy - CivilConfig.headRangeY) * 16;
-                    int zoneMaxY = (headSy + CivilConfig.headRangeY) * 16 + 15;
-
-                    int tx = Math.max(zoneMinX, Math.min(zoneMaxX, mobX));
-                    int tz = Math.max(zoneMinZ, Math.min(zoneMaxZ, mobZ));
-                    int ty = Math.max(zoneMinY, Math.min(zoneMaxY, mobY));
-
-                    bestTarget = new BlockPos(tx, ty, tz);
+                    bestTarget = new BlockPos(head.x(), head.y(), head.z());
                 }
             }
         }
@@ -305,7 +304,7 @@ public final class FleeCivilizationGoal extends Goal {
      * Samples civilization scores in 8 compass directions and picks the lowest.
      * Falls back to a random direction if all directions are equally civilized.
      */
-    private BlockPos findGradientTarget(ServerWorld world, BlockPos pos, int mobX, int mobY, int mobZ) {
+    private BlockPos findGradientTarget(ServerLevel world, BlockPos pos, int mobX, int mobY, int mobZ) {
         var civService = CivilServices.getCivilizationService();
         if (civService == null) return null;
 
@@ -326,8 +325,8 @@ public final class FleeCivilizationGoal extends Goal {
         }
 
         if (bestTarget == null) {
-            int dx = mob.getRandom().nextBetween(-sampleDist, sampleDist);
-            int dz = mob.getRandom().nextBetween(-sampleDist, sampleDist);
+            int dx = mob.getRandom().nextIntBetweenInclusive(-sampleDist, sampleDist);
+            int dz = mob.getRandom().nextIntBetweenInclusive(-sampleDist, sampleDist);
             if (dx == 0 && dz == 0) dx = sampleDist;
             bestTarget = new BlockPos(mobX + dx, mobY, mobZ + dz);
         }
@@ -337,7 +336,7 @@ public final class FleeCivilizationGoal extends Goal {
 
     private void navigateToTarget() {
         if (fleeTarget != null) {
-            mob.getNavigation().startMovingTo(
+            mob.getNavigation().moveTo(
                     fleeTarget.getX() + 0.5, fleeTarget.getY(), fleeTarget.getZ() + 0.5,
                     CivilConfig.mobFleeSpeed);
         }

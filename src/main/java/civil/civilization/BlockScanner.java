@@ -1,10 +1,10 @@
 package civil.civilization;
 
 import civil.registry.BlockWeightRegistry;
-import net.minecraft.block.AbstractSkullBlock;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.SkullBlock;
+import net.minecraft.world.level.block.AbstractSkullBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.SkullBlock;
 
 /**
  * Stateless utility for block-level civilization queries.
@@ -45,13 +45,13 @@ public final class BlockScanner {
     public static boolean isSkullBlock(BlockState state) {
         Block block = state.getBlock();
         if (!(block instanceof AbstractSkullBlock skull)) return false;
-        return skull.getSkullType() != SkullBlock.Type.PLAYER;
+        return skull.getType() != SkullBlock.Types.PLAYER;
     }
 
     /**
      * Whether this block state is a "target" for civilization scanning:
      * positive civilization weight OR a monster head.
-     * Used as the predicate for {@code ChunkSection.hasAny()} palette pre-filter.
+     * Used as the predicate for {@code ChunkSection.maybeHas()} palette pre-filter.
      */
     public static boolean isTargetBlock(BlockState state) {
         return BlockWeightRegistry.hasWeight(state.getBlock()) || isSkullBlock(state);

@@ -7,12 +7,12 @@ import civil.civilization.HeadTracker;
 import civil.civilization.VoxelChunkKey;
 import civil.registry.HeadTypeRegistry;
 import civil.config.CivilConfig;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvent;
+import civil.CivilPlatform;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.SoundEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,47 +62,40 @@ public final class SonarScanManager {
     private SonarScanManager() {}
 
     /**
-     * Register the tick handler. Called once during mod initialization.
+     * Server tick handler — call from platform entry point's END_SERVER_TICK event.
      */
-    public static void register() {
-        ServerTickEvents.END_SERVER_TICK.register(server -> {
-            // Tick active BFS scans
-            if (!ACTIVE_SCANS.isEmpty()) {
-                ACTIVE_SCANS.entrySet().removeIf(entry -> {
-                    ScanSession session = entry.getValue();
-                    ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.getKey());
+    public static void onServerTick(MinecraftServer server) {
+        if (!ACTIVE_SCANS.isEmpty()) {
+            ACTIVE_SCANS.entrySet().removeIf(entry -> {
+                ScanSession session = entry.getValue();
+                ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
 
-                    // Remove if player disconnected
-                    if (player == null) return true;
+                if (player == null) return true;
 
-                    // Advance scan; remove session when done
-                    ServerWorld world = session.scan.getWorld();
-                    return tickSession(session, world, player);
-                });
-            }
+                ServerLevel world = session.scan.getWorld();
+                return tickSession(session, world, player);
+            });
+        }
 
-            // Tick pending boom sounds (delayed sonar burst)
-            if (!PENDING_BOOMS.isEmpty()) {
-                PENDING_BOOMS.entrySet().removeIf(entry -> {
-                    PendingBoom boom = entry.getValue();
-                    ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.getKey());
-                    if (player == null) return true; // Player disconnected
+        if (!PENDING_BOOMS.isEmpty()) {
+            PENDING_BOOMS.entrySet().removeIf(entry -> {
+                PendingBoom boom = entry.getValue();
+                ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
+                if (player == null) return true;
 
-                    if (--boom.ticksRemaining <= 0) {
-                        // Fire the boom sound at the player's current position
-                        SoundEvent boomSound = ModSounds.getSonarBoomSound();
-                        if (boomSound != null) {
-                            boom.world.playSound(null,
-                                    player.getX(), player.getY(), player.getZ(),
-                                    boomSound, SoundCategory.PLAYERS,
-                                    ModSounds.SONAR_BOOM_VOLUME, ModSounds.SONAR_BOOM_PITCH);
-                        }
-                        return true; // Remove after playing
+                if (--boom.ticksRemaining <= 0) {
+                    SoundEvent boomSound = ModSounds.getSonarBoomSound();
+                    if (boomSound != null) {
+                        boom.world.playSound(null,
+                                player.getX(), player.getY(), player.getZ(),
+                                boomSound, SoundSource.PLAYERS,
+                                ModSounds.SONAR_BOOM_VOLUME, ModSounds.SONAR_BOOM_PITCH);
                     }
-                    return false; // Still counting down
-                });
-            }
-        });
+                    return true;
+                }
+                return false;
+            });
+        }
     }
 
     /**
@@ -112,19 +105,19 @@ public final class SonarScanManager {
      * @param player      the server player
      * @param serverWorld the server world (passed from use() context)
      */
-    public static void startScan(ServerPlayerEntity player, ServerWorld serverWorld) {
+    public static void startScan(ServerPlayer player, ServerLevel serverWorld) {
         // Sync BFS radius with user-configurable detection range (may change at runtime)
         SonarScan.MAX_RADIUS = Math.max(CivilConfig.detectionRadiusX, CivilConfig.detectionRadiusZ);
 
-        long worldTick = serverWorld.getTime();
-        SonarScan scan = new SonarScan(serverWorld, player.getBlockPos(), worldTick);
+        long worldTick = serverWorld.getGameTime();
+        SonarScan scan = new SonarScan(serverWorld, player.blockPosition(), worldTick);
 
         // Pre-compute whether the player is in a head zone (for charge-up particle type).
         // Cheap O(N) check against HeadTracker where N is typically 10–100 heads.
         boolean playerInHeadZone = isPlayerInHeadZone(player, serverWorld);
 
         ScanSession session = new ScanSession(scan, SonarScan.MAX_RADIUS, playerInHeadZone);
-        ACTIVE_SCANS.put(player.getUuid(), session);
+        ACTIVE_SCANS.put(player.getUUID(), session);
 
         if (CivilMod.DEBUG) {
             LOGGER.info("[civil-sonar] Started scan for player {} (inHigh={}, inHeadZone={}, maxRadius={})",
@@ -138,20 +131,20 @@ public final class SonarScanManager {
      * with the detector sound's {@code getHeadTypesNear(headRangeY=0)} and
      * the shockwave ring's particle zone lookup.
      */
-    private static boolean isPlayerInHeadZone(ServerPlayerEntity player, ServerWorld world) {
+    private static boolean isPlayerInHeadZone(ServerPlayer player, ServerLevel world) {
         HeadTracker registry = CivilServices.getHeadTracker();
         if (registry == null || !registry.isInitialized()) return false;
 
-        String dim = world.getRegistryKey().toString();
+        String dim = world.dimension().toString();
         var allHeads = registry.getHeadsInDimension(dim);
         if (allHeads.isEmpty()) return false;
 
-        String dimId = world.getRegistryKey().getValue().toString();
+        String dimId = world.dimension().identifier().toString();
 
-        VoxelChunkKey playerVC = VoxelChunkKey.from(player.getBlockPos());
+        VoxelChunkKey playerVC = VoxelChunkKey.from(player.blockPosition());
         int pcx = playerVC.getCx();
         int pcz = playerVC.getCz();
-        int playerBlockY = player.getBlockPos().getY();
+        int playerBlockY = player.blockPosition().getY();
         int rangeCX = CivilConfig.headRangeX;
         int rangeCZ = CivilConfig.headRangeZ;
 
@@ -186,7 +179,7 @@ public final class SonarScanManager {
      *
      * @return true if the session should be removed
      */
-    private static boolean tickSession(ScanSession session, ServerWorld world, ServerPlayerEntity player) {
+    private static boolean tickSession(ScanSession session, ServerLevel world, ServerPlayer player) {
         session.ticksElapsed++;
         SonarScan scan = session.scan;
 
@@ -197,11 +190,11 @@ public final class SonarScanManager {
             SoundEvent chargeSound = ModSounds.getSonarChargeSound();
             if (chargeSound != null) {
                 world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        chargeSound, SoundCategory.PLAYERS,
+                        chargeSound, SoundSource.PLAYERS,
                         ModSounds.SONAR_CHARGE_VOLUME, ModSounds.SONAR_CHARGE_PITCH);
             }
             // Send charge packet so the client starts charge-up particles in sync
-            ServerPlayNetworking.send(player,
+            CivilPlatform.sendToPlayer(player,
                     new SonarChargePayload(session.scan.isPlayerInHigh(), session.playerInHeadZone));
         }
 
@@ -226,7 +219,7 @@ public final class SonarScanManager {
      * is used to filter civilization faces: <b>gold walls must not appear inside or
      * on top of purple head zone walls</b> (purple has higher visual priority).
      */
-    private static void sendBoundaryPacket(ServerPlayerEntity player, SonarScan scan) {
+    private static void sendBoundaryPacket(ServerPlayer player, SonarScan scan) {
         // 1. Compute head zones first — we need the 2D footprint to filter civ faces.
         HeadZoneResult headResult = computeHeadZoneData(scan);
 
@@ -316,14 +309,14 @@ public final class SonarScanManager {
                 faces, headResult.faces, headZone2DArray,
                 headZoneMinYArray, headZoneMaxYArray, civHighZone2DArray);
 
-        ServerPlayNetworking.send(player, payload);
+        CivilPlatform.sendToPlayer(player, payload);
 
         // === Boom sound (server-side, audible to all nearby players) ===
         // Delayed 5 ticks (0.25s) to match the client-side charge-up + pause phase
         // before the ring starts expanding. The charge-up sound already played at scan
         // start (in startScan), so the player has been hearing "charging" for the entire
         // BFS duration. This boom marks the dramatic release.
-        PENDING_BOOMS.put(player.getUuid(), new PendingBoom(scan.getWorld(), BOOM_DELAY_TICKS));
+        PENDING_BOOMS.put(player.getUUID(), new PendingBoom(scan.getWorld(), BOOM_DELAY_TICKS));
 
         if (CivilMod.DEBUG) {
             LOGGER.info("[civil-sonar] Sent boundary packet to {}: {} civ faces, {} head faces, wall Y=[{}, {}]",
@@ -384,15 +377,15 @@ public final class SonarScanManager {
      * @return head zone faces + 2D footprint; {@link HeadZoneResult#EMPTY} if no heads in range
      */
     private static HeadZoneResult computeHeadZoneData(SonarScan scan) {
-        ServerWorld world = scan.getWorld();
-        String dim = world.getRegistryKey().toString();
+        ServerLevel world = scan.getWorld();
+        String dim = world.dimension().toString();
         HeadTracker registry = CivilServices.getHeadTracker();
         if (registry == null || !registry.isInitialized()) return HeadZoneResult.EMPTY;
 
         var allHeads = registry.getHeadsInDimension(dim);
         if (allHeads.isEmpty()) return HeadZoneResult.EMPTY;
 
-        String dimId = world.getRegistryKey().getValue().toString();
+        String dimId = world.dimension().identifier().toString();
 
         VoxelChunkKey center = scan.getCenter();
         int maxRange = SonarScan.MAX_RADIUS + 2; // Include heads slightly beyond scan range
@@ -553,10 +546,10 @@ public final class SonarScanManager {
      * Stores the world reference since the scan session is already removed by the time the boom fires.
      */
     private static final class PendingBoom {
-        final ServerWorld world;
+        final ServerLevel world;
         int ticksRemaining;
 
-        PendingBoom(ServerWorld world, int ticks) {
+        PendingBoom(ServerLevel world, int ticks) {
             this.world = world;
             this.ticksRemaining = ticks;
         }

@@ -1,9 +1,9 @@
 package civil.aura;
 
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,16 +35,16 @@ public record SonarBoundaryPayload(
         float[] headZoneMinY,
         float[] headZoneMaxY,
         long[] civHighZone2D
-) implements CustomPayload {
+) implements CustomPacketPayload {
 
-    public static final Id<SonarBoundaryPayload> ID =
-            new Id<>(Identifier.of("civil", "sonar_boundary"));
+    public static final Type<SonarBoundaryPayload> ID =
+            new Type<>(Identifier.fromNamespaceAndPath("civil", "sonar_boundary"));
 
-    public static final PacketCodec<RegistryByteBuf, SonarBoundaryPayload> CODEC =
-            PacketCodec.of(SonarBoundaryPayload::encode, SonarBoundaryPayload::decode);
+    public static final StreamCodec<RegistryFriendlyByteBuf, SonarBoundaryPayload> CODEC =
+            StreamCodec.ofMember(SonarBoundaryPayload::encode, SonarBoundaryPayload::decode);
 
-    /** ValueFirstEncoder: (value, buf) order — required by PacketCodec.of in 1.21.11. */
-    private static void encode(SonarBoundaryPayload payload, RegistryByteBuf buf) {
+    /** ValueFirstEncoder: (value, buf) order — required by StreamCodec.of in 1.21.11. */
+    private static void encode(SonarBoundaryPayload payload, RegistryFriendlyByteBuf buf) {
         buf.writeBoolean(payload.playerInHigh);
         buf.writeDouble(payload.centerX);
         buf.writeDouble(payload.centerY);
@@ -71,7 +71,7 @@ public record SonarBoundaryPayload(
         }
     }
 
-    private static SonarBoundaryPayload decode(RegistryByteBuf buf) {
+    private static SonarBoundaryPayload decode(RegistryFriendlyByteBuf buf) {
         boolean playerInHigh = buf.readBoolean();
         double cx = buf.readDouble();
         double cy = buf.readDouble();
@@ -107,7 +107,7 @@ public record SonarBoundaryPayload(
     }
 
     @Override
-    public Id<? extends CustomPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

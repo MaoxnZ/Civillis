@@ -2,14 +2,18 @@ package civil.item;
 
 import civil.ModItems;
 import civil.component.ModComponents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 
 /**
- * Civilization detector animation reset: only runs when there are active animations; call {@link #markActive()} after using detector to trigger animation,
- * server checks all players' inventory/main hand/off-hand civilization detectors every tick, if DETECTOR_ANIMATION_END has arrived then restore default and remove animation end tick;
- * when no items are in animation, stop checking.
- * When player joins world, forcibly resets all civilization detectors on that player to default, avoiding previous session's state being persisted and brought into new session.
+ * Civilization detector animation reset: only runs when there are active animations.
+ * Call {@link #markActive()} after using detector to trigger animation.
+ * Server checks all players' inventory/main hand/off-hand civilization detectors every tick;
+ * if DETECTOR_ANIMATION_END has arrived then restore default and remove animation end tick.
+ * When no items are in animation, stop checking.
+ *
+ * <p>Platform entry points register events that call {@link #onPlayerJoin} and
+ * {@link #onServerTick}.
  */
 public final class CivilDetectorAnimationReset {
 
@@ -18,82 +22,82 @@ public final class CivilDetectorAnimationReset {
     private CivilDetectorAnimationReset() {
     }
 
-    /** Called when using civilization detector to trigger animation, starts checking for animation end from this tick. */
+    /** Called when using civilization detector to trigger animation. */
     public static void markActive() {
         hasActiveAnimation = true;
     }
 
-    /** Forcibly restore all civilization detectors on player to default state (for reset when entering game). */
-    public static void resetAllDetectorsForPlayer(net.minecraft.server.network.ServerPlayerEntity player) {
+    /** Called when player joins — reset all detectors to default state. */
+    public static void onPlayerJoin(ServerPlayer player) {
+        resetAllDetectorsForPlayer(player);
+    }
+
+    /** Called at end of each server tick (registered by platform entry point). */
+    public static void onServerTick(MinecraftServer server) {
+        if (!hasActiveAnimation) return;
+        long now = server.overworld().getGameTime();
+        server.getPlayerList().getPlayers().forEach(player -> {
+            var inv = player.getInventory();
+            for (int i = 0; i < inv.getContainerSize(); i++) {
+                var stack = inv.getItem(i);
+                if (stack.isEmpty() || !stack.is(ModItems.getCivilDetector())) continue;
+                Long endTick = stack.get(ModComponents.DETECTOR_ANIMATION_END);
+                if (endTick == null) continue;
+                if (now >= endTick) {
+                    stack.set(ModComponents.DETECTOR_DISPLAY, "default");
+                    stack.remove(ModComponents.DETECTOR_ANIMATION_END);
+                }
+            }
+            var main = player.getMainHandItem();
+            if (!main.isEmpty() && main.is(ModItems.getCivilDetector())) {
+                Long endTick = main.get(ModComponents.DETECTOR_ANIMATION_END);
+                if (endTick != null && now >= endTick) {
+                    main.set(ModComponents.DETECTOR_DISPLAY, "default");
+                    main.remove(ModComponents.DETECTOR_ANIMATION_END);
+                }
+            }
+            var off = player.getOffhandItem();
+            if (!off.isEmpty() && off.is(ModItems.getCivilDetector())) {
+                Long endTick = off.get(ModComponents.DETECTOR_ANIMATION_END);
+                if (endTick != null && now >= endTick) {
+                    off.set(ModComponents.DETECTOR_DISPLAY, "default");
+                    off.remove(ModComponents.DETECTOR_ANIMATION_END);
+                }
+            }
+        });
+        boolean stillActive = server.getPlayerList().getPlayers().stream().anyMatch(player -> {
+            for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+                var stack = player.getInventory().getItem(i);
+                if (!stack.isEmpty() && stack.is(ModItems.getCivilDetector()) && stack.get(ModComponents.DETECTOR_ANIMATION_END) != null)
+                    return true;
+            }
+            var main = player.getMainHandItem();
+            if (!main.isEmpty() && main.is(ModItems.getCivilDetector()) && main.get(ModComponents.DETECTOR_ANIMATION_END) != null)
+                return true;
+            var off = player.getOffhandItem();
+            return !off.isEmpty() && off.is(ModItems.getCivilDetector()) && off.get(ModComponents.DETECTOR_ANIMATION_END) != null;
+        });
+        if (!stillActive) hasActiveAnimation = false;
+    }
+
+    /** Forcibly restore all civilization detectors on player to default state. */
+    public static void resetAllDetectorsForPlayer(ServerPlayer player) {
         var inv = player.getInventory();
-        for (int i = 0; i < inv.size(); i++) {
-            var stack = inv.getStack(i);
-            if (stack.isEmpty() || !stack.isOf(ModItems.getCivilDetector())) continue;
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            var stack = inv.getItem(i);
+            if (stack.isEmpty() || !stack.is(ModItems.getCivilDetector())) continue;
             stack.set(ModComponents.DETECTOR_DISPLAY, "default");
             stack.remove(ModComponents.DETECTOR_ANIMATION_END);
         }
-        var main = player.getMainHandStack();
-        if (!main.isEmpty() && main.isOf(ModItems.getCivilDetector())) {
+        var main = player.getMainHandItem();
+        if (!main.isEmpty() && main.is(ModItems.getCivilDetector())) {
             main.set(ModComponents.DETECTOR_DISPLAY, "default");
             main.remove(ModComponents.DETECTOR_ANIMATION_END);
         }
-        var off = player.getOffHandStack();
-        if (!off.isEmpty() && off.isOf(ModItems.getCivilDetector())) {
+        var off = player.getOffhandItem();
+        if (!off.isEmpty() && off.is(ModItems.getCivilDetector())) {
             off.set(ModComponents.DETECTOR_DISPLAY, "default");
             off.remove(ModComponents.DETECTOR_ANIMATION_END);
         }
-    }
-
-    public static void register() {
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
-                resetAllDetectorsForPlayer(handler.player));
-
-        ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (!hasActiveAnimation) return;
-            long now = server.getOverworld().getTime();
-            server.getPlayerManager().getPlayerList().forEach(player -> {
-                var inv = player.getInventory();
-                for (int i = 0; i < inv.size(); i++) {
-                    var stack = inv.getStack(i);
-                    if (stack.isEmpty() || !stack.isOf(ModItems.getCivilDetector())) continue;
-                    Long endTick = stack.get(ModComponents.DETECTOR_ANIMATION_END);
-                    if (endTick == null) continue;
-                    if (now >= endTick) {
-                        stack.set(ModComponents.DETECTOR_DISPLAY, "default");
-                        stack.remove(ModComponents.DETECTOR_ANIMATION_END);
-                    }
-                }
-                var main = player.getMainHandStack();
-                if (!main.isEmpty() && main.isOf(ModItems.getCivilDetector())) {
-                    Long endTick = main.get(ModComponents.DETECTOR_ANIMATION_END);
-                    if (endTick != null && now >= endTick) {
-                        main.set(ModComponents.DETECTOR_DISPLAY, "default");
-                        main.remove(ModComponents.DETECTOR_ANIMATION_END);
-                    }
-                }
-                var off = player.getOffHandStack();
-                if (!off.isEmpty() && off.isOf(ModItems.getCivilDetector())) {
-                    Long endTick = off.get(ModComponents.DETECTOR_ANIMATION_END);
-                    if (endTick != null && now >= endTick) {
-                        off.set(ModComponents.DETECTOR_DISPLAY, "default");
-                        off.remove(ModComponents.DETECTOR_ANIMATION_END);
-                    }
-                }
-            });
-            // If no items are in animation, stop subsequent tick checks
-            boolean stillActive = server.getPlayerManager().getPlayerList().stream().anyMatch(player -> {
-                for (int i = 0; i < player.getInventory().size(); i++) {
-                    var stack = player.getInventory().getStack(i);
-                    if (!stack.isEmpty() && stack.isOf(ModItems.getCivilDetector()) && stack.get(ModComponents.DETECTOR_ANIMATION_END) != null)
-                        return true;
-                }
-                var main = player.getMainHandStack();
-                if (!main.isEmpty() && main.isOf(ModItems.getCivilDetector()) && main.get(ModComponents.DETECTOR_ANIMATION_END) != null)
-                    return true;
-                var off = player.getOffHandStack();
-                return !off.isEmpty() && off.isOf(ModItems.getCivilDetector()) && off.get(ModComponents.DETECTOR_ANIMATION_END) != null;
-            });
-            if (!stillActive) hasActiveAnimation = false;
-        });
     }
 }

@@ -1,10 +1,8 @@
 package civil.aura;
 
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.particle.ParticleTypes;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.particles.ParticleTypes;
 
 import java.util.Map;
 import java.util.Set;
@@ -28,7 +26,6 @@ import java.util.Set;
  * <p>All particles are spawned client-side, visible only to the detecting player.
  * Ticked from the render callback at ~20 Hz.
  */
-@Environment(EnvType.CLIENT)
 public final class SonarShockwaveEffect {
 
     private SonarShockwaveEffect() {}
@@ -151,8 +148,8 @@ public final class SonarShockwaveEffect {
 
         float elapsed = (now - phaseStartNano) / 1_000_000_000f;
 
-        MinecraftClient client = MinecraftClient.getInstance();
-        ClientWorld world = client.world;
+        Minecraft client = Minecraft.getInstance();
+        ClientLevel world = client.level;
         if (world == null) {
             phase = PHASE_NONE;
             return;
@@ -207,7 +204,7 @@ public final class SonarShockwaveEffect {
 
     // ========== Phase 1: Charge-up column ==========
 
-    private static void tickChargeUp(ClientWorld world, float elapsed) {
+    private static void tickChargeUp(ClientLevel world, float elapsed) {
         float t = elapsed / CHARGE_DURATION;
         // Intensity curve: ramp up, sustain, ramp down
         float intensity = (float) Math.sin(Math.PI * t);
@@ -227,7 +224,7 @@ public final class SonarShockwaveEffect {
             double offsetZ = (Math.random() * 2.0 - 1.0) * 0.3;
             double vy = (Math.random() * 0.1 + 0.02) * (offsetY > 0 ? 1 : -1);
 
-            world.addParticleClient(particleType,
+            world.addParticle(particleType,
                     cx + offsetX, cy + offsetY, cz + offsetZ,
                     0.0, vy, 0.0);
         }
@@ -235,7 +232,7 @@ public final class SonarShockwaveEffect {
 
     // ========== Phase 2: Expanding double-ring shockwave ==========
 
-    private static void tickExpandingRings(ClientWorld world, float ringElapsed) {
+    private static void tickExpandingRings(ClientLevel world, float ringElapsed) {
         // Wave 1 — primary ring
         float radius1 = RING_MIN_RADIUS + ringElapsed * RING_EXPAND_SPEED;
         if (radius1 <= RING_MAX_RADIUS) {
@@ -263,7 +260,7 @@ public final class SonarShockwaveEffect {
      * Particle type is determined by world position: head zone → FLAME,
      * HIGH civ → END_ROD, else → SOUL_FIRE_FLAME.
      */
-    private static void spawnRing(ClientWorld world, float radius, int count, float outwardVelocity) {
+    private static void spawnRing(ClientLevel world, float radius, int count, float outwardVelocity) {
         double baseAngle = Math.random() * 2.0 * Math.PI;
 
         for (int i = 0; i < count; i++) {
@@ -284,7 +281,7 @@ public final class SonarShockwaveEffect {
                             ? ParticleTypes.END_ROD
                             : ParticleTypes.SOUL_FIRE_FLAME;
 
-            world.addImportantParticleClient(particleType,
+            world.addAlwaysVisibleParticle(particleType,
                     px, py, pz,
                     vx, 0.0, vz);
         }

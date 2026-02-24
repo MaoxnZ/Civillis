@@ -1,5 +1,48 @@
 # Changelog
 
+## [1.0.0-release]
+
+### Fixed
+
+- **Smarter mob flee behavior**: Hostile mobs no longer freeze at civilization borders.
+  They now continue leaving civilized areas instead of stopping exactly on the edge.
+- **Totem-zone entry is now correct**: When a monster head totem is nearby, mobs
+  correctly move into the totem zone instead of halting at the outer rim.
+- **Mob Flee AI settings UI cleanup**: Removed the empty expandable
+  `Mob Flee AI` section in `InGameSettingsGui`. For now, this feature
+  is exposed as a single toggle only.
+
+### Added
+
+- **Combat panic visual feedback**: Fear-driven fleeing during combat now has matching
+  particle effects, making panic behavior visible and readable in real time.
+
+### Changed
+
+- **Major Architectury refactor (full 1.20-1.21 line)**: This release includes a large-scale
+  architecture refactor to support long-term multi-loader maintenance across Fabric, Forge,
+  and NeoForge.
+- **Version support is now explicitly standardized by port range**:
+  - `1.20.1` (Fabric + Forge)
+  - `1.20.2-1.20.4` (Fabric + Forge)
+  - `1.20.5-1.20.6` (Fabric + NeoForge)
+  - `1.21.1` (Fabric + NeoForge)
+  - `1.21.2-1.21.3` (Fabric + NeoForge)
+  - `1.21.4` (Fabric + NeoForge)
+  - `1.21.5` (Fabric + NeoForge)
+  - `1.21.6-1.21.8` (Fabric + NeoForge)
+  - `1.21.9` (Fabric + NeoForge)
+  - `1.21.10` (Fabric + NeoForge)
+  - `1.21.11` (Fabric + NeoForge)
+
+### Note
+
+- **Out of beta**:
+  Every larger leap has always been our unchanged resolve.
+  I've played this game for over ten years, and this mod idea stayed at my fingertips for too long,
+  repeatedly delayed by everyday life.
+  This time, I won't let it go.
+
 ## [1.3.0-beta]
 
 ### Added

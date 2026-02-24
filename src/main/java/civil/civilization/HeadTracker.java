@@ -4,8 +4,8 @@ import civil.CivilMod;
 import civil.civilization.storage.H2Storage;
 import civil.registry.HeadTypeRegistry;
 import civil.registry.HeadTypeRegistry.HeadTypeEntry;
-import net.minecraft.entity.EntityType;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

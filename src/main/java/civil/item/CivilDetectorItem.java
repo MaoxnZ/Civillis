@@ -8,18 +8,18 @@ import civil.aura.SonarScanManager;
 import civil.component.ModComponents;
 import civil.civilization.CScore;
 import civil.civilization.HeadTracker;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.text.Text;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.ActionResult;
-import net.minecraft.world.World;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.level.Level;
 
 import java.util.List;
 
@@ -31,21 +31,21 @@ public class CivilDetectorItem extends Item {
 
     // Animation/cooldown durations are in CivilConfig
 
-    public CivilDetectorItem(Settings settings) {
-        super(settings);
+    public CivilDetectorItem(Properties properties) {
+        super(properties);
     }
 
     @Override
-    public ActionResult use(World world, PlayerEntity player, Hand hand) {
-        ItemStack stack = player.getStackInHand(hand);
+    public InteractionResult use(Level world, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
         // Skip if on cooldown
-        if (player.getItemCooldownManager().isCoolingDown(stack)) {
-            return ActionResult.PASS;
+        if (player.getCooldowns().isOnCooldown(stack)) {
+            return InteractionResult.PASS;
         }
-        if (world instanceof ServerWorld serverWorld) {
+        if (world instanceof ServerLevel serverWorld) {
             // Set cooldown
-            player.getItemCooldownManager().set(stack, CivilConfig.detectorCooldownTicks);
-            BlockPos pos = player.getBlockPos();
+            player.getCooldowns().addCooldown(stack, CivilConfig.detectorCooldownTicks);
+            BlockPos pos = player.blockPosition();
             CScore cScore;
             try {
                 cScore = CivilServices.getCivilizationService().getCScoreAt(serverWorld, pos);
@@ -60,39 +60,39 @@ public class CivilDetectorItem extends Item {
                 String msg = cScore != null
                         ? String.format("§aCivilization Value: §f%.2f §7(Position %d, %d, %d)", cScore.score(), pos.getX(), pos.getY(), pos.getZ())
                         : "§cCivilization detection failed";
-                if (player instanceof ServerPlayerEntity serverPlayer) {
-                    serverPlayer.sendMessage(Text.literal(msg));
+                if (player instanceof ServerPlayer serverPlayer) {
+                    serverPlayer.sendSystemMessage(Component.literal(msg));
                 }
             }
 
             // Trigger 2-second animation: write display state and animation end tick, start animation reset logic checking
             String displayState = scoreToDisplayState(cScore, serverWorld, pos);
             stack.set(ModComponents.DETECTOR_DISPLAY, displayState);
-            stack.set(ModComponents.DETECTOR_ANIMATION_END, world.getTime() + CivilConfig.detectorAnimationTicks);
+            stack.set(ModComponents.DETECTOR_ANIMATION_END, world.getGameTime() + CivilConfig.detectorAnimationTicks);
             CivilDetectorAnimationReset.markActive();
 
             // Play sound effect by detection state: get sound + pitch at once (vanilla uses pitch to distinguish, custom OGG uses 1.0)
             ModSounds.DetectorPlayback playback = ModSounds.getDetectorPlayback(displayState);
             if (playback.sound() != null) {
                 serverWorld.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        playback.sound(), SoundCategory.BLOCKS, 1.0f, playback.pitch());
+                        playback.sound(), SoundSource.BLOCKS, 1.0f, playback.pitch());
                 if (CivilMod.DEBUG) {
                     CivilMod.LOGGER.info("[civil] detector sound played: displayState={}", displayState);
                 }
             }
 
             // Trigger sonar scan (protection aura visualization)
-            if (CivilConfig.auraEffectEnabled && player instanceof ServerPlayerEntity serverPlayer) {
+            if (CivilConfig.auraEffectEnabled && player instanceof ServerPlayer serverPlayer) {
                 SonarScanManager.startScan(serverPlayer, serverWorld);
             }
         }
 
-        return ActionResult.SUCCESS;
+        return InteractionResult.SUCCESS;
     }
 
     /** During animation (DETECTOR_DISPLAY is not default and DETECTOR_ANIMATION_END exists) show enchantment glow effect. */
     @Override
-    public boolean hasGlint(ItemStack stack) {
+    public boolean isFoil(ItemStack stack) {
         String display = stack.get(ModComponents.DETECTOR_DISPLAY);
         Long endTick = stack.get(ModComponents.DETECTOR_ANIMATION_END);
         return display != null && !"default".equals(display) && endTick != null;
@@ -108,7 +108,7 @@ public class CivilDetectorItem extends Item {
      * <p>Head detection queries HeadTracker directly (consistent with SpawnPolicy),
      * since CScore no longer carries headTypes in the Fusion Architecture.
      */
-    private static String scoreToDisplayState(CScore cScore, ServerWorld world, BlockPos pos) {
+    private static String scoreToDisplayState(CScore cScore, ServerLevel world, BlockPos pos) {
         if (cScore == null) {
             return "default";
         }
@@ -116,7 +116,7 @@ public class CivilDetectorItem extends Item {
         // Check HeadTracker directly (fusion architecture: heads decoupled from CScore)
         HeadTracker registry = CivilServices.getHeadTracker();
         if (registry != null && registry.isInitialized()) {
-            String dim = world.getRegistryKey().toString();
+            String dim = world.dimension().toString();
             List<EntityType<?>> headTypes = registry.getHeadTypesNear(
                     dim, pos,
                     CivilConfig.headRangeX,

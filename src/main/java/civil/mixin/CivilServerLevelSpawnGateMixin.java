@@ -3,12 +3,12 @@ package civil.mixin;
 import civil.CivilMod;
 import civil.spawn.SpawnDecision;
 import civil.spawn.SpawnPolicy;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.SpawnGroup;
-import net.minecraft.entity.SpawnReason;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -28,7 +28,7 @@ import java.util.List;
  *       (from the convertPool).</li>
  * </ul>
  */
-@Mixin(ServerWorld.class)
+@Mixin(ServerLevel.class)
 public abstract class CivilServerLevelSpawnGateMixin {
 
     /** Minimum nearby head count to trigger conversion. Below this, heads only bypass civilization. */
@@ -38,23 +38,23 @@ public abstract class CivilServerLevelSpawnGateMixin {
     private static final int HEAD_COUNT_FOR_FULL_CONVERT = 10;
 
     @Inject(
-            method = "spawnEntity(Lnet/minecraft/entity/Entity;)Z",
+            method = "addFreshEntity(Lnet/minecraft/world/entity/Entity;)Z",
             at = @At("HEAD"),
             cancellable = true
     )
     private void civil$gateHostileSpawns(Entity entity, CallbackInfoReturnable<Boolean> cir) {
-        if (entity == null || entity.getType().getSpawnGroup() != SpawnGroup.MONSTER) {
+        if (entity == null || entity.getType().getCategory() != MobCategory.MONSTER) {
             return;
         }
 
-        // Only intercept natural spawns (SpawnHelper pipeline).
+        // Only intercept natural spawns (NaturalSpawner pipeline).
         // Spawn eggs, spawners, /summon, reinforcements etc. bypass civilization checks.
         if (!CivilMod.NATURAL_SPAWN_CONTEXT.get()) {
             return;
         }
 
-        ServerWorld world = (ServerWorld) (Object) this;
-        BlockPos pos = entity.getBlockPos();
+        ServerLevel world = (ServerLevel) (Object) this;
+        BlockPos pos = entity.blockPosition();
 
         SpawnDecision decision = SpawnPolicy.decide(world, pos, entity.getType());
 
@@ -83,19 +83,19 @@ public abstract class CivilServerLevelSpawnGateMixin {
 
                 if (world.getRandom().nextDouble() < convertProbability) {
                     EntityType<?> chosen = convertPool.get(world.getRandom().nextInt(convertPool.size()));
-                    if (chosen != null && chosen != entity.getType() && chosen.getSpawnGroup() == SpawnGroup.MONSTER) {
+                    if (chosen != null && chosen != entity.getType() && chosen.getCategory() == MobCategory.MONSTER) {
                         // Clear natural-spawn context so the replacement entity
                         // bypasses this mixin entirely (prevents recursive conversion).
                         CivilMod.NATURAL_SPAWN_CONTEXT.set(false);
                         Entity replacement;
                         try {
-                            replacement = chosen.spawn(world, pos, SpawnReason.NATURAL);
+                            replacement = chosen.spawn(world, pos, EntitySpawnReason.NATURAL);
                         } finally {
                             CivilMod.NATURAL_SPAWN_CONTEXT.set(true);
                         }
                         if (replacement != null) {
-                            replacement.setYaw(entity.getYaw());
-                            replacement.setPitch(entity.getPitch());
+                            replacement.setYRot(entity.getYRot());
+                            replacement.setXRot(entity.getXRot());
                             cir.setReturnValue(false);
                             cir.cancel();
                             if (CivilMod.DEBUG) {

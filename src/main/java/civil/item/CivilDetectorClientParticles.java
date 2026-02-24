@@ -1,8 +1,5 @@
 package civil.item;
 
-import net.fabricmc.api.Environment;
-import net.fabricmc.api.EnvType;
-
 /**
  * Legacy detector client particles — now a no-op.
  *
@@ -12,7 +9,6 @@ import net.fabricmc.api.EnvType;
  *
  * <p>Kept as a stub to avoid breaking the registration call in {@code CivilModClient}.
  */
-@Environment(EnvType.CLIENT)
 public final class CivilDetectorClientParticles {
 
     private CivilDetectorClientParticles() {

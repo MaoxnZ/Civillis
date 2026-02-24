@@ -2,7 +2,7 @@ package civil.civilization.cache;
 
 import civil.civilization.CScore;
 import civil.civilization.VoxelChunkKey;
-import net.minecraft.server.world.ServerWorld;
+import net.minecraft.server.level.ServerLevel;
 
 import java.util.Optional;
 
@@ -12,8 +12,8 @@ import java.util.Optional;
 public interface CivilizationCache {
 
     /** Query cached CScore for this voxel chunk. */
-    Optional<CScore> getChunkCScore(ServerWorld level, VoxelChunkKey key);
+    Optional<CScore> getChunkCScore(ServerLevel level, VoxelChunkKey key);
 
     /** Write CScore for this voxel chunk. */
-    void putChunkCScore(ServerWorld level, VoxelChunkKey key, CScore cScore);
+    void putChunkCScore(ServerLevel level, VoxelChunkKey key, CScore cScore);
 }

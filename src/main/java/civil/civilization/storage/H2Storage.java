@@ -3,8 +3,8 @@ package civil.civilization.storage;
 import civil.CivilMod;
 import civil.civilization.CScore;
 import civil.civilization.VoxelChunkKey;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.WorldSavePath;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.storage.LevelResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,11 +88,11 @@ public final class H2Storage {
      * 
      * @param world server world (used to determine storage path)
      */
-    public void initialize(ServerWorld world) {
+    public void initialize(ServerLevel world) {
         try {
             // Database file placed under the world save directory
             String dbPath = world.getServer()
-                    .getSavePath(WorldSavePath.ROOT)
+                    .getWorldPath(LevelResource.ROOT)
                     .resolve(DB_NAME)
                     .toAbsolutePath()
                     .toString();
@@ -101,6 +101,14 @@ public final class H2Storage {
             // MODE=MySQL provides better compatibility
             // AUTO_SERVER=TRUE allows multi-process access (though we don't need it)
             String url = "jdbc:h2:" + dbPath + ";MODE=MySQL;AUTO_RECONNECT=TRUE";
+
+            // Forge's modular classloader hides the H2 driver from DriverManager's
+            // ServiceLoader scan. Explicit Class.forName forces driver registration.
+            try {
+                Class.forName("org.h2.Driver");
+            } catch (ClassNotFoundException ignored) {
+                // Fabric/NeoForge: driver auto-registers via ServiceLoader
+            }
 
             connection = DriverManager.getConnection(url);
 

@@ -5,9 +5,9 @@ import civil.config.CivilConfig;
 import civil.civilization.storage.H2Storage;
 import civil.civilization.VoxelChunkKey;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -90,11 +90,11 @@ public final class PlayerAwarePrefetcher {
         int resultRadiusZ = CivilConfig.patrolRadiusZ;
         int resultRadiusY = CivilConfig.patrolRadiusY;
 
-        for (ServerWorld world : server.getWorlds()) {
-            for (ServerPlayerEntity player : world.getPlayers()) {
-                BlockPos pos = player.getBlockPos();
+        for (ServerLevel world : server.getAllLevels()) {
+            for (ServerPlayer player : world.players()) {
+                BlockPos pos = player.blockPosition();
                 VoxelChunkKey center = VoxelChunkKey.from(pos);
-                UUID playerId = player.getUuid();
+                UUID playerId = player.getUUID();
 
                 VoxelChunkKey prev = lastPlayerVC.get(playerId);
                 boolean moved = prev == null || !prev.equals(center);
@@ -120,7 +120,7 @@ public final class PlayerAwarePrefetcher {
      * <p>Without this, a stationary player would see their L1 entries expire after
      * 60 minutes, causing unnecessary H2 cold reads or palette recomputation.
      */
-    private void touchL1Around(ServerWorld world, VoxelChunkKey center,
+    private void touchL1Around(ServerLevel world, VoxelChunkKey center,
                                int radiusX, int radiusZ, int radiusY) {
         for (int dx = -radiusX; dx <= radiusX; dx++) {
             for (int dz = -radiusZ; dz <= radiusZ; dz++) {

@@ -5,19 +5,16 @@ import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.MappableRingBuffer;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BuiltBuffer;
-import net.minecraft.client.texture.AbstractTexture;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.MappableRingBuffer;
+import net.minecraft.client.renderer.RenderPipelines;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.MeshData;
+import net.minecraft.client.renderer.texture.AbstractTexture;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -34,7 +31,7 @@ import java.util.TreeMap;
 
 /**
  * Client-side renderer for protection zone boundary walls using the vanilla
- * {@code forcefield.png} texture via the {@code RENDERTYPE_WORLD_BORDER} pipeline.
+ * {@code forcefield.png} texture via the {@code WORLD_BORDER} pipeline.
  *
  * <h3>Dual wall types</h3>
  * <ul>
@@ -54,7 +51,6 @@ import java.util.TreeMap;
  * <p>Faces at different alpha levels are grouped into buckets (quantized to 0.1
  * increments). Each non-empty bucket is rendered in its own {@link RenderPass}.
  */
-@Environment(EnvType.CLIENT)
 public final class AuraWallRenderer {
 
     private AuraWallRenderer() {}
@@ -130,11 +126,11 @@ public final class AuraWallRenderer {
 
     // ========== Texture ==========
     private static final Identifier FORCEFIELD_TEXTURE =
-            Identifier.of("minecraft", "textures/misc/forcefield.png");
+            Identifier.fromNamespaceAndPath("minecraft", "textures/misc/forcefield.png");
 
     // ========== GPU ==========
-    private static final BufferAllocator ALLOCATOR = new BufferAllocator(262144);
-    private static final BufferAllocator HEAD_ALLOCATOR = new BufferAllocator(65536);
+    private static final ByteBufferBuilder ALLOCATOR = new ByteBufferBuilder(262144);
+    private static final ByteBufferBuilder HEAD_ALLOCATOR = new ByteBufferBuilder(65536);
     private static MappableRingBuffer vertexBuffer;
     private static MappableRingBuffer headVertexBuffer;
 
@@ -172,8 +168,12 @@ public final class AuraWallRenderer {
 
     // ========== Public API ==========
 
-    public static void register() {
-        WorldRenderEvents.BEFORE_TRANSLUCENT.register(AuraWallRenderer::onRenderWorld);
+    /**
+     * Render callback — call from platform-specific world render event.
+     * Pass the camera position from the render context.
+     */
+    public static void onRender(Vec3 cameraPos) {
+        onRenderWorld(cameraPos);
     }
 
     /**
@@ -275,7 +275,7 @@ public final class AuraWallRenderer {
 
     // ========== Render callback ==========
 
-    private static void onRenderWorld(WorldRenderContext context) {
+    private static void onRenderWorld(Vec3 cameraPos) {
         SonarShockwaveEffect.tick();
 
         List<TimedFace> faces = timedFaces;
@@ -283,29 +283,24 @@ public final class AuraWallRenderer {
 
         boolean hasFaces = !faces.isEmpty() || !headFaces.isEmpty();
 
-        // Nothing to render and fully faded → early exit
         if (!hasFaces && phaseAlpha < 0.01f) return;
 
-        // ---- Delta time ----
         long now = System.nanoTime();
         float dt = lastFrameNano > 0 ? (now - lastFrameNano) / 1_000_000_000f : 0.016f;
-        dt = Math.min(dt, 0.1f); // Clamp to prevent huge jumps on lag spikes
+        dt = Math.min(dt, 0.1f);
         lastFrameNano = now;
 
-        // ---- Determine target alpha (global phase) ----
         float targetAlpha;
         if (!hasFaces) {
             targetAlpha = 0.0f;
         } else if (now < visibleAfterNano) {
-            // Sonar delay: fresh → invisible; renewal → hold brightness
             targetAlpha = phaseAlpha > 0.05f ? 1.0f : 0.0f;
         } else if (now < steadyEndNano) {
-            targetAlpha = 1.0f; // Steady: fully visible
+            targetAlpha = 1.0f;
         } else {
-            targetAlpha = 0.0f; // Past steady: fade out
+            targetAlpha = 0.0f;
         }
 
-        // ---- Smoothly chase target ----
         if (phaseAlpha < targetAlpha) {
             phaseAlpha = Math.min(targetAlpha, phaseAlpha + FADE_IN_RATE * dt);
         } else if (phaseAlpha > targetAlpha) {
@@ -332,7 +327,7 @@ public final class AuraWallRenderer {
         float scroll = ((now / 1_000_000L) % 3000L) / 3000.0f;
         Matrix4f texMatrix = new Matrix4f().translation(scroll, scroll, 0);
 
-        Vec3d cam = context.worldState().cameraRenderState.pos;
+        Vec3 cam = cameraPos;
 
         // ---- Render civilization walls (gold) ----
         if (!faces.isEmpty()) {
@@ -348,8 +343,8 @@ public final class AuraWallRenderer {
     // ========== Civilization wall rendering ==========
 
     private static void renderCivilizationWalls(List<TimedFace> faces, long now,
-                                                 float globalAlpha, Matrix4f texMatrix, Vec3d cam) {
-        var pipeline = RenderPipelines.RENDERTYPE_WORLD_BORDER;
+                                                 float globalAlpha, Matrix4f texMatrix, Vec3 cam) {
+        var pipeline = RenderPipelines.WORLD_BORDER;
 
         // Group faces into alpha buckets
         TreeMap<Integer, List<TimedFace>> buckets = new TreeMap<>();
@@ -422,8 +417,8 @@ public final class AuraWallRenderer {
     // ========== Head zone wall rendering ==========
 
     private static void renderHeadZoneWalls(List<TimedHeadFace> faces, long now,
-                                             float globalAlpha, Matrix4f texMatrix, Vec3d cam) {
-        var pipeline = RenderPipelines.RENDERTYPE_WORLD_BORDER;
+                                             float globalAlpha, Matrix4f texMatrix, Vec3 cam) {
+        var pipeline = RenderPipelines.WORLD_BORDER;
 
         // Group faces into alpha buckets
         TreeMap<Integer, List<TimedHeadFace>> buckets = new TreeMap<>();
@@ -510,15 +505,15 @@ public final class AuraWallRenderer {
                                            int totalQuads, float globalAlpha,
                                            float r, float g, float b,
                                            Matrix4f texMatrix, boolean usePrimaryBuf) {
-        var pipeline = RenderPipelines.RENDERTYPE_WORLD_BORDER;
+        var pipeline = RenderPipelines.WORLD_BORDER;
 
-        BuiltBuffer built = builder.endNullable();
+        MeshData built = builder.build();
         if (built == null) return;
 
         try {
-            BuiltBuffer.DrawParameters drawParams = built.getDrawParameters();
-            VertexFormat format = drawParams.format();
-            int totalBytes = drawParams.vertexCount() * format.getVertexSize();
+            MeshData.DrawState drawState = built.drawState();
+            VertexFormat format = drawState.format();
+            int totalBytes = drawState.vertexCount() * format.getVertexSize();
 
             // Select or create the appropriate ring buffer
             MappableRingBuffer ringBuf;
@@ -542,23 +537,23 @@ public final class AuraWallRenderer {
                 ringBuf = headVertexBuffer;
             }
 
-            GpuBuffer gpuVerts = ringBuf.getBlocking();
+            GpuBuffer gpuVerts = ringBuf.currentBuffer();
             var uploadEncoder = RenderSystem.getDevice().createCommandEncoder();
             try (GpuBuffer.MappedView mapped = uploadEncoder.mapBuffer(
-                    gpuVerts.slice(0, built.getBuffer().remaining()), false, true)) {
-                MemoryUtil.memCopy(built.getBuffer(), mapped.data());
+                    gpuVerts.slice(0, built.vertexBuffer().remaining()), false, true)) {
+                MemoryUtil.memCopy(built.vertexBuffer(), mapped.data());
             }
 
             // Shared index buffer
             int totalIndices = totalQuads * 6;
-            RenderSystem.ShapeIndexBuffer shapeIdxBuf =
+            RenderSystem.AutoStorageIndexBuffer shapeIdxBuf =
                     RenderSystem.getSequentialBuffer(pipeline.getVertexFormatMode());
-            GpuBuffer indices = shapeIdxBuf.getIndexBuffer(totalIndices);
-            VertexFormat.IndexType indexType = shapeIdxBuf.getIndexType();
+            GpuBuffer indices = shapeIdxBuf.getBuffer(totalIndices);
+            VertexFormat.IndexType indexType = shapeIdxBuf.type();
 
-            MinecraftClient client = MinecraftClient.getInstance();
+            Minecraft client = Minecraft.getInstance();
             AbstractTexture forcefield = client.getTextureManager().getTexture(FORCEFIELD_TEXTURE);
-            var fb = client.getFramebuffer();
+            var fb = client.getMainRenderTarget();
 
             // Draw each alpha bucket
             for (int[] range : bucketRanges) {
@@ -573,18 +568,18 @@ public final class AuraWallRenderer {
                 Vector4f color = new Vector4f(r, g, b, finalAlpha);
 
                 GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms()
-                        .write(RenderSystem.getModelViewMatrix(), color, new Vector3f(), texMatrix);
+                        .writeTransform(RenderSystem.getModelViewMatrix(), color, new Vector3f(), texMatrix);
 
                 try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
                         .createRenderPass(
                                 () -> usePrimaryBuf ? "civil aura wall" : "civil head zone wall",
-                                fb.getColorAttachmentView(), OptionalInt.empty(),
-                                fb.getDepthAttachmentView(), OptionalDouble.empty())) {
+                                fb.getColorTextureView(), OptionalInt.empty(),
+                                fb.getDepthTextureView(), OptionalDouble.empty())) {
                     pass.setPipeline(pipeline);
                     RenderSystem.bindDefaultUniforms(pass);
                     pass.setUniform("DynamicTransforms", dynamicTransforms);
                     pass.bindTexture("Sampler0",
-                            forcefield.getGlTextureView(), forcefield.getSampler());
+                            forcefield.getTextureView(), forcefield.getSampler());
                     pass.setVertexBuffer(0, gpuVerts);
                     pass.setIndexBuffer(indices, indexType);
                     pass.drawIndexed(0, firstQuad * 6, quadCount * 6, 1);
@@ -600,7 +595,7 @@ public final class AuraWallRenderer {
     // ========== Vertex emission ==========
 
     // ---- YZ-plane quad (X axis boundary) ----
-    private static void addQuadYZ(BufferBuilder buf, Vec3d cam,
+    private static void addQuadYZ(BufferBuilder buf, Vec3 cam,
                                   double x, double minZ, double minY, double maxZ, double maxY,
                                   float u1, float v1, float u2, float v2,
                                   boolean front) {
@@ -611,20 +606,20 @@ public final class AuraWallRenderer {
         float fz2 = (float) (maxZ - cam.z);
 
         if (front) {
-            buf.vertex(fx, fy1, fz1).texture(u1, v1);
-            buf.vertex(fx, fy1, fz2).texture(u2, v1);
-            buf.vertex(fx, fy2, fz2).texture(u2, v2);
-            buf.vertex(fx, fy2, fz1).texture(u1, v2);
+            buf.addVertex(fx, fy1, fz1).setUv(u1, v1);
+            buf.addVertex(fx, fy1, fz2).setUv(u2, v1);
+            buf.addVertex(fx, fy2, fz2).setUv(u2, v2);
+            buf.addVertex(fx, fy2, fz1).setUv(u1, v2);
         } else {
-            buf.vertex(fx, fy2, fz1).texture(u1, v2);
-            buf.vertex(fx, fy2, fz2).texture(u2, v2);
-            buf.vertex(fx, fy1, fz2).texture(u2, v1);
-            buf.vertex(fx, fy1, fz1).texture(u1, v1);
+            buf.addVertex(fx, fy2, fz1).setUv(u1, v2);
+            buf.addVertex(fx, fy2, fz2).setUv(u2, v2);
+            buf.addVertex(fx, fy1, fz2).setUv(u2, v1);
+            buf.addVertex(fx, fy1, fz1).setUv(u1, v1);
         }
     }
 
     // ---- XY-plane quad (Z axis boundary) ----
-    private static void addQuadXY(BufferBuilder buf, Vec3d cam,
+    private static void addQuadXY(BufferBuilder buf, Vec3 cam,
                                   double z, double minX, double minY, double maxX, double maxY,
                                   float u1, float v1, float u2, float v2,
                                   boolean front) {
@@ -635,15 +630,15 @@ public final class AuraWallRenderer {
         float fz  = (float) (z    - cam.z);
 
         if (front) {
-            buf.vertex(fx1, fy1, fz).texture(u1, v1);
-            buf.vertex(fx2, fy1, fz).texture(u2, v1);
-            buf.vertex(fx2, fy2, fz).texture(u2, v2);
-            buf.vertex(fx1, fy2, fz).texture(u1, v2);
+            buf.addVertex(fx1, fy1, fz).setUv(u1, v1);
+            buf.addVertex(fx2, fy1, fz).setUv(u2, v1);
+            buf.addVertex(fx2, fy2, fz).setUv(u2, v2);
+            buf.addVertex(fx1, fy2, fz).setUv(u1, v2);
         } else {
-            buf.vertex(fx1, fy2, fz).texture(u1, v2);
-            buf.vertex(fx2, fy2, fz).texture(u2, v2);
-            buf.vertex(fx2, fy1, fz).texture(u2, v1);
-            buf.vertex(fx1, fy1, fz).texture(u1, v1);
+            buf.addVertex(fx1, fy2, fz).setUv(u1, v2);
+            buf.addVertex(fx2, fy2, fz).setUv(u2, v2);
+            buf.addVertex(fx2, fy1, fz).setUv(u2, v1);
+            buf.addVertex(fx1, fy1, fz).setUv(u1, v1);
         }
     }
 }

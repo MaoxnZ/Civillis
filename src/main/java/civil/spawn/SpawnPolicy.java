@@ -5,10 +5,10 @@ import civil.CivilServices;
 import civil.civilization.CScore;
 import civil.civilization.HeadTracker;
 import civil.config.CivilConfig;
-import net.minecraft.entity.EntityType;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.random.Random;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.RandomSource;
 
 /**
  * Fusion Architecture spawn policy — head-first decision flow.
@@ -32,12 +32,12 @@ public final class SpawnPolicy {
     /**
      * Returns complete decision (whether to block + civilization value + branch).
      */
-    public static SpawnDecision decide(ServerWorld world, BlockPos pos, EntityType<?> entityType) {
+    public static SpawnDecision decide(ServerLevel world, BlockPos pos, EntityType<?> entityType) {
 
         // ===== Stage 1: Head Detection (single O(N) pass via HeadTracker) =====
         HeadTracker tracker = CivilServices.getHeadTracker();
         if (tracker != null && tracker.isInitialized()) {
-            String dim = world.getRegistryKey().toString();
+            String dim = world.dimension().toString();
 
             HeadTracker.HeadQuery hq = tracker.queryHeads(
                     dim, pos,
@@ -71,7 +71,7 @@ public final class SpawnPolicy {
         }
         if (score > thresholdLow && score < thresholdMid) {
             double t = (score - thresholdLow) / (thresholdMid - thresholdLow);
-            Random random = world.getRandom();
+            RandomSource random = world.getRandom();
             boolean block = random.nextDouble() < t;
             return new SpawnDecision(block, score, SpawnDecision.BRANCH_MID);
         }
@@ -82,7 +82,7 @@ public final class SpawnPolicy {
      * Head suppression check using pre-computed proximity from the combined query.
      * No additional registry traversal needed.
      */
-    private static SpawnDecision checkHeadSuppression(ServerWorld world, BlockPos pos,
+    private static SpawnDecision checkHeadSuppression(ServerLevel world, BlockPos pos,
                                                        HeadTracker.HeadProximity proximity) {
         double nearThreshold = CivilConfig.headAttractNearBlocks;
         double maxRadius = CivilConfig.headAttractMaxRadius;
@@ -121,7 +121,7 @@ public final class SpawnPolicy {
     /**
      * Whether to block hostile mob spawn at given position.
      */
-    public static boolean shouldBlockMonsterSpawn(ServerWorld world, BlockPos pos) {
+    public static boolean shouldBlockMonsterSpawn(ServerLevel world, BlockPos pos) {
         return decide(world, pos, null).block();
     }
 }

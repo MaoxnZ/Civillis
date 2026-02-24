@@ -1,6 +1,6 @@
 package civil.config;
 
-import net.fabricmc.loader.api.FabricLoader;
+import civil.CivilPlatform;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -291,7 +291,7 @@ public final class CivilConfig {
 
     /** Called during mod initialization, loads from config/civil.properties. */
     public static void load() {
-        Path dir = FabricLoader.getInstance().getConfigDir();
+        Path dir = CivilPlatform.getConfigDir();
         Path file = dir.resolve(FILE_NAME);
         Properties p = new Properties();
         if (Files.isRegularFile(file)) {
@@ -445,7 +445,7 @@ public final class CivilConfig {
      * all other raw params are written commented as reference.
      */
     public static void save() {
-        Path dir = FabricLoader.getInstance().getConfigDir();
+        Path dir = CivilPlatform.getConfigDir();
         Path file = dir.resolve(FILE_NAME);
         try {
             Files.createDirectories(dir);

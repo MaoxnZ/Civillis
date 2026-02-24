@@ -1,7 +1,7 @@
 package civil.aura;
 
 import civil.civilization.VoxelChunkKey;
-import net.minecraft.util.math.Direction;
+import net.minecraft.core.Direction;
 
 /**
  * A boundary face between a HIGH-score chunk and a LOW-score chunk.

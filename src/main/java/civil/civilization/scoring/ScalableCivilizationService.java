@@ -9,11 +9,11 @@ import civil.civilization.cache.ResultEntry;
 import civil.civilization.cache.TtlCacheService;
 import civil.civilization.VoxelChunkKey;
 import civil.civilization.BlockScanner;
-import net.minecraft.block.BlockState;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.chunk.Chunk;
-import net.minecraft.world.chunk.ChunkSection;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.LevelChunkSection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +58,7 @@ public final class ScalableCivilizationService implements CivilizationService {
     // ========== CivilizationService interface ==========
 
     @Override
-    public double getScoreAt(ServerWorld world, BlockPos pos) {
+    public double getScoreAt(ServerLevel world, BlockPos pos) {
         return getCScoreAt(world, pos).score();
     }
 
@@ -76,7 +76,7 @@ public final class ScalableCivilizationService implements CivilizationService {
      * (queried directly in SpawnPolicy and CivilDetectorItem).
      */
     @Override
-    public CScore getCScoreAt(ServerWorld world, BlockPos pos) {
+    public CScore getCScoreAt(ServerLevel world, BlockPos pos) {
         long startTimeUs = CivilMod.DEBUG ? System.nanoTime() / 1000 : 0;
 
         VoxelChunkKey centerVC = VoxelChunkKey.from(pos);
@@ -87,7 +87,7 @@ public final class ScalableCivilizationService implements CivilizationService {
 
         if (CivilMod.DEBUG) {
             long elapsedUs = System.nanoTime() / 1000 - startTimeUs;
-            String dimName = world.getRegistryKey().getValue().toString();
+            String dimName = world.dimension().identifier().toString();
             long serverNow = ServerClock.now();
             double freshness = ResultEntry.computeDecayFactor(serverNow, entry.getPresenceTime());
 
@@ -116,7 +116,7 @@ public final class ScalableCivilizationService implements CivilizationService {
      *
      * <p>Cost: ~675 HashMap lookups × ~50ns = ~34μs (all L1 pre-filled by chunk load)
      */
-    private ResultEntry computeResultEntry(ServerWorld world, VoxelChunkKey centerVC) {
+    private ResultEntry computeResultEntry(ServerLevel world, VoxelChunkKey centerVC) {
         double coreSum = 0.0;
         double outerSum = 0.0;
 
@@ -124,7 +124,7 @@ public final class ScalableCivilizationService implements CivilizationService {
         int rz = CivilConfig.detectionRadiusZ;
         int ry = CivilConfig.detectionRadiusY;
 
-        var dim = world.getDimension();
+        var dim = world.dimensionType();
         int dimMinY = dim.minY();
         int dimMaxY = dimMinY + dim.height() - 1;
 
@@ -160,7 +160,7 @@ public final class ScalableCivilizationService implements CivilizationService {
 
         // Restore persisted presenceTime / lastRecoveryTime from H2 if available.
         // Without this, TTL eviction would permanently lose decay state.
-        String dimKey = world.getRegistryKey().toString();
+        String dimKey = world.dimension().toString();
         long[] persisted = cacheService.getStorage().loadPresenceSync(dimKey, centerVC);
         if (persisted != null) {
             return new ResultEntry(coreSum, outerSum, persisted[0], persisted[1]);
@@ -177,7 +177,7 @@ public final class ScalableCivilizationService implements CivilizationService {
      * The cold storage check is a safety net for the rare case where a shard
      * has been TTL-evicted but the prefetcher hasn't refreshed it yet (~0.1ms).
      */
-    private double getL1Score(ServerWorld world, VoxelChunkKey key) {
+    private double getL1Score(ServerLevel world, VoxelChunkKey key) {
         // 1. Hot cache hit (typical case — prefetcher keeps entries alive)
         Optional<CScore> cached = cacheService.getChunkCScore(world, key);
         if (cached.isPresent()) {
@@ -186,7 +186,7 @@ public final class ScalableCivilizationService implements CivilizationService {
 
         // 2. H2 cold storage (TTL-evicted but persisted — sync single-row lookup)
         Double coldScore = cacheService.getStorage().loadL1Sync(
-                world.getRegistryKey().toString(), key);
+                world.dimension().toString(), key);
         if (coldScore != null) {
             CScore restored = new CScore(coldScore);
             cacheService.putChunkCScore(world, key, restored); // re-fill hot cache
@@ -203,7 +203,7 @@ public final class ScalableCivilizationService implements CivilizationService {
      * Compute L1 score and write to cache.
      * Uses palette pre-filter (ChunkSection.hasAny) to skip empty sections.
      */
-    CScore computeAndCacheL1(ServerWorld world, VoxelChunkKey key) {
+    CScore computeAndCacheL1(ServerLevel world, VoxelChunkKey key) {
         if (!key.isValidIn(world)) {
             return new CScore(0.0);
         }
@@ -211,7 +211,7 @@ public final class ScalableCivilizationService implements CivilizationService {
         // Any previously computed non-zero L1 would already be in H2 (caught by
         // getL1Score's cold-storage check), so reaching here means the chunk is
         // either brand-new or was empty — returning 0.0 is safe.
-        if (!world.isChunkLoaded(key.getCx(), key.getCz())) {
+        if (!world.hasChunk(key.getCx(), key.getCz())) {
             return new CScore(0.0);
         }
         long startUs = CivilMod.DEBUG ? System.nanoTime() / 1000 : 0;
@@ -220,7 +220,7 @@ public final class ScalableCivilizationService implements CivilizationService {
 
         if (CivilMod.DEBUG) {
             long elapsedUs = System.nanoTime() / 1000 - startUs;
-            String dimLog = world.getRegistryKey().getValue().toString();
+            String dimLog = world.dimension().identifier().toString();
             LOGGER.info("[civil-fusion-compute] L1 dim={} key={},{},{} score={} elapsed_us={}",
                     dimLog, key.getCx(), key.getCz(), key.getSy(),
                     String.format("%.4f", cScore.score()), elapsedUs);
@@ -233,7 +233,7 @@ public final class ScalableCivilizationService implements CivilizationService {
      * Compute CScore for a single voxel chunk (inlined single-pass).
      *
      * <ol>
-     *   <li>Palette pre-filter: {@code ChunkSection.hasAny(isTargetBlock)} (~1μs).
+     *   <li>Palette pre-filter: {@code ChunkSection.maybeHas(isTargetBlock)} (~1μs).
      *       Skips sections containing zero target blocks.</li>
      *   <li>Single 4096-block iteration: reads world block states directly and
      *       accumulates weights via {@link BlockScanner#getBlockWeight} (~100μs).</li>
@@ -241,14 +241,14 @@ public final class ScalableCivilizationService implements CivilizationService {
      *
      * <p>This replaces the old two-pass pipeline (VoxelRegion fill + operator scan).
      */
-    private CScore computeCScoreForChunk(ServerWorld world, VoxelChunkKey key) {
+    private CScore computeCScoreForChunk(ServerLevel world, VoxelChunkKey key) {
         // Palette pre-filter: check if the section contains any target blocks
         try {
-            Chunk chunk = world.getChunk(key.getCx(), key.getCz());
+            ChunkAccess chunk = world.getChunk(key.getCx(), key.getCz());
             int sectionIdx = chunk.getSectionIndex(key.getSy() * 16);
-            if (sectionIdx >= 0 && sectionIdx < chunk.getSectionArray().length) {
-                ChunkSection section = chunk.getSection(sectionIdx);
-                if (!section.hasAny(BlockScanner::isTargetBlock)) {
+            if (sectionIdx >= 0 && sectionIdx < chunk.getSections().length) {
+                LevelChunkSection section = chunk.getSection(sectionIdx);
+                if (!section.maybeHas(BlockScanner::isTargetBlock)) {
                     return new CScore(0.0);
                 }
             }
@@ -265,7 +265,7 @@ public final class ScalableCivilizationService implements CivilizationService {
         }
 
         double totalWeight = 0.0;
-        BlockPos.Mutable mutable = new BlockPos.Mutable();
+        BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
         for (int y = min.getY(); y <= max.getY(); y++) {
             for (int z = min.getZ(); z <= max.getZ(); z++) {
                 for (int x = min.getX(); x <= max.getX(); x++) {
@@ -293,10 +293,10 @@ public final class ScalableCivilizationService implements CivilizationService {
      * @param world the server world
      * @param pos   the block position that changed
      */
-    public void onCivilBlockChanged(ServerWorld world, BlockPos pos) {
+    public void onCivilBlockChanged(ServerLevel world, BlockPos pos) {
         long startNs = CivilMod.DEBUG ? System.nanoTime() : 0;
         VoxelChunkKey shardKey = VoxelChunkKey.from(pos);
-        String dim = world.getRegistryKey().toString();
+        String dim = world.dimension().toString();
 
         // 1. Get old L1 score (hot → cold → 0.0)
         // Must check H2 cold storage to avoid incorrect delta when L1 was TTL-evicted.
@@ -322,7 +322,7 @@ public final class ScalableCivilizationService implements CivilizationService {
 
         if (CivilMod.DEBUG) {
             long elapsedUs = (System.nanoTime() - startNs) / 1000;
-            String dimLog = world.getRegistryKey().getValue().toString();
+            String dimLog = world.dimension().identifier().toString();
             LOGGER.info("[civil-block-change] dim={} x={} y={} z={} cx={} cz={} sy={} old={} new={} delta={} elapsed_us={}",
                     dimLog, pos.getX(), pos.getY(), pos.getZ(),
                     shardKey.getCx(), shardKey.getCz(), shardKey.getSy(),

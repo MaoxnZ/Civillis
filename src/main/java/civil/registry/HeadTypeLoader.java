@@ -5,12 +5,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import civil.registry.HeadTypeRegistry.HeadTypeEntry;
-import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
-import net.minecraft.entity.EntityType;
-import net.minecraft.registry.Registries;
-import net.minecraft.resource.Resource;
-import net.minecraft.resource.ResourceManager;
-import net.minecraft.util.Identifier;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,30 +25,24 @@ import java.util.Set;
  * Datapack reload listener that populates {@link HeadTypeRegistry} from
  * JSON files located at {@code data/<namespace>/civil_heads/*.json}.
  *
- * <p>Loaded at server startup and on {@code /reload}. Files within each
- * namespace are processed in alphabetical order; later entries for the
- * same skull_type override earlier ones.
+ * <p>Platform entry points wrap this in the appropriate reload listener
+ * (Fabric: SimpleSynchronousResourceReloadListener, NeoForge: AddReloadListenerEvent).
  */
-public final class HeadTypeLoader implements SimpleSynchronousResourceReloadListener {
+public final class HeadTypeLoader {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("civil-registry");
     private static final String DATA_PATH = "civil_heads";
 
-    @Override
-    public Identifier getFabricId() {
-        return Identifier.of("civil", "head_types");
-    }
-
-    @Override
-    public void reload(ResourceManager manager) {
+    /** Perform the actual reload. Called by platform-specific reload listener wrappers. */
+    public static void reload(ResourceManager manager) {
         Map<String, HeadTypeEntry> accumulated = new LinkedHashMap<>();
 
-        Map<Identifier, Resource> resources = manager.findResources(
+        Map<Identifier, Resource> resources = manager.listResources(
                 DATA_PATH, id -> id.getPath().endsWith(".json"));
 
         for (Map.Entry<Identifier, Resource> entry : resources.entrySet()) {
             Identifier fileId = entry.getKey();
-            try (InputStream is = entry.getValue().getInputStream();
+            try (InputStream is = entry.getValue().open();
                  InputStreamReader reader = new InputStreamReader(is, StandardCharsets.UTF_8)) {
 
                 JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
@@ -71,9 +64,9 @@ public final class HeadTypeLoader implements SimpleSynchronousResourceReloadList
                     EntityType<?> entityType = null;
                     if (obj.has("entity_type") && !obj.get("entity_type").isJsonNull()) {
                         String entityId = obj.get("entity_type").getAsString();
-                        Identifier id = Identifier.of(entityId);
-                        if (Registries.ENTITY_TYPE.containsId(id)) {
-                            entityType = Registries.ENTITY_TYPE.get(id);
+                        Identifier id = Identifier.parse(entityId);
+                        if (BuiltInRegistries.ENTITY_TYPE.containsKey(id)) {
+                            entityType = BuiltInRegistries.ENTITY_TYPE.getValue(id);
                         } else {
                             LOGGER.warn("[civil-registry] Unknown entity type '{}' for skull '{}' in {}, skipping entity mapping",
                                     entityId, skullType, fileId);
