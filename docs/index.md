@@ -22,6 +22,7 @@ Optional: install [Mod Menu](https://modrinth.com/mod/modmenu) + [Cloth Config](
 - [Blocks & Scoring](blocks-and-scoring.md) — which blocks count and how much they weigh
 - [Civilization Decay](civilization-decay.md) — how protection fades and recovers
 - [Monster Heads](monster-heads.md) — spawn gate bypass, distant redirection, mob conversion
+- [Mob Flee AI](mob-flee-ai.md) — hostile mob retreat behavior in civilized zones
 - [Civilization Detector](detector.md) — sonar pulse, boundary walls, visual feedback
 
 ## Configuration

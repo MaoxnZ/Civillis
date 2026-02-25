@@ -157,6 +157,72 @@ flowchart TD
 
 ---
 
+## Mob Flee Behavior Layer
+
+Mob Flee AI runs as a post-spawn behavior layer for existing hostile mobs. It does not replace spawn gating; it complements it.
+
+- Spawn gating decides whether a new hostile mob is allowed to appear
+- Mob Flee AI decides whether an already-existing hostile mob should retreat from civilization pressure
+
+In dense city cores, flee logic may escalate to panic-like retreat behavior (including possible combat disengagement), while outer civilized zones usually produce softer outward drift.
+
+```mermaid
+flowchart TD
+    Tick["Periodic evaluation per mob"]
+    Enabled{"Mob Flee AI enabled?"}
+    HeadZone{"Inside local head force-allow zone?"}
+    Score["Read local civilization score"]
+    GreenLine["greenLine = spawnThresholdMid"]
+    AboveGreen{score >= greenLine?}
+    CombatLine["combatLine = greenLine + (1-greenLine) * combatFleeRatio"]
+
+    ModeCheck{"Current state"}
+    IdleBranch["IDLE mode (no target)"]
+    CombatBranch["COMBAT_PANIC mode (has target)"]
+
+    IdleZone{score < combatLine?}
+    IdleProb["P_idle = (score - greenLine) / (combatLine - greenLine)"]
+    IdleRoll{"Roll < P_idle ?"}
+    IdleForce["score >= combatLine -> guaranteed idle flee start"]
+
+    CombatGate{score >= combatLine?}
+    CombatProb["P_panic = ((score - combatLine)/(1-combatLine)) * (1-greenLine)"]
+    CombatRoll{"Roll < P_panic ?"}
+
+    FindTargetIdle["Choose flee target (idle)<br/>1) nearby head-zone target<br/>2) 8-direction gradient to lower score"]
+    FindTargetPanic["Choose flee target (panic)<br/>1) nearby head-zone target<br/>2) 8-direction gradient to lower score"]
+    StartIdle["Start IDLE flee"]
+    StartPanic["Start COMBAT panic<br/>clear target, panic burst"]
+    ContinueIdle["Continue normal AI (idle branch)"]
+    ContinueCombat["Continue normal AI (combat branch)"]
+    Continue["Continue normal AI"]
+
+    Tick --> Enabled
+    Enabled -->|No| Continue
+    Enabled -->|Yes| HeadZone
+    HeadZone -->|Yes| Continue
+    HeadZone -->|No| Score --> GreenLine --> AboveGreen
+    AboveGreen -->|No| Continue
+    AboveGreen -->|Yes| CombatLine --> ModeCheck
+
+    ModeCheck -->|No attack target| IdleBranch --> IdleZone
+    IdleZone -->|Yes| IdleProb --> IdleRoll
+    IdleRoll -->|No| ContinueIdle
+    IdleRoll -->|Yes| FindTargetIdle --> StartIdle
+    IdleZone -->|No| IdleForce --> FindTargetIdle
+
+    ModeCheck -->|Has attack target| CombatBranch --> CombatGate
+    CombatGate -->|No| ContinueCombat
+    CombatGate -->|Yes| CombatProb --> CombatRoll
+    CombatRoll -->|No| ContinueCombat
+    CombatRoll -->|Yes| FindTargetPanic --> StartPanic
+
+    ContinueIdle --> Continue
+    ContinueCombat --> Continue
+```
+
+---
+
 ## Registry Loading & Injection
 
 The mod's behavior is entirely data-driven. Two JSON registries are loaded at startup (and on `/reload`) and injected into the runtime systems:

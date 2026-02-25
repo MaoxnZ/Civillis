@@ -56,4 +56,5 @@ Civilization scoring is the foundation, but the mod doesn't stop there:
 
 - **[Civilization Decay](civilization-decay.md)** — Protection fades from the edges inward when you leave. Return and stay, and it recovers.
 - **[Monster Heads](monster-heads.md)** — Skulls punch through civilization protection and redirect distant hostiles toward themselves.
+- **[Mob Flee AI](mob-flee-ai.md)** — Existing hostiles can retreat from civilization pressure, especially in dense city cores.
 - **[Civilization Detector](detector.md)** — Scan and visualize your civilization boundaries in real time.

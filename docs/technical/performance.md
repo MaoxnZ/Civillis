@@ -10,7 +10,7 @@ Every time a hostile mob tries to spawn naturally, the engine must answer: *"How
 
 The solution is a **shard-based caching engine** built on three pillars:
 
-1. **Pre-aggregated result shards** — The 675-chunk aggregation is computed once and cached. Subsequent spawn checks are a single map lookup: **O(1), ~50 ns**.
+1. **Pre-aggregated results** — The 675-chunk aggregation is computed once and cached. Subsequent spawn checks are a single map lookup: **O(1), ~50 ns**.
 2. **Delta propagation** — When blocks change, only the affected shard is recomputed and the difference is applied to cached results. No full re-aggregation ever runs after the initial computation.
 3. **Palette pre-filtering** — Before scanning 4,096 blocks in a chunk section, the engine checks Minecraft's internal block palette for recognized civilization blocks. Sections with no targets are skipped in ~1 μs instead of a ~100 μs full scan — in wilderness this eliminates virtually 100% of scanning work.
 
@@ -67,6 +67,18 @@ flowchart TD
 | Prefetch per player (stationary) | ~0.01 ms/s | Once per second (presence only) |
 
 The scoring engine alone scales comfortably to hundreds of players. The real cost story, however, depends on what happens *around* it.
+
+---
+
+## Mob Flee AI Performance Notes
+
+Mob Flee AI is a behavior-layer system and is intentionally decoupled from the O(1) civilization score query path.
+
+- It does not change the cache topology (L1/Result shards) or delta propagation math
+- It runs on periodic evaluations per mob (interval + jitter), not every tick for every mob
+- Its practical cost scales with active hostile mob count and configured flee cadence
+
+If a server needs stricter performance limits, `mobFlee.enabled=false` fully disables this behavior without affecting spawn suppression, decay, or head attraction.
 
 ---
 

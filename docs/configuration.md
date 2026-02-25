@@ -4,6 +4,16 @@ Civillis works out of the box with no configuration required. Every parameter ha
 
 ---
 
+## Singleplayer vs Multiplayer Scope
+
+Civilization logic is server-authoritative. In multiplayer, gameplay-impacting settings are not per-player.
+
+- **Singleplayer / LAN host**: the local config screen changes the same process that runs world logic, so changes affect gameplay immediately.
+- **Dedicated server**: server-side `civil.properties` is the source of truth for civilization scoring, spawn suppression, decay, head attraction, and mob flee behavior.
+- **Client-only changes on a dedicated server**: changing local GUI options does not override server logic.
+
+---
+
 ## In-Game GUI
 
 Install [Mod Menu](https://modrinth.com/mod/modmenu) + [Cloth Config](https://modrinth.com/mod/cloth-config), then open the Civillis settings screen from the mod list.
@@ -38,6 +48,14 @@ Controls how monster skulls attract and redirect spawns. See [Monster Heads](mon
 |---------|------|-------|---------|-------------|
 | Attraction Strength | Slider | 1–10 | 5 | How strongly skulls suppress distant spawns, concentrating mobs near the heads |
 | Attraction Range | Slider | 48–160 blocks (step 16) | 128 blocks | Maximum horizontal radius within which skulls exert their redirection effect |
+
+### Mob Flee Behavior
+
+Controls whether hostile mobs retreat from civilized zones after spawning.
+
+| Setting | Type | Range | Default | Description |
+|---------|------|-------|---------|-------------|
+| Mob Flee AI | Toggle | on / off | on | Enables hostile-mob retreat behavior in civilized areas. In highly civilized city centers, mobs may panic and disengage from combat to escape |
 
 ---
 
@@ -111,6 +129,19 @@ Below is the full list of raw parameters. Values shown are defaults derived from
 | `headAttract.nearBlocks` | double | 32.0 | Distance (blocks) within which skulls never suppress spawns |
 | `headAttract.maxRadius` | double | 128.0 | Maximum horizontal attraction radius in blocks |
 | `headAttract.lambda` | double | 0.15 | Attraction decay rate — higher values concentrate mobs more tightly around skulls |
+
+#### Mob Flee AI
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `mobFlee.enabled` | boolean | true | Master switch for flee behavior in civilized areas |
+| `mobFlee.combatFleeRatio` | double | 0.5 | Fraction of the high-pressure interval where combat panic begins |
+| `mobFlee.checkIntervalTicks` | int | 80 | Base interval between flee evaluations per mob (ticks) |
+| `mobFlee.jitterTicks` | int | 40 | Random jitter added to evaluation interval for desynchronization |
+| `mobFlee.panicDurationTicks` | int | 80 | Maximum duration of combat panic bursts (ticks) |
+| `mobFlee.maxDurationTicks` | int | 200 | Maximum duration of non-combat flee movement (ticks) |
+| `mobFlee.speed` | double | 1.0 | Movement speed multiplier while fleeing |
+| `mobFlee.sampleDistance` | int | 14 | Sampling distance (blocks) used to choose flee direction |
 
 #### Cache & Performance
 
