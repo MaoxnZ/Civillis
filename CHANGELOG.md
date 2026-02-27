@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.0.1-release]
+
+### Fixed
+
+- **Civil Detector crafting restored (`1.20.1-1.21.1`)**: Fixed the cross-version
+  recipe compatibility issue that made `civil_detector` uncraftable on part of the
+  supported ports.
+- **Mob heads no longer pull from the entire dimension**: Heads now affect spawns
+  only within the configured attraction range, instead of influencing faraway areas
+  across the world. This also improves runtime performance in normal gameplay.
+- **Forge mapping issues fixed for cleaner builds**: Resolved mapping/remap edge
+  cases so development and production builds are more consistent and stable.
+
+### Added
+
+- **Index-driven mob head acceleration**: Introduced a spatial index for head-based
+  spawn calculations, greatly reducing overhead in dense head setups and removing
+  the last known performance hotspot in Civillis.
+
+### Note
+
+- **Join our Discord**: We'd love your feedback, bug reports, and ideas in the
+  Civillis community: [Civillis Official](https://discord.gg/dA7QCPx7zd)
+
 ## [1.0.0-release]
 
 ### Fixed

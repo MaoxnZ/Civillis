@@ -1,6 +1,8 @@
 package civil.config;
 
 import civil.CivilPlatform;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,6 +27,7 @@ import java.util.Properties;
 public final class CivilConfig {
 
     private static final String FILE_NAME = "civil.properties";
+    private static final Logger LOGGER = LoggerFactory.getLogger("civil");
 
     // ══════════════════════════════════════════════════════════
     //  User-facing simple params (GUI sliders)
@@ -175,9 +178,11 @@ public final class CivilConfig {
 
     // -- Head Attraction (totem suppression of distant spawns) --
     public static boolean headAttractEnabled = true;
+    /** Deprecated: retained for backward compatibility in config parsing only. */
     public static double headAttractNearBlocks = 32.0;
     public static double headAttractMaxRadius = 128.0;
     public static double headAttractLambda = 0.15;
+    private static boolean nearBlocksDeprecationLogged = false;
 
     // -- Cache & Performance --
     /** L1 information shard TTL. Short-lived: only needs to survive until ResultEntry is computed.
@@ -397,6 +402,10 @@ public final class CivilConfig {
         headAttractNearBlocks = parseDouble(p.getProperty("headAttract.nearBlocks"), headAttractNearBlocks);
         headAttractMaxRadius  = parseDouble(p.getProperty("headAttract.maxRadius"), headAttractMaxRadius);
         headAttractLambda     = parseDouble(p.getProperty("headAttract.lambda"), headAttractLambda);
+        if (p.containsKey("headAttract.nearBlocks") && !nearBlocksDeprecationLogged) {
+            nearBlocksDeprecationLogged = true;
+            LOGGER.warn("[civil] Config key 'headAttract.nearBlocks' is deprecated and ignored by HEAD_SUPPRESS logic.");
+        }
 
         l1TtlMs            = parseLong(p.getProperty("cache.l1TtlMs"), l1TtlMs);
         resultTtlMs        = parseLong(p.getProperty("cache.resultTtlMs"), resultTtlMs);
@@ -519,7 +528,8 @@ public final class CivilConfig {
 
             sb.append("# ── Advanced: Head Attraction (totem spawn suppression) ──\n");
             sb.append("#headAttract.enabled=").append(headAttractEnabled).append('\n');
-            sb.append("#headAttract.nearBlocks=").append(headAttractNearBlocks).append('\n');
+            sb.append("#headAttract.nearBlocks=").append(headAttractNearBlocks)
+                    .append("   # deprecated: parsed for backward compatibility only\n");
             sb.append(pHead).append("headAttract.maxRadius=").append(headAttractMaxRadius).append('\n');
             sb.append(pHead).append("headAttract.lambda=").append(headAttractLambda).append('\n');
             sb.append('\n');

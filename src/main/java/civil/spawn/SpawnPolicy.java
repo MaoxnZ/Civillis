@@ -84,14 +84,13 @@ public final class SpawnPolicy {
      */
     private static SpawnDecision checkHeadSuppression(ServerLevel world, BlockPos pos,
                                                        HeadTracker.HeadProximity proximity) {
-        double nearThreshold = CivilConfig.headAttractNearBlocks;
         double maxRadius = CivilConfig.headAttractMaxRadius;
 
         if (proximity.nearestDistXZ() > maxRadius) return null;
-        if (proximity.nearestDist3D() <= nearThreshold) return null;
+        if (proximity.countInRadius() <= 0 || !Double.isFinite(proximity.nearestDist3D())) return null;
 
-        double d = proximity.nearestDist3D() - nearThreshold;
-        double lambda = CivilConfig.headAttractLambda * (1.0 + Math.log1p(proximity.totalCount()));
+        double d = proximity.nearestDist3D();
+        double lambda = CivilConfig.headAttractLambda * (1.0 + Math.log1p(proximity.countInRadius()));
         double suppressChance = 1.0 - Math.exp(-lambda * d / 16.0);
 
         if (world.getRandom().nextDouble() < suppressChance) {
@@ -102,7 +101,7 @@ public final class SpawnPolicy {
                         String.format("%.1f", proximity.nearestDist3D()),
                         String.format("%.1f", proximity.nearestDistXZ()),
                         String.format("%.3f", suppressChance),
-                        proximity.totalCount());
+                        proximity.countInRadius());
             }
             return new SpawnDecision(true, 0, SpawnDecision.BRANCH_HEAD_SUPPRESS);
         }
@@ -113,7 +112,7 @@ public final class SpawnPolicy {
                     String.format("%.1f", proximity.nearestDist3D()),
                     String.format("%.1f", proximity.nearestDistXZ()),
                     String.format("%.3f", suppressChance),
-                    proximity.totalCount());
+                    proximity.countInRadius());
         }
         return null;
     }
