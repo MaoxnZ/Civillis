@@ -82,57 +82,39 @@ If a server needs stricter performance limits, `mobFlee.enabled=false` fully dis
 
 ---
 
-## Spawn Churn & Head Scan Impact
+## Runtime Cost Profile
 
-The scoring engine's O(1) checks are cheap, but they don't run in isolation. Before each score lookup, the spawn pipeline also scans monster heads (O(N) per attempt). And the *number* of spawn attempts per tick depends on how quickly the mob cap fills — which Civillis directly influences.
+At runtime, the core paths are all stable:
 
-Minecraft tries to spawn mobs until the hostile mob cap is filled. When spawns succeed quickly, the cycle is short. But when Civillis actively blocks spawns, the cap takes longer to fill and attempt volume rises. Two factors amplify this:
+- Civilization score query is O(1) on warm cache (map lookup)
+- Block change update stays constant-time at shard level (recompute + delta propagation)
+- Monster head checks are handled by spatial indexing, so typical overhead remains low
 
-- **Civilized dark areas** — High civilization score blocks spawns, but darkness keeps Minecraft retrying. The mob cap fills slowly or not at all, so the spawn cycle runs at elevated intensity every tick.
-- **Distant skull suppression** — Active heads suppress spawns across the entire dimension (distance-weighted). Even players far from any head farm see spawn attempts suppressed, further preventing cap-fill and amplifying attempt volume dimension-wide.
+This means Civillis has no obvious performance hotspot in normal deployments. The dominant variable is still spawn-attempt volume (mob-cap churn), not one specific subsystem.
 
-These effects compound. And crucially, every spawn attempt pays the **O(N) head scan cost** (where N = total heads in dimension) before the O(1) score check even runs. More churn means more scans.
+### What Drives Cost on Live Servers
 
-| Situation | Attempts per tick per player | Head scans per attempt |
-|-----------|----------------------------|----------------------|
-| Wilderness, no heads | ~15–20 | 0 |
-| Base ~30% dark, no heads | ~50–80 | 0 |
-| Moderate heads (~20) in dimension | ~60–100 | 20 |
-| Heavy dark + many heads (~40+) | ~150–300 | 40+ |
+- **Spawn churn**: dark civilized areas can increase retry volume when mob cap fills slowly
+- **Player movement**: prefetch and cache maintenance scale with active movement
+- **Extreme local head density**: only when many enabled heads are packed into one active area
 
-### Realistic Server Estimates
+### Multiplayer Server Budget
 
-Combining all components. Assumptions per scenario stated below each table.
+The table below gives a compact planning view for common server sizes.
 
-**Small server (10 players), ~5 shared heads:**
+| Server stage | Typical active pattern | Prefetch + presence | Spawn pipeline | Total Civillis cost | Tick budget used |
+|--------------|------------------------|---------------------|----------------|---------------------|------------------|
+| Small (~10 players) | 3 explorers + 7 builders in lit bases | ~0.14 ms/tick | ~0.12 ms/tick | ~0.26 ms/tick | ~0.5% |
+| Medium (~50 players) | 10 explorers + 40 builders across multiple bases | ~0.49 ms/tick | ~0.75 ms/tick | ~1.24 ms/tick | ~2.5% |
+| Large (~100 players) | 20 explorers + 80 builders, mixed lighting quality | ~0.98 ms/tick | ~2.60 ms/tick | ~3.58 ms/tick | ~7.2% |
 
-| Scenario | Prefetch | Spawn checks | Head scans | Total | Budget used |
-|----------|----------|-------------|------------|-------|-------------|
-| 3 exploring, 7 at base (~20% dark) | 0.14 ms | 0.02 ms | 0.08 ms | ~0.24 ms/tick | 0.5% |
+All values are rounded estimates under the stated assumptions; total cost is the sum of the two component columns in each row.
 
-**Medium server (50 players), ~20 shared heads:**
+!!! note "Observed upside in very large modpacks"
+    In some heavy modpack environments, Civillis can improve overall server performance instead of only adding overhead.
+    Real user feedback confirms this in **Minecraft 1.20.1 Forge** with **300+ mods**: by reducing hostile mob pressure near established bases, total active-entity load and nearby AI churn can drop, which improves practical TPS stability.
+    Treat this as an observed field result under specific pack conditions, not as a universal guarantee.
 
-| Scenario | Prefetch | Spawn checks | Head scans | Total | Budget used |
-|----------|----------|-------------|------------|-------|-------------|
-| 10 moving, 40 at base (~25% dark) | 0.49 ms | 0.15 ms | 0.6 ms | ~1.2 ms/tick | 2.5% |
-| Same + distant suppression active | 0.49 ms | 0.25 ms | 1.0 ms | ~1.7 ms/tick | 3.5% |
-
-**Large server (100 players), ~40 shared heads:**
-
-| Scenario | Prefetch | Spawn checks | Head scans | Total | Budget used |
-|----------|----------|-------------|------------|-------|-------------|
-| 20 moving, 80 at base (~25% dark) | 0.98 ms | 0.30 ms | 2.4 ms | ~3.7 ms/tick | 7.4% |
-| Same + heavy dark + suppression | 0.98 ms | 0.56 ms | 4.5 ms | ~6.0 ms/tick | 12% |
-
-**Massive server (200 players), ~80 shared heads:**
-
-| Scenario | Prefetch | Spawn checks | Head scans | Total | Budget used |
-|----------|----------|-------------|------------|-------|-------------|
-| 40 moving, 160 at base (~25% dark) | 2.0 ms | 0.60 ms | 9.6 ms | ~12.2 ms/tick | 24% |
-| Same + heavy dark + suppression | 2.0 ms | 1.0 ms | 16 ms | ~19 ms/tick | 38% |
-
-!!! note "Head scans dominate at scale"
-    On large servers, the O(N) per-attempt head scan becomes the primary cost driver. Distant suppression inflates spawn attempt volume across the entire dimension, and each attempt scans every head. Servers with 50+ heads should keep civilized areas well-lit and consolidate unused head farms to reduce churn.
-
-!!! warning "Edge case: worst-case churn"
-    The most expensive scenario is a dimension with many active heads (strong distant suppression) combined with large civilized areas that are mostly dark (civilization blocks spawns, darkness keeps Minecraft trying). The mob cap never fills, so the spawn cycle runs at maximum intensity every tick — and every attempt pays the O(N) head scan cost. If you notice TPS impact, lighting up builds and reducing head count are the most effective mitigations.
+!!! warning "Edge case: very dense head hotspots"
+    If many enabled heads are concentrated in one active attraction area, head-query overhead can become noticeable.
+    Mitigation is straightforward: spread clusters, disable unused head types, or reduce attraction radius.

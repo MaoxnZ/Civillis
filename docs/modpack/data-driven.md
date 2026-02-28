@@ -91,7 +91,7 @@ Prefix a block ID with `#` to target an entire block tag. For example, `"#minecr
 
 ## Head Types
 
-The head type registry controls which monster skulls are recognized by Civillis and maps each one to a mob entity. Recognized skulls activate three gameplay mechanisms: local spawn gate bypass, dimension-wide spawn redirection, and mob conversion. See [Monster Heads](../monster-heads.md) for how these mechanics work in detail.
+The head type registry controls which monster skulls are recognized by Civillis and maps each one to a mob entity. Recognized skulls activate three gameplay mechanisms: local spawn gate bypass, range-bounded spawn redirection, and mob conversion. See [Monster Heads](../monster-heads.md) for how these mechanics work in detail.
 
 ### Default Registry
 

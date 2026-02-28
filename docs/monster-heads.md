@@ -14,13 +14,13 @@ This is a local, unconditional override — the skull punches straight through t
 
 ### 2. Distant Spawn Redirection
 
-Beyond the local bypass zone, skulls exert a **dimension-wide attraction effect**. When a hostile mob attempts to spawn far from any skull, the mod may suppress that spawn based on:
+Beyond the local bypass zone, skulls exert a **range-bounded attraction effect**. When a hostile mob attempts to spawn outside the local skull zone, the mod may suppress that spawn based on:
 
 - **Distance** — The closer the spawn is to a skull, the less likely it is to be suppressed. Spawns very close to a skull are never suppressed.
-- **Head count** — More skulls in the world increase the suppression strength at distance. The formula uses a logarithmic scaling on head count.
-- **Max radius** — Attraction only operates within a configurable horizontal radius (default 128 blocks). Beyond that, spawns are unaffected.
+- **Head count in range** — More skulls within the active attraction window increase suppression strength. Scaling is logarithmic, so returns diminish as count grows.
+- **Max radius** — Attraction only operates within a configurable horizontal radius (default 128 blocks). Skulls outside this radius do not contribute.
 
-The net effect: distant spawns are probabilistically cancelled, concentrating mob spawns near your skulls. This is what makes skulls useful for mob farms — you don't need to light up caves or build in the sky. Just place skulls where you want the mobs.
+The net effect: eligible distant spawns are probabilistically cancelled, concentrating mob spawns near your skulls. This is what makes skulls useful for mob farms — you don't need to light up caves or build in the sky. Just place skulls where you want the mobs.
 
 ### 3. Mob Conversion
 

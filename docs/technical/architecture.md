@@ -126,7 +126,7 @@ Monster heads operate on a separate pathway that runs *before* the civilization 
 ```mermaid
 flowchart TD
     SpawnPos["Spawn position"]
-    ScanHeads["Scan placed skulls in dimension"]
+    ScanHeads["Query indexed skull buckets near spawn"]
     DimFilter["Filter by dimension whitelist"]
     LocalZone{Skulls within local zone?}
     AllowSpawn["HEAD_NEARBY: Allow spawn"]
@@ -136,7 +136,7 @@ flowchart TD
     ConvertSuccess{Roll succeeds?}
     SpawnConverted["Spawn as converted type"]
     SpawnOriginal["Spawn original mob"]
-    DistantCalc["Sum attraction from all skulls in dimension"]
+    DistantCalc["Evaluate heads within attraction window"]
     SuppressRoll{Suppression roll succeeds?}
     BlockSpawn["HEAD_SUPPRESS: Block spawn"]
     ContinueToCiv["Continue to civilization scoring"]
@@ -154,6 +154,7 @@ flowchart TD
 
 - Skulls restricted to specific dimensions (e.g., wither skeleton skulls → Nether only) are filtered out before any mechanism activates
 - Conversion probability scales with skull count; converted mobs bypass this pipeline on their own spawn to prevent recursion
+- Distant suppression is range-bounded and index-backed: only heads in the local attraction window are considered
 
 ---
 
