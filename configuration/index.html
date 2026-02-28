@@ -1,0 +1,1851 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Civillis Minecraft mod">
+      
+      
+      
+        <link rel="canonical" href="https://maoxnz.github.io/Civillis/configuration/">
+      
+      
+        <link rel="prev" href="../detector/">
+      
+      
+        <link rel="next" href="../modpack/data-driven/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
+    
+    
+      
+        <title>Configuration - Civillis Wiki</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="amber" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#configuration" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Civillis Wiki" class="md-header__button md-logo" aria-label="Civillis Wiki" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Civillis Wiki
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Configuration
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="amber" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="amber" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MaoxnZ/Civillis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MaoxnZ/Civillis
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Civillis Wiki" class="md-nav__button md-logo" aria-label="Civillis Wiki" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Civillis Wiki
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MaoxnZ/Civillis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MaoxnZ/Civillis
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How It Works
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blocks-and-scoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blocks & Scoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../civilization-decay/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Civilization Decay
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../monster-heads/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monster Heads
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mob-flee-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mob Flee AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../detector/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Civilization Detector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#singleplayer-vs-multiplayer-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Singleplayer vs Multiplayer Scope
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#in-game-gui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In-Game GUI
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="In-Game GUI">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#main" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Main
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decay-recovery-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decay &amp; Recovery Details
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mob-head-attraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mob Head Attraction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mob-flee-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mob Flee Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#civilproperties" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        civil.properties
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="civil.properties">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-location" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File Location
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameter-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameter Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spawn-thresholds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spawn Thresholds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scoring-curve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scoring Curve
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#detection-ranges-voxel-chunks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detection Ranges (Voxel Chunks)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decay
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#head-attraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Head Attraction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mob-flee-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mob Flee AI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cache-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache &amp; Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#detector-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detector &amp; UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    For Modpack Authors
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    For Modpack Authors
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modpack/data-driven/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data-Driven Registries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modpack/compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#singleplayer-vs-multiplayer-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Singleplayer vs Multiplayer Scope
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#in-game-gui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In-Game GUI
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="In-Game GUI">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#main" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Main
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decay-recovery-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decay &amp; Recovery Details
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mob-head-attraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mob Head Attraction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mob-flee-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mob Flee Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#civilproperties" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        civil.properties
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="civil.properties">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-location" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File Location
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameter-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameter Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spawn-thresholds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spawn Thresholds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scoring-curve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scoring Curve
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#detection-ranges-voxel-chunks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detection Ranges (Voxel Chunks)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decay
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#head-attraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Head Attraction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mob-flee-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mob Flee AI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cache-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache &amp; Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#detector-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detector &amp; UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h1>
+<p>Civillis works out of the box with no configuration required. Every parameter has a carefully tuned default. This page covers the two ways to customize behavior: the <strong>in-game GUI</strong> and the <strong>raw properties file</strong>.</p>
+<hr />
+<h2 id="singleplayer-vs-multiplayer-scope">Singleplayer vs Multiplayer Scope<a class="headerlink" href="#singleplayer-vs-multiplayer-scope" title="Permanent link">&para;</a></h2>
+<p>Civilization logic is server-authoritative. In multiplayer, gameplay-impacting settings are not per-player.</p>
+<ul>
+<li><strong>Singleplayer / LAN host</strong>: the local config screen changes the same process that runs world logic, so changes affect gameplay immediately.</li>
+<li><strong>Dedicated server</strong>: server-side <code>civil.properties</code> is the source of truth for civilization scoring, spawn suppression, decay, head attraction, and mob flee behavior.</li>
+<li><strong>Client-only changes on a dedicated server</strong>: changing local GUI options does not override server logic.</li>
+</ul>
+<hr />
+<h2 id="in-game-gui">In-Game GUI<a class="headerlink" href="#in-game-gui" title="Permanent link">&para;</a></h2>
+<p>Install <a href="https://modrinth.com/mod/modmenu">Mod Menu</a> + <a href="https://modrinth.com/mod/cloth-config">Cloth Config</a>, then open the Civillis settings screen from the mod list.</p>
+<p>Settings are organized into one top-level category (<strong>Civilization</strong>) with two expandable subcategories.</p>
+<h3 id="main">Main<a class="headerlink" href="#main" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Type</th>
+<th>Range</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Spawn Suppression Strength</td>
+<td>Slider</td>
+<td>1–10</td>
+<td>5</td>
+<td>How strongly buildings suppress hostile mob spawning. Higher values lower both spawn thresholds, making it easier to reach full protection</td>
+</tr>
+<tr>
+<td>Detection Range</td>
+<td>Slider</td>
+<td>112–496 blocks (step 32)</td>
+<td>240 blocks</td>
+<td>Size of the area scanned around each spawn attempt for nearby civilization. Also determines the sonar scan radius</td>
+</tr>
+<tr>
+<td>Detector Sonar</td>
+<td>Toggle</td>
+<td>on / off</td>
+<td>on</td>
+<td>Whether the Civilization Detector's sonar effects (boundary walls, shockwave particles, sounds) are enabled. Disabling keeps only the basic color/sound feedback</td>
+</tr>
+</tbody>
+</table>
+<h3 id="decay-recovery-details">Decay &amp; Recovery Details<a class="headerlink" href="#decay-recovery-details" title="Permanent link">&para;</a></h3>
+<p>Controls how protection fades when you leave and recovers when you return. See <a href="../civilization-decay/">Civilization Decay</a> for mechanics.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Type</th>
+<th>Range</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Freshness Duration</td>
+<td>Slider</td>
+<td>1–48 hours</td>
+<td>6 hours</td>
+<td>Grace period before protection starts fading after your last visit</td>
+</tr>
+<tr>
+<td>Decay Speed</td>
+<td>Slider</td>
+<td>1–10</td>
+<td>5</td>
+<td>How fast protection fades after the grace period expires. The slider label shows the approximate half-life</td>
+</tr>
+<tr>
+<td>Decay Floor</td>
+<td>Slider</td>
+<td>0–50%</td>
+<td>25%</td>
+<td>Minimum remaining protection even if fully abandoned. At 0% a settlement can decay to nothing; at 50% half the score always remains</td>
+</tr>
+<tr>
+<td>Recovery Speed</td>
+<td>Slider</td>
+<td>1–10</td>
+<td>5</td>
+<td>How fast protection recovers when you return. The slider label shows the approximate recovery time</td>
+</tr>
+<tr>
+<td>Patrol Influence Range</td>
+<td>Slider</td>
+<td>2–8 VC (32–128 blocks)</td>
+<td>4 VC (64 blocks)</td>
+<td>How far your presence refreshes nearby shards. Larger values let you restore a wider area by walking through it</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mob-head-attraction">Mob Head Attraction<a class="headerlink" href="#mob-head-attraction" title="Permanent link">&para;</a></h3>
+<p>Controls how monster skulls attract and redirect spawns. See <a href="../monster-heads/">Monster Heads</a> for mechanics.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Type</th>
+<th>Range</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Attraction Strength</td>
+<td>Slider</td>
+<td>1–10</td>
+<td>5</td>
+<td>How strongly skulls suppress distant spawns, concentrating mobs near the heads</td>
+</tr>
+<tr>
+<td>Attraction Range</td>
+<td>Slider</td>
+<td>48–160 blocks (step 16)</td>
+<td>128 blocks</td>
+<td>Maximum horizontal radius within which skulls exert their redirection effect</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mob-flee-behavior">Mob Flee Behavior<a class="headerlink" href="#mob-flee-behavior" title="Permanent link">&para;</a></h3>
+<p>Controls whether hostile mobs retreat from civilized zones after spawning.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Type</th>
+<th>Range</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mob Flee AI</td>
+<td>Toggle</td>
+<td>on / off</td>
+<td>on</td>
+<td>Enables hostile-mob retreat behavior in civilized areas. In highly civilized city centers, mobs may panic and disengage from combat to escape</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="civilproperties">civil.properties<a class="headerlink" href="#civilproperties" title="Permanent link">&para;</a></h2>
+<p>For fine-grained control, you can edit <code>config/civil.properties</code> directly. The file is auto-generated on first launch with all values commented out — the mod uses the GUI-derived internal values unless a raw override is present.</p>
+<div class="admonition warning">
+<p class="admonition-title">Advanced Users Only</p>
+<p>Raw parameters bypass the GUI's safety mapping. If things break, delete <code>civil.properties</code> and restart — the mod will regenerate it with defaults. Changing a GUI slider will overwrite any raw override for the corresponding parameter.</p>
+</div>
+<h3 id="file-location">File Location<a class="headerlink" href="#file-location" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Production:</strong> <code>.minecraft/config/civil.properties</code></li>
+<li><strong>Dev environment:</strong> <code>run/config/civil.properties</code></li>
+</ul>
+<h3 id="parameter-reference">Parameter Reference<a class="headerlink" href="#parameter-reference" title="Permanent link">&para;</a></h3>
+<p>Below is the full list of raw parameters. Values shown are defaults derived from GUI defaults. All are normally commented out; uncomment to override.</p>
+<h4 id="spawn-thresholds">Spawn Thresholds<a class="headerlink" href="#spawn-thresholds" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>spawn.thresholdLow</code></td>
+<td>double</td>
+<td>~0.14</td>
+<td>Civilization score below which spawns are fully allowed</td>
+</tr>
+<tr>
+<td><code>spawn.thresholdMid</code></td>
+<td>double</td>
+<td>~0.41</td>
+<td>Score above which spawns are fully blocked. Between low and mid, suppression is probabilistic</td>
+</tr>
+</tbody>
+</table>
+<h4 id="scoring-curve">Scoring Curve<a class="headerlink" href="#scoring-curve" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scoring.sigmoidMid</code></td>
+<td>double</td>
+<td>0.8</td>
+<td>Sigmoid midpoint for the score normalization curve</td>
+</tr>
+<tr>
+<td><code>scoring.sigmoidSteepness</code></td>
+<td>double</td>
+<td>3.0</td>
+<td>Sigmoid steepness — higher values create a sharper transition</td>
+</tr>
+<tr>
+<td><code>scoring.distanceAlphaSq</code></td>
+<td>double</td>
+<td>0.5</td>
+<td>Distance weighting factor (squared) for blocks farther from the spawn point</td>
+</tr>
+<tr>
+<td><code>scoring.normalizationFactor</code></td>
+<td>double</td>
+<td>5.0</td>
+<td>Per-voxel-chunk score cap — a chunk's total block weight is divided by this value and clamped to 1.0. When the sum of block weights in a single 16³ chunk reaches 5.0, the chunk score is maxed out</td>
+</tr>
+</tbody>
+</table>
+<h4 id="detection-ranges-voxel-chunks">Detection Ranges (Voxel Chunks)<a class="headerlink" href="#detection-ranges-voxel-chunks" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>range.detectionRadiusX</code></td>
+<td>int</td>
+<td>7</td>
+<td>Detection radius along X in voxel chunks (7 VC = 112 blocks per side → 240 block box)</td>
+</tr>
+<tr>
+<td><code>range.detectionRadiusZ</code></td>
+<td>int</td>
+<td>7</td>
+<td>Detection radius along Z</td>
+</tr>
+<tr>
+<td><code>range.detectionRadiusY</code></td>
+<td>int</td>
+<td>1</td>
+<td>Detection radius along Y (vertical)</td>
+</tr>
+<tr>
+<td><code>range.coreRadiusX</code></td>
+<td>int</td>
+<td>1</td>
+<td>Core (inner zone) radius X</td>
+</tr>
+<tr>
+<td><code>range.coreRadiusZ</code></td>
+<td>int</td>
+<td>1</td>
+<td>Core radius Z</td>
+</tr>
+<tr>
+<td><code>range.coreRadiusY</code></td>
+<td>int</td>
+<td>0</td>
+<td>Core radius Y</td>
+</tr>
+<tr>
+<td><code>range.headRangeX</code></td>
+<td>int</td>
+<td>1</td>
+<td>Mob head bypass zone radius X</td>
+</tr>
+<tr>
+<td><code>range.headRangeZ</code></td>
+<td>int</td>
+<td>1</td>
+<td>Head bypass zone radius Z</td>
+</tr>
+<tr>
+<td><code>range.headRangeY</code></td>
+<td>int</td>
+<td>0</td>
+<td>Head bypass zone radius Y</td>
+</tr>
+</tbody>
+</table>
+<h4 id="decay">Decay<a class="headerlink" href="#decay" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>decay.gracePeriodHours</code></td>
+<td>double</td>
+<td>6.0</td>
+<td>Hours before decay begins after your last visit</td>
+</tr>
+<tr>
+<td><code>decay.lambda</code></td>
+<td>double</td>
+<td>~0.008</td>
+<td>Exponential decay rate; half-life ≈ ln(2) / λ hours</td>
+</tr>
+<tr>
+<td><code>decay.minFloor</code></td>
+<td>double</td>
+<td>0.25</td>
+<td>Minimum score fraction retained after full decay (0.0–1.0)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="recovery">Recovery<a class="headerlink" href="#recovery" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>recovery.cooldownMs</code></td>
+<td>long</td>
+<td>~60000</td>
+<td>Minimum milliseconds between recovery steps</td>
+</tr>
+<tr>
+<td><code>recovery.fraction</code></td>
+<td>double</td>
+<td>~0.20</td>
+<td>Fraction of the gap recovered per step</td>
+</tr>
+<tr>
+<td><code>recovery.minMs</code></td>
+<td>long</td>
+<td>~2266666</td>
+<td>Minimum recovery jump per step (ms). Each recovery step advances presenceTime by at least this amount, preventing the final stretch from dragging out when the remaining gap is small</td>
+</tr>
+</tbody>
+</table>
+<h4 id="head-attraction">Head Attraction<a class="headerlink" href="#head-attraction" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>headAttract.enabled</code></td>
+<td>boolean</td>
+<td>true</td>
+<td>Master switch for the head attraction system</td>
+</tr>
+<tr>
+<td><code>headAttract.nearBlocks</code></td>
+<td>double</td>
+<td>32.0</td>
+<td>Distance (blocks) within which skulls never suppress spawns</td>
+</tr>
+<tr>
+<td><code>headAttract.maxRadius</code></td>
+<td>double</td>
+<td>128.0</td>
+<td>Maximum horizontal attraction radius in blocks</td>
+</tr>
+<tr>
+<td><code>headAttract.lambda</code></td>
+<td>double</td>
+<td>0.15</td>
+<td>Attraction decay rate — higher values concentrate mobs more tightly around skulls</td>
+</tr>
+</tbody>
+</table>
+<h4 id="mob-flee-ai">Mob Flee AI<a class="headerlink" href="#mob-flee-ai" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mobFlee.enabled</code></td>
+<td>boolean</td>
+<td>true</td>
+<td>Master switch for flee behavior in civilized areas</td>
+</tr>
+<tr>
+<td><code>mobFlee.combatFleeRatio</code></td>
+<td>double</td>
+<td>0.5</td>
+<td>Fraction of the high-pressure interval where combat panic begins</td>
+</tr>
+<tr>
+<td><code>mobFlee.checkIntervalTicks</code></td>
+<td>int</td>
+<td>80</td>
+<td>Base interval between flee evaluations per mob (ticks)</td>
+</tr>
+<tr>
+<td><code>mobFlee.jitterTicks</code></td>
+<td>int</td>
+<td>40</td>
+<td>Random jitter added to evaluation interval for desynchronization</td>
+</tr>
+<tr>
+<td><code>mobFlee.panicDurationTicks</code></td>
+<td>int</td>
+<td>80</td>
+<td>Maximum duration of combat panic bursts (ticks)</td>
+</tr>
+<tr>
+<td><code>mobFlee.maxDurationTicks</code></td>
+<td>int</td>
+<td>200</td>
+<td>Maximum duration of non-combat flee movement (ticks)</td>
+</tr>
+<tr>
+<td><code>mobFlee.speed</code></td>
+<td>double</td>
+<td>1.0</td>
+<td>Movement speed multiplier while fleeing</td>
+</tr>
+<tr>
+<td><code>mobFlee.sampleDistance</code></td>
+<td>int</td>
+<td>14</td>
+<td>Sampling distance (blocks) used to choose flee direction</td>
+</tr>
+</tbody>
+</table>
+<h4 id="cache-performance">Cache &amp; Performance<a class="headerlink" href="#cache-performance" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cache.l1TtlMs</code></td>
+<td>long</td>
+<td>300000</td>
+<td>L1 voxel chunk score TTL in milliseconds (5 min)</td>
+</tr>
+<tr>
+<td><code>cache.resultTtlMs</code></td>
+<td>long</td>
+<td>3600000</td>
+<td>Result shard TTL in milliseconds (60 min)</td>
+</tr>
+<tr>
+<td><code>cache.clockPersistTicks</code></td>
+<td>int</td>
+<td>6000</td>
+<td>How often the server clock is persisted to H2 (in ticks)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="detector-ui">Detector &amp; UI<a class="headerlink" href="#detector-ui" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ui.detectorAnimationTicks</code></td>
+<td>int</td>
+<td>40</td>
+<td>Sonar pulse animation length in ticks (2 seconds)</td>
+</tr>
+<tr>
+<td><code>ui.detectorCooldownTicks</code></td>
+<td>int</td>
+<td>10</td>
+<td>Cooldown between detector uses in ticks</td>
+</tr>
+</tbody>
+</table>
+<h4 id="diagnostics">Diagnostics<a class="headerlink" href="#diagnostics" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tpsLog.enabled</code></td>
+<td>boolean</td>
+<td>true</td>
+<td>Whether TPS/MSPT is periodically logged to <code>latest.log</code>. Only effective when the mod's internal DEBUG flag is also enabled — in production builds this has no effect regardless of the setting</td>
+</tr>
+<tr>
+<td><code>tpsLog.intervalTicks</code></td>
+<td>int</td>
+<td>20</td>
+<td>Interval between TPS log entries in server ticks (~1 second). Same DEBUG requirement as above</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
