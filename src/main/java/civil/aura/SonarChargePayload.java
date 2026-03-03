@@ -16,8 +16,12 @@ import net.minecraft.resources.Identifier;
  * whether the player is in a HIGH zone and whether they are in a head (Force Allow) zone.
  */
 public record SonarChargePayload(
+        double centerX,
+        double centerY,
+        double centerZ,
         boolean playerInHigh,
-        boolean playerInHeadZone
+        boolean playerInHeadZone,
+        byte sonarType
 ) implements CustomPacketPayload {
 
     public static final Type<SonarChargePayload> ID =
@@ -27,14 +31,22 @@ public record SonarChargePayload(
             StreamCodec.ofMember(SonarChargePayload::encode, SonarChargePayload::decode);
 
     private static void encode(SonarChargePayload payload, RegistryFriendlyByteBuf buf) {
+        buf.writeDouble(payload.centerX);
+        buf.writeDouble(payload.centerY);
+        buf.writeDouble(payload.centerZ);
         buf.writeBoolean(payload.playerInHigh);
         buf.writeBoolean(payload.playerInHeadZone);
+        buf.writeByte(payload.sonarType);
     }
 
     private static SonarChargePayload decode(RegistryFriendlyByteBuf buf) {
+        double centerX = buf.readDouble();
+        double centerY = buf.readDouble();
+        double centerZ = buf.readDouble();
         boolean playerInHigh = buf.readBoolean();
         boolean playerInHeadZone = buf.readBoolean();
-        return new SonarChargePayload(playerInHigh, playerInHeadZone);
+        byte sonarType = buf.readByte();
+        return new SonarChargePayload(centerX, centerY, centerZ, playerInHigh, playerInHeadZone, sonarType);
     }
 
     @Override

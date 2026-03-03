@@ -2,6 +2,8 @@ package civil.aura;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.particles.DustColorTransitionOptions;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 
 import java.util.Map;
@@ -36,12 +38,20 @@ public final class SonarShockwaveEffect {
     private static final int PHASE_RING   = 2;
 
     // ========== Charge-up timing (seconds) ==========
-    /** How long the charge-up column plays before naturally expiring. */
-    private static final float CHARGE_DURATION = 0.40f;
+    /** Safety timeout: charge-up stops if boundary packet never arrives. */
+    private static final float CHARGE_SAFETY_TIMEOUT = 10.0f;
 
     // ========== Charge-up parameters ==========
     private static final float CHARGE_VERTICAL_SPREAD = 3.0f;
-    private static final int   CHARGE_PARTICLES_PER_TICK = 15;
+
+    // ========== Golden accent particles for STATIC sonar ==========
+    /** Champagne gold: RGB(255, 228, 160) = 0xFFE4A0. */
+    private static final int GOLD_COLOR = 0xFFE4A0;
+    /** Pale gold: RGB(255, 242, 217) = 0xFFF2D9. */
+    private static final int LIGHT_GOLD_COLOR = 0xFFF2D9;
+    private static final DustParticleOptions GOLD_DUST = new DustParticleOptions(GOLD_COLOR, 1.2f);
+    private static final DustColorTransitionOptions GOLD_TRANSITION =
+            new DustColorTransitionOptions(GOLD_COLOR, LIGHT_GOLD_COLOR, 1.4f);
 
     // ========== Ring timing (seconds) ==========
     /**
@@ -74,6 +84,7 @@ public final class SonarShockwaveEffect {
     // ========== Charge-up state ==========
     private static boolean chargePlayerInHigh = true;
     private static boolean chargePlayerInHeadZone = false;
+    private static SonarType activeSonarType = SonarType.DETECTOR;
 
     // ========== Ring state ==========
     /** Whether the player is in the HIGH (safe) zone. */
@@ -98,20 +109,24 @@ public final class SonarShockwaveEffect {
     /**
      * Start the charge-up phase (vertical particle column).
      * Called when the {@link SonarChargePayload} arrives, synced with the charge-up sound.
+     * The charge-up plays continuously until {@link #startRing} is called (with a safety
+     * timeout to prevent runaway animation if the boundary packet is lost).
      *
      * @param centerX      player X
      * @param centerY      player Y (raised +1.0 internally)
      * @param centerZ      player Z
      * @param inHigh       true if the player is in a HIGH (safe) zone
      * @param inHeadZone   true if the player is in a head zone (Force Allow)
+     * @param type         sonar type for particle/density selection
      */
     public static void startCharge(double centerX, double centerY, double centerZ,
-                                   boolean inHigh, boolean inHeadZone) {
+                                   boolean inHigh, boolean inHeadZone, SonarType type) {
         cx = centerX;
         cy = centerY + 1.0;
         cz = centerZ;
         chargePlayerInHigh = inHigh;
         chargePlayerInHeadZone = inHeadZone;
+        activeSonarType = type;
         phaseStartNano = System.nanoTime();
         lastTickNano = 0;
         phase = PHASE_CHARGE;
@@ -125,12 +140,14 @@ public final class SonarShockwaveEffect {
      * @param inHigh          true if the player is in a HIGH zone
      * @param headZonesYMap   head zone footprint with Y ranges (packed XZ → {minY, maxY})
      * @param civHighZones    2D footprint of HIGH civilization VCs (packed VC coords)
+     * @param type            sonar type for particle/density selection
      */
-    public static void startRing(boolean inHigh, Map<Long, float[]> headZonesYMap, Set<Long> civHighZones) {
+    public static void startRing(boolean inHigh, Map<Long, float[]> headZonesYMap,
+                                 Set<Long> civHighZones, SonarType type) {
         playerInHigh = inHigh;
         headZoneYMap = headZonesYMap;
         civHighZone2D = civHighZones;
-        // Keep cx/cy/cz from charge phase for visual continuity
+        activeSonarType = type;
         phaseStartNano = System.nanoTime();
         lastTickNano = 0;
         phase = PHASE_RING;
@@ -156,9 +173,7 @@ public final class SonarShockwaveEffect {
         }
 
         if (phase == PHASE_CHARGE) {
-            if (elapsed > CHARGE_DURATION) {
-                // Charge-up expired naturally (boundary packet hasn't arrived yet).
-                // Stay idle until ring phase is triggered.
+            if (elapsed > CHARGE_SAFETY_TIMEOUT) {
                 phase = PHASE_NONE;
                 return;
             }
@@ -205,18 +220,18 @@ public final class SonarShockwaveEffect {
     // ========== Phase 1: Charge-up column ==========
 
     private static void tickChargeUp(ClientLevel world, float elapsed) {
-        float t = elapsed / CHARGE_DURATION;
-        // Intensity curve: ramp up, sustain, ramp down
-        float intensity = (float) Math.sin(Math.PI * t);
+        // Continuous pulse: sin wave with ~1.5s period, keeps going until startRing()
+        float intensity = 0.5f + 0.5f * (float) Math.sin(elapsed * Math.PI * 1.3);
+        int baseCount = activeSonarType.chargeParticlesPerTick();
+        int count = (int) (baseCount * (0.3f + 0.7f * intensity));
 
-        int count = (int) (CHARGE_PARTICLES_PER_TICK * (0.3f + 0.7f * intensity));
-
-        // Use zone info from the charge payload (no BFS data yet)
-        var particleType = chargePlayerInHeadZone
+        var baseParticle = chargePlayerInHeadZone
                 ? ParticleTypes.FLAME
                 : chargePlayerInHigh
                         ? ParticleTypes.END_ROD
                         : ParticleTypes.SOUL_FIRE_FLAME;
+
+        boolean goldenAccent = activeSonarType.hasGoldenAccent();
 
         for (int i = 0; i < count; i++) {
             double offsetY = (Math.random() * 2.0 - 1.0) * CHARGE_VERTICAL_SPREAD;
@@ -224,19 +239,29 @@ public final class SonarShockwaveEffect {
             double offsetZ = (Math.random() * 2.0 - 1.0) * 0.3;
             double vy = (Math.random() * 0.1 + 0.02) * (offsetY > 0 ? 1 : -1);
 
-            world.addParticle(particleType,
-                    cx + offsetX, cy + offsetY, cz + offsetZ,
-                    0.0, vy, 0.0);
+            // For STATIC sonar, every 3rd particle is a golden accent
+            if (goldenAccent && i % 3 == 0) {
+                var goldParticle = (Math.random() < 0.5) ? GOLD_DUST : GOLD_TRANSITION;
+                world.addParticle(goldParticle,
+                        cx + offsetX, cy + offsetY, cz + offsetZ,
+                        0.0, vy, 0.0);
+            } else {
+                world.addParticle(baseParticle,
+                        cx + offsetX, cy + offsetY, cz + offsetZ,
+                        0.0, vy, 0.0);
+            }
         }
     }
 
     // ========== Phase 2: Expanding double-ring shockwave ==========
 
     private static void tickExpandingRings(ClientLevel world, float ringElapsed) {
+        float densityMul = activeSonarType.ringDensityMultiplier();
+
         // Wave 1 — primary ring
         float radius1 = RING_MIN_RADIUS + ringElapsed * RING_EXPAND_SPEED;
         if (radius1 <= RING_MAX_RADIUS) {
-            int count1 = ringParticleCount(radius1, 80.0, 20);
+            int count1 = ringParticleCount(radius1, 80.0 * densityMul, 20);
             spawnRing(world, radius1, count1, 0.02f);
         }
 
@@ -245,7 +270,7 @@ public final class SonarShockwaveEffect {
         if (wave2Elapsed > 0) {
             float radius2 = RING_MIN_RADIUS + wave2Elapsed * RING_EXPAND_SPEED;
             if (radius2 <= RING_MAX_RADIUS) {
-                int count2 = ringParticleCount(radius2, 50.0, 15);
+                int count2 = ringParticleCount(radius2, 50.0 * densityMul, 15);
                 spawnRing(world, radius2, count2, 0.015f);
             }
         }
@@ -257,11 +282,12 @@ public final class SonarShockwaveEffect {
 
     /**
      * Spawn one ring of evenly-spaced particles at the given radius.
-     * Particle type is determined by world position: head zone → FLAME,
-     * HIGH civ → END_ROD, else → SOUL_FIRE_FLAME.
+     * Particle type is determined by world position: head zone -> FLAME,
+     * HIGH civ -> END_ROD (+ golden accent for STATIC), else -> SOUL_FIRE_FLAME.
      */
     private static void spawnRing(ClientLevel world, float radius, int count, float outwardVelocity) {
         double baseAngle = Math.random() * 2.0 * Math.PI;
+        boolean goldenAccent = activeSonarType.hasGoldenAccent();
 
         for (int i = 0; i < count; i++) {
             double angle = baseAngle + (2.0 * Math.PI * i / count);
@@ -275,15 +301,18 @@ public final class SonarShockwaveEffect {
             double vx = cos * outwardVelocity;
             double vz = sin * outwardVelocity;
 
-            var particleType = isInHeadZone(px, py, pz)
-                    ? ParticleTypes.FLAME
-                    : isInHighZone(px, pz)
-                            ? ParticleTypes.END_ROD
-                            : ParticleTypes.SOUL_FIRE_FLAME;
-
-            world.addAlwaysVisibleParticle(particleType,
-                    px, py, pz,
-                    vx, 0.0, vz);
+            if (isInHeadZone(px, py, pz)) {
+                world.addAlwaysVisibleParticle(ParticleTypes.FLAME, px, py, pz, vx, 0.0, vz);
+            } else if (isInHighZone(px, pz)) {
+                // For STATIC sonar in HIGH zones, mix golden dust with END_ROD
+                if (goldenAccent && i % 4 == 0) {
+                    world.addAlwaysVisibleParticle(GOLD_DUST, px, py, pz, vx, 0.0, vz);
+                } else {
+                    world.addAlwaysVisibleParticle(ParticleTypes.END_ROD, px, py, pz, vx, 0.0, vz);
+                }
+            } else {
+                world.addAlwaysVisibleParticle(ParticleTypes.SOUL_FIRE_FLAME, px, py, pz, vx, 0.0, vz);
+            }
         }
     }
 }

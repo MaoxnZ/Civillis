@@ -5,6 +5,7 @@ import civil.CivilServices;
 import civil.config.CivilConfig;
 import civil.ModSounds;
 import civil.aura.SonarScanManager;
+import civil.aura.SonarType;
 import civil.component.ModComponents;
 import civil.civilization.CScore;
 import civil.civilization.HeadTracker;
@@ -82,8 +83,9 @@ public class CivilDetectorItem extends Item {
             }
 
             // Trigger sonar scan (protection aura visualization)
-            if (CivilConfig.auraEffectEnabled && player instanceof ServerPlayer serverPlayer) {
-                SonarScanManager.startScan(serverPlayer, serverWorld);
+            if (CivilConfig.auraEffectEnabled && SonarType.DETECTOR.isEnabled()
+                    && player instanceof ServerPlayer serverPlayer) {
+                SonarScanManager.startScan(serverPlayer, serverWorld, SonarType.DETECTOR);
             }
         }
 

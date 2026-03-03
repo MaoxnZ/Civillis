@@ -8,12 +8,15 @@ import civil.item.CivilDetectorItem;
 import civil.aura.SonarBoundaryPayload;
 import civil.aura.SonarChargePayload;
 import civil.aura.SonarScanManager;
+import civil.aura.SonarType;
 import civil.item.CivilDetectorAnimationReset;
 import civil.perf.TpsLogger;
 import civil.registry.BlockWeightLoader;
 import civil.registry.HeadTypeLoader;
+import civil.config.CivilConfig;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvent;
@@ -33,6 +36,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
@@ -41,6 +45,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraft.world.level.block.Blocks;
 
 /**
  * NeoForge entry point. Calls common {@link CivilMod#init()} and registers
@@ -112,6 +117,7 @@ public class CivilModNeoForge {
         NeoForge.EVENT_BUS.addListener(this::onServerTickPost);
         NeoForge.EVENT_BUS.addListener(this::onChunkLoad);
         NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedIn);
+        NeoForge.EVENT_BUS.addListener(this::onRightClickBlock);
 
         CivilMod.init();
 
@@ -193,6 +199,23 @@ public class CivilModNeoForge {
     private void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             CivilDetectorAnimationReset.onPlayerJoin(player);
+        }
+    }
+
+    private void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getLevel().isClientSide()) return;
+        BlockPos pos = event.getPos();
+        var state = event.getLevel().getBlockState(pos);
+        if (!state.is(Blocks.BELL)) return;
+        if (!event.getLevel().getBlockState(pos.below()).is(Blocks.LODESTONE)) return;
+        if (!CivilConfig.auraEffectEnabled) return;
+        var hitResult = event.getHitVec();
+        double hitRelativeY = hitResult.getLocation().y - (double) pos.getY();
+        if (!SonarScanManager.isBellProperHit(state, hitResult.getDirection(), hitRelativeY)) return;
+        if (event.getEntity() instanceof ServerPlayer player && event.getLevel() instanceof ServerLevel world) {
+            if (SonarScanManager.tryBellCooldown(player, world)) {
+                SonarScanManager.startScan(player, world, pos, SonarType.STATIC);
+            }
         }
     }
 }

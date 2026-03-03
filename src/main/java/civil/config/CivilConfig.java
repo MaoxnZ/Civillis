@@ -210,6 +210,16 @@ public final class CivilConfig {
     /** Block distance for 8-direction gradient sampling. */
     public static int mobFleeSampleDistance = 14;
 
+    // -- Sonar System (independent from detectionRadius) --
+    /** Whether the detector sonar visualization is enabled (user-facing toggle). */
+    public static boolean detectorSonarEnabled = true;
+    /** Detector sonar scan radius in voxel chunk units (GUI range: 3-7). */
+    public static int sonarDetectorRadius = 5;
+    /** Bell (static) sonar scan radius in voxel chunk units (GUI range: 8-12). */
+    public static int sonarStaticRadius = 10;
+    /** Bell sonar cooldown in ticks (per player). */
+    public static int sonarStaticCooldownTicks = 40;
+
     // -- UI / Items --
     public static int detectorAnimationTicks = 40;
     public static int detectorCooldownTicks = 10;
@@ -342,6 +352,11 @@ public final class CivilConfig {
         simplePatrolRange = Math.max(2, Math.min(8, simplePatrolRange));
 
         auraEffectEnabled = parseBoolean(p.getProperty("aura.enabled"), auraEffectEnabled);
+
+        detectorSonarEnabled  = parseBoolean(p.getProperty("sonar.detectorEnabled"), detectorSonarEnabled);
+        sonarDetectorRadius   = Math.max(3, Math.min(7,  parseInt(p.getProperty("sonar.detectorRadius"), sonarDetectorRadius)));
+        sonarStaticRadius     = Math.max(8, Math.min(12, parseInt(p.getProperty("sonar.staticRadius"),   sonarStaticRadius)));
+        sonarStaticCooldownTicks = parseInt(p.getProperty("sonar.staticCooldownTicks"), sonarStaticCooldownTicks);
 
         // Snapshot simple values for change detection in GUI save flow
         loadedSimpleFreshness           = simpleFreshnessDuration;
@@ -482,6 +497,13 @@ public final class CivilConfig {
 
             sb.append("# ── Aura Visualization ──\n");
             sb.append("aura.enabled=").append(auraEffectEnabled).append('\n');
+            sb.append('\n');
+
+            sb.append("# ── Sonar System ──\n");
+            sb.append("sonar.detectorEnabled=").append(detectorSonarEnabled).append('\n');
+            sb.append("sonar.detectorRadius=").append(sonarDetectorRadius).append('\n');
+            sb.append("sonar.staticRadius=").append(sonarStaticRadius).append('\n');
+            sb.append("#sonar.staticCooldownTicks=").append(sonarStaticCooldownTicks).append('\n');
             sb.append('\n');
 
             // Raw overrides: uncommented if active, commented otherwise

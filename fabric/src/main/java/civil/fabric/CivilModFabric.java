@@ -7,6 +7,7 @@ import civil.component.ModComponents;
 import civil.aura.SonarBoundaryPayload;
 import civil.aura.SonarChargePayload;
 import civil.aura.SonarScanManager;
+import civil.aura.SonarType;
 import civil.item.CivilDetectorAnimationReset;
 import civil.perf.TpsLogger;
 import civil.registry.BlockWeightLoader;
@@ -15,6 +16,7 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -22,9 +24,14 @@ import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Items;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.PackType;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.level.block.Blocks;
 
 /**
  * Fabric entry point. Calls common {@link CivilMod#init()} and registers
@@ -94,6 +101,24 @@ public class CivilModFabric implements ModInitializer {
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 CivilDetectorAnimationReset.onPlayerJoin(handler.player));
+
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (world.isClientSide()) return InteractionResult.PASS;
+            BlockPos pos = hitResult.getBlockPos();
+            var state = world.getBlockState(pos);
+            if (!state.is(Blocks.BELL)) return InteractionResult.PASS;
+            if (!world.getBlockState(pos.below()).is(Blocks.LODESTONE)) return InteractionResult.PASS;
+            if (!civil.config.CivilConfig.auraEffectEnabled) return InteractionResult.PASS;
+            double hitRelativeY = hitResult.getLocation().y - (double) pos.getY();
+            if (!SonarScanManager.isBellProperHit(state, hitResult.getDirection(), hitRelativeY))
+                return InteractionResult.PASS;
+            if (player instanceof ServerPlayer serverPlayer && world instanceof ServerLevel serverWorld) {
+                if (SonarScanManager.tryBellCooldown(serverPlayer, serverWorld)) {
+                    SonarScanManager.startScan(serverPlayer, serverWorld, pos, SonarType.STATIC);
+                }
+            }
+            return InteractionResult.PASS;
+        });
     }
 
     private void registerItemGroups() {

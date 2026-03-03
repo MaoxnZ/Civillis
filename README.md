@@ -9,9 +9,10 @@ Civillis scans a configurable area (default 240×240×48 blocks) around each mob
 ## Features
 
 - **Spawn Suppression** — Hostile mobs are pushed out of built-up areas. A thriving settlement creates a ~90-block safe perimeter; even a small cabin helps.
+- **Mob Flee AI** — Hostile mobs inside civilized zones try to leave. In dense areas they may even panic and retreat mid-combat.
 - **Civilization Decay** — Unvisited areas gradually lose protection from the edges inward. The core holds. Singleplayer offline time is excluded.
-- **Monster Head Totems** — Place mob skulls to punch through protection and attract specific mob types. Three or more skulls in an area trigger mob conversion. Skulls also redirect distant spawns toward themselves across the dimension.
-- **Civilization Detector** — Craftable item (compass + emeralds) that fires a sonar pulse to visualize your civilization boundaries with color-coded walls and sound cues.
+- **Monster Head Totems** — Place mob skulls to punch through protection and attract specific mob types within a configurable range. Three or more skulls in an area trigger mob conversion.
+- **Civilization Sonar** — Portable detector (compass + emeralds) or bell on lodestone. Fire a sonar pulse to visualize civilization boundaries with color-coded walls and sound cues.
 - **Mod Compatibility** — Built-in scoring for Farmer's Delight, Supplementaries, and Create. All block weights and head types are JSON data files, fully overridable via datapacks.
 - **Server-Ready** — Async H2 persistence, player-aware cache prefetching, dedicated I/O thread pool. Zero main-thread blocking.
 

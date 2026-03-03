@@ -4,6 +4,7 @@ import civil.aura.AuraWallRenderer;
 import civil.aura.SonarBoundaryPayload;
 import civil.aura.SonarChargePayload;
 import civil.aura.SonarShockwaveEffect;
+import civil.aura.SonarType;
 import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -25,8 +26,9 @@ final class NeoForgeClientPayloadHandler {
         var player = Minecraft.getInstance().player;
         if (player != null) {
             SonarShockwaveEffect.startCharge(
-                    player.getX(), player.getY(), player.getZ(),
-                    payload.playerInHigh(), payload.playerInHeadZone());
+                    payload.centerX(), payload.centerY(), payload.centerZ(),
+                    payload.playerInHigh(), payload.playerInHeadZone(),
+                    SonarType.fromId(payload.sonarType()));
         }
     }
 
@@ -39,7 +41,8 @@ final class NeoForgeClientPayloadHandler {
             Set<Long> civHighZone2DSet = buildLongSet(payload.civHighZone2D());
 
             SonarShockwaveEffect.startRing(
-                    payload.playerInHigh(), headZoneYMap, civHighZone2DSet);
+                    payload.playerInHigh(), headZoneYMap, civHighZone2DSet,
+                    SonarType.fromId(payload.sonarType()));
         }
     }
 

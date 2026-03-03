@@ -8,11 +8,15 @@ import civil.civilization.VoxelChunkKey;
 import civil.registry.HeadTypeRegistry;
 import civil.config.CivilConfig;
 import civil.CivilPlatform;
+import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BellAttachType;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +63,35 @@ public final class SonarScanManager {
     /** Pending boom sounds: player UUID → ticks remaining until playback. */
     private static final Map<UUID, PendingBoom> PENDING_BOOMS = new ConcurrentHashMap<>();
 
+    /** Per-player bell sonar cooldown: UUID → world tick when cooldown expires. */
+    private static final Map<UUID, Long> BELL_COOLDOWNS = new ConcurrentHashMap<>();
+
     private SonarScanManager() {}
+
+    /**
+     * Replicates vanilla {@code BellBlock.isProperHit()} so we only trigger the sonar
+     * when the bell would actually ring. Prevents sonar from firing when the bell
+     * is hit from a direction that can't produce a ring (e.g. vertical hit on a
+     * floor bell, or axially aligned hit on a wall bell).
+     *
+     * @param state          the bell's BlockState
+     * @param hitDirection   the face that was clicked
+     * @param hitRelativeY   hit Y coordinate relative to the block position (0.0–1.0)
+     * @return true if the bell would ring from this hit
+     */
+    public static boolean isBellProperHit(BlockState state, Direction hitDirection, double hitRelativeY) {
+        if (hitDirection.getAxis() == Direction.Axis.Y) return false;
+        if (hitRelativeY > 0.8125) return false;
+
+        Direction facing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
+        BellAttachType attachment = state.getValue(BlockStateProperties.BELL_ATTACHMENT);
+
+        return switch (attachment) {
+            case FLOOR -> facing.getAxis() == hitDirection.getAxis();
+            case SINGLE_WALL, DOUBLE_WALL -> facing.getAxis() != hitDirection.getAxis();
+            case CEILING -> true;
+        };
+    }
 
     /**
      * Server tick handler — call from platform entry point's END_SERVER_TICK event.
@@ -87,9 +119,9 @@ public final class SonarScanManager {
                     SoundEvent boomSound = ModSounds.getSonarBoomSound();
                     if (boomSound != null) {
                         boom.world.playSound(null,
-                                player.getX(), player.getY(), player.getZ(),
+                                boom.x, boom.y, boom.z,
                                 boomSound, SoundSource.PLAYERS,
-                                ModSounds.SONAR_BOOM_VOLUME, ModSounds.SONAR_BOOM_PITCH);
+                                boom.type.boomVolume(), boom.type.boomPitch());
                     }
                     return true;
                 }
@@ -104,25 +136,48 @@ public final class SonarScanManager {
      *
      * @param player      the server player
      * @param serverWorld the server world (passed from use() context)
+     * @param type        the sonar type (DETECTOR or STATIC)
      */
-    public static void startScan(ServerPlayer player, ServerLevel serverWorld) {
-        // Sync BFS radius with user-configurable detection range (may change at runtime)
-        SonarScan.MAX_RADIUS = Math.max(CivilConfig.detectionRadiusX, CivilConfig.detectionRadiusZ);
+    public static void startScan(ServerPlayer player, ServerLevel serverWorld, SonarType type) {
+        startScan(player, serverWorld, player.blockPosition(), type);
+    }
+
+    public static void startScan(ServerPlayer player, ServerLevel serverWorld,
+                                 net.minecraft.core.BlockPos origin, SonarType type) {
+        int scanRadius = type.getRadius();
+        SonarScan.MAX_RADIUS = scanRadius;
 
         long worldTick = serverWorld.getGameTime();
-        SonarScan scan = new SonarScan(serverWorld, player.blockPosition(), worldTick);
+        SonarScan scan = new SonarScan(serverWorld, origin, worldTick);
 
-        // Pre-compute whether the player is in a head zone (for charge-up particle type).
-        // Cheap O(N) check against HeadTracker where N is typically 10–100 heads.
-        boolean playerInHeadZone = isPlayerInHeadZone(player, serverWorld);
+        boolean playerInHeadZone = isPositionInHeadZone(serverWorld, origin);
 
-        ScanSession session = new ScanSession(scan, SonarScan.MAX_RADIUS, playerInHeadZone);
+        double originX = origin.getX() + 0.5;
+        double originY = origin.getY() + 0.5;
+        double originZ = origin.getZ() + 0.5;
+
+        ScanSession session = new ScanSession(scan, scanRadius, playerInHeadZone,
+                originX, originY, originZ, type);
         ACTIVE_SCANS.put(player.getUUID(), session);
 
         if (CivilMod.DEBUG) {
-            LOGGER.info("[civil-sonar] Started scan for player {} (inHigh={}, inHeadZone={}, maxRadius={})",
-                    player.getName().getString(), scan.isPlayerInHigh(), playerInHeadZone, SonarScan.MAX_RADIUS);
+            LOGGER.info("[civil-sonar] Started {} scan for player {} (inHigh={}, inHeadZone={}, radius={})",
+                    type.name(), player.getName().getString(), scan.isPlayerInHigh(), playerInHeadZone, scanRadius);
         }
+    }
+
+    /**
+     * Check if the bell sonar cooldown has expired for the given player.
+     * If available, starts the cooldown timer.
+     *
+     * @return true if the bell sonar is available (cooldown expired)
+     */
+    public static boolean tryBellCooldown(ServerPlayer player, ServerLevel world) {
+        long now = world.getGameTime();
+        Long expiry = BELL_COOLDOWNS.get(player.getUUID());
+        if (expiry != null && now < expiry) return false;
+        BELL_COOLDOWNS.put(player.getUUID(), now + CivilConfig.sonarStaticCooldownTicks);
+        return true;
     }
 
     /**
@@ -132,6 +187,10 @@ public final class SonarScanManager {
      * the shockwave ring's particle zone lookup.
      */
     private static boolean isPlayerInHeadZone(ServerPlayer player, ServerLevel world) {
+        return isPositionInHeadZone(world, player.blockPosition());
+    }
+
+    private static boolean isPositionInHeadZone(ServerLevel world, net.minecraft.core.BlockPos pos) {
         HeadTracker registry = CivilServices.getHeadTracker();
         if (registry == null || !registry.isInitialized()) return false;
 
@@ -141,10 +200,10 @@ public final class SonarScanManager {
 
         String dimId = world.dimension().identifier().toString();
 
-        VoxelChunkKey playerVC = VoxelChunkKey.from(player.blockPosition());
+        VoxelChunkKey playerVC = VoxelChunkKey.from(pos);
         int pcx = playerVC.getCx();
         int pcz = playerVC.getCz();
-        int playerBlockY = player.blockPosition().getY();
+        int playerBlockY = pos.getY();
         int rangeCX = CivilConfig.headRangeX;
         int rangeCZ = CivilConfig.headRangeZ;
 
@@ -187,15 +246,16 @@ public final class SonarScanManager {
         // (lets the detector click breathe before the charge-up begins)
         if (!session.chargePlayed && session.ticksElapsed >= CHARGE_DELAY_TICKS) {
             session.chargePlayed = true;
+            SonarType type = session.type;
             SoundEvent chargeSound = ModSounds.getSonarChargeSound();
             if (chargeSound != null) {
-                world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                world.playSound(null, session.originX, session.originY, session.originZ,
                         chargeSound, SoundSource.PLAYERS,
-                        ModSounds.SONAR_CHARGE_VOLUME, ModSounds.SONAR_CHARGE_PITCH);
+                        type.chargeVolume(), type.chargePitch());
             }
-            // Send charge packet so the client starts charge-up particles in sync
             CivilPlatform.sendToPlayer(player,
-                    new SonarChargePayload(session.scan.isPlayerInHigh(), session.playerInHeadZone));
+                    new SonarChargePayload(session.originX, session.originY, session.originZ,
+                            session.scan.isPlayerInHigh(), session.playerInHeadZone, type.id()));
         }
 
         // Advance BFS one ring (if still running — small envelopes finish early)
@@ -205,7 +265,7 @@ public final class SonarScanManager {
 
         // Fire at the deadline: BFS is guaranteed done by tick scanRadius
         if (session.ticksElapsed >= session.scanRadius) {
-            sendBoundaryPacket(player, scan);
+            sendBoundaryPacket(player, scan, session.originX, session.originY, session.originZ, session.type);
             return true; // done — remove session
         }
 
@@ -219,7 +279,9 @@ public final class SonarScanManager {
      * is used to filter civilization faces: <b>gold walls must not appear inside or
      * on top of purple head zone walls</b> (purple has higher visual priority).
      */
-    private static void sendBoundaryPacket(ServerPlayer player, SonarScan scan) {
+    private static void sendBoundaryPacket(ServerPlayer player, SonarScan scan,
+                                           double originX, double originY, double originZ,
+                                           SonarType sonarType) {
         // 1. Compute head zones first — we need the 2D footprint to filter civ faces.
         HeadZoneResult headResult = computeHeadZoneData(scan);
 
@@ -307,16 +369,12 @@ public final class SonarScanManager {
         SonarBoundaryPayload payload = new SonarBoundaryPayload(
                 scan.isPlayerInHigh(), cx, cy, cz, wallMinY, wallMaxY,
                 faces, headResult.faces, headZone2DArray,
-                headZoneMinYArray, headZoneMaxYArray, civHighZone2DArray);
+                headZoneMinYArray, headZoneMaxYArray, civHighZone2DArray, sonarType.id());
 
         CivilPlatform.sendToPlayer(player, payload);
 
-        // === Boom sound (server-side, audible to all nearby players) ===
-        // Delayed 5 ticks (0.25s) to match the client-side charge-up + pause phase
-        // before the ring starts expanding. The charge-up sound already played at scan
-        // start (in startScan), so the player has been hearing "charging" for the entire
-        // BFS duration. This boom marks the dramatic release.
-        PENDING_BOOMS.put(player.getUUID(), new PendingBoom(scan.getWorld(), BOOM_DELAY_TICKS));
+        PENDING_BOOMS.put(player.getUUID(), new PendingBoom(scan.getWorld(),
+                originX, originY, originZ, BOOM_DELAY_TICKS, sonarType));
 
         if (CivilMod.DEBUG) {
             LOGGER.info("[civil-sonar] Sent boundary packet to {}: {} civ faces, {} head faces, wall Y=[{}, {}]",
@@ -525,17 +583,24 @@ public final class SonarScanManager {
      */
     private static final class ScanSession {
         final SonarScan scan;
-        /** BFS radius snapshot — determines when the shockwave fires. */
         final int scanRadius;
-        /** Whether the player is in a head zone (for charge-up particle type). */
         final boolean playerInHeadZone;
+        final double originX;
+        final double originY;
+        final double originZ;
+        final SonarType type;
         int ticksElapsed;
         boolean chargePlayed;
 
-        ScanSession(SonarScan scan, int scanRadius, boolean playerInHeadZone) {
+        ScanSession(SonarScan scan, int scanRadius, boolean playerInHeadZone,
+                    double originX, double originY, double originZ, SonarType type) {
             this.scan = scan;
             this.scanRadius = scanRadius;
             this.playerInHeadZone = playerInHeadZone;
+            this.originX = originX;
+            this.originY = originY;
+            this.originZ = originZ;
+            this.type = type;
             this.ticksElapsed = 0;
             this.chargePlayed = false;
         }
@@ -547,10 +612,18 @@ public final class SonarScanManager {
      */
     private static final class PendingBoom {
         final ServerLevel world;
+        final double x;
+        final double y;
+        final double z;
+        final SonarType type;
         int ticksRemaining;
 
-        PendingBoom(ServerLevel world, int ticks) {
+        PendingBoom(ServerLevel world, double x, double y, double z, int ticks, SonarType type) {
             this.world = world;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.type = type;
             this.ticksRemaining = ticks;
         }
     }

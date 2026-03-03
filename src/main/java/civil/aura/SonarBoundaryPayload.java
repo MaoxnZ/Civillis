@@ -34,7 +34,8 @@ public record SonarBoundaryPayload(
         long[] headZone2D,
         float[] headZoneMinY,
         float[] headZoneMaxY,
-        long[] civHighZone2D
+        long[] civHighZone2D,
+        byte sonarType
 ) implements CustomPacketPayload {
 
     public static final Type<SonarBoundaryPayload> ID =
@@ -69,6 +70,7 @@ public record SonarBoundaryPayload(
         for (long v : payload.civHighZone2D) {
             buf.writeLong(v);
         }
+        buf.writeByte(payload.sonarType);
     }
 
     private static SonarBoundaryPayload decode(RegistryFriendlyByteBuf buf) {
@@ -102,8 +104,9 @@ public record SonarBoundaryPayload(
         for (int i = 0; i < chCount; i++) {
             civHighZone2D[i] = buf.readLong();
         }
+        byte sonarType = buf.readByte();
         return new SonarBoundaryPayload(playerInHigh, cx, cy, cz, wMinY, wMaxY,
-                faces, headFaces, headZone2D, headZoneMinY, headZoneMaxY, civHighZone2D);
+                faces, headFaces, headZone2D, headZoneMinY, headZoneMaxY, civHighZone2D, sonarType);
     }
 
     @Override

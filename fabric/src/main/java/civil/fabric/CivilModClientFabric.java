@@ -4,6 +4,7 @@ import civil.aura.AuraWallRenderer;
 import civil.aura.SonarBoundaryPayload;
 import civil.aura.SonarChargePayload;
 import civil.aura.SonarShockwaveEffect;
+import civil.aura.SonarType;
 import civil.item.CivilDetectorClientParticles;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.Environment;
@@ -33,8 +34,9 @@ public class CivilModClientFabric implements ClientModInitializer {
                     var player = Minecraft.getInstance().player;
                     if (player != null) {
                         SonarShockwaveEffect.startCharge(
-                                player.getX(), player.getY(), player.getZ(),
-                                payload.playerInHigh(), payload.playerInHeadZone());
+                                payload.centerX(), payload.centerY(), payload.centerZ(),
+                                payload.playerInHigh(), payload.playerInHeadZone(),
+                                SonarType.fromId(payload.sonarType()));
                     }
                 });
 
@@ -48,7 +50,8 @@ public class CivilModClientFabric implements ClientModInitializer {
                         Set<Long> civHighZone2DSet = buildLongSet(payload.civHighZone2D());
 
                         SonarShockwaveEffect.startRing(
-                                payload.playerInHigh(), headZoneYMap, civHighZone2DSet);
+                                payload.playerInHigh(), headZoneYMap, civHighZone2DSet,
+                                SonarType.fromId(payload.sonarType()));
                     }
                 });
 

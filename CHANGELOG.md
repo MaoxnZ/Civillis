@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.1.0-release]
+
+### Added
+
+- **Bell on Lodestone sonar**: When a bell is placed on a lodestone, it can act as a
+  powerful sonar with cooler particle effects. Right-click the bell to trigger a
+  civilization sweep of the surrounding area — no Civil Detector required. A
+  vanilla-friendly way to scout before you build.
+
+### Changed
+
+- **Sonar visualization config reorganized**: Detector sonar options moved into a
+  dedicated Sonar Visualization section. The portable detector's sonar can be turned
+  off independently; bell-on-lodestone sonar always runs when you ring it. Both
+  sonars now have configurable detection ranges, with bell sonar using a larger
+  default suited to stationary "detection stations."
+- **Bell sonar tuning**: Bell sonar has a longer cooldown and a longer-lasting aura
+  wall effect than the detector, reflecting its heavier, more deliberate use.
+
+### Note
+
+- **Pro tip**: A bell on lodestone has intrinsic civilization value. Place a few at
+  your base perimeter and they'll extend your safe zone while doubling as detection
+  stations.
+- **Vanilla first**: Going forward, we'll aim to add vanilla counterparts whenever we
+  introduce new items. Thanks, Stick Boy, for suggesting the bell-on-lodestone idea —
+  it's exactly the kind of thing we love to support.
+
 ## [1.0.1-release]
 
 ### Fixed
@@ -75,10 +103,10 @@
   try to leave. Idle mobs will wander toward less civilized ground,
   and in heavily built-up areas they may even panic and flee
   mid-combat. The stronger your civilization, the more likely they
-  are to run — tied to your Spawn Suppression strength setting
+  are to run ??tied to your Spawn Suppression strength setting
 - **Head zone awareness**: Mobs near a monster head totem are
   drawn toward its zone rather than wandering blindly. Mobs already
-  inside a head zone won't try to leave — they belong there
+  inside a head zone won't try to leave ??they belong there
 - **Mob Flee AI toggle**: On/off switch in the config GUI, right
   next to Detector Sonar. Turn it off if you prefer mobs to stay
   and fight
@@ -89,7 +117,7 @@
 
 - **Dimension-aware monster heads**: Skull types now respect the
   dimension they belong to. Wither skeleton skulls and piglin heads
-  are Nether-only by default — bypass, attraction, and conversion
+  are Nether-only by default ??bypass, attraction, and conversion
   all stay silent outside `the_nether`. Every other vanilla head
   remains active in all dimensions. Modpack authors can customize
   per-head dimension rules through the head type datapack
@@ -103,14 +131,14 @@
 - **Conversion ping-pong**: When multiple skull types were clustered
   together, a converted mob could occasionally re-enter the spawn
   gate and flip to another type before settling. Conversion now
-  bypasses the gate entirely — one transformation, done
+  bypasses the gate entirely ??one transformation, done
 
 ### Added
 
 - **Documentation wiki**: A comprehensive wiki covering mechanics,
   configuration, modpack authoring guides, and technical architecture
   is now live on GitHub Pages. This has been a labor of love and I'm
-  genuinely excited to share it with you — feedback is very welcome
+  genuinely excited to share it with you ??feedback is very welcome
 
 ## [1.2.0-beta]
 
@@ -118,18 +146,18 @@
 
 - **Head mechanics reworked**: Monster skulls now follow clearer,
   more intuitive rules. One or two skulls simply allow extra spawns
-  nearby — no conversion, just a breach in your civilization's
+  nearby ??no conversion, just a breach in your civilization's
   defenses. Place three or more skulls in the same chunk and mobs
   start converting into the skull types you've placed, with conversion
   strength scaling smoothly up to ten heads. By default, wither
-  skeleton skulls do not participate in conversion — they shouldn't
+  skeleton skulls do not participate in conversion ??they shouldn't
   be wandering out of the Nether just because you decorated your base
 - **Block scoring rebalanced**: Civilization scores now follow a
   consistent design framework based on crafting complexity and
-  symbolic weight. Simple stone-age crafts — crafting tables,
-  furnaces, chests — contribute modestly, as they should. Iron-age
-  workstations carry more weight. Nether and End materials — brewing
-  stands, enchanting tables, lodestones — are serious civilization
+  symbolic weight. Simple stone-age crafts ??crafting tables,
+  furnaces, chests ??contribute modestly, as they should. Iron-age
+  workstations carry more weight. Nether and End materials ??brewing
+  stands, enchanting tables, lodestones ??are serious civilization
   anchors. Boss-tier structures like beacons and conduits remain the
   strongest pillars. Glowing or magical blocks get a bonus on top
 
@@ -140,10 +168,10 @@
 - **Built-in mod compatibility**: Civillis can now recognize blocks
   from other mods as part of your civilization. This version ships
   with built-in support for:
-  - **Farmer's Delight** — stoves, cooking pots, cutting boards,
+  - **Farmer's Delight** ??stoves, cooking pots, cutting boards,
     baskets, and all cabinet types
-  - **Supplementaries** — safes, globes, clock blocks, sconces, jars
-  - **Create** — steam engines, blaze burners, mechanical mixers and
+  - **Supplementaries** ??safes, globes, clock blocks, sconces, jars
+  - **Create** ??steam engines, blaze burners, mechanical mixers and
     presses, basins, depots
 
   More mods will be added in future updates
@@ -156,16 +184,16 @@
 
 Block scores and head types are now fully data-driven:
 
-- **Blocks**: `data/<namespace>/civil_blocks/*.json` — add entries to
+- **Blocks**: `data/<namespace>/civil_blocks/*.json` ??add entries to
   register new blocks or override existing weights. Use tags
   (`#minecraft:beds`) or individual block IDs
-- **Heads**: `data/<namespace>/civil_heads/*.json` — map custom skull
+- **Heads**: `data/<namespace>/civil_heads/*.json` ??map custom skull
   type strings to entity types. Toggle any head with `"enabled": false`
   to make it purely decorative, or set `"convert": false` to keep it
   active but exclude it from the conversion pool
 
 Both support `"replace": true` to wipe all previously loaded entries
-and start from a clean slate (use with caution — this clears everything,
+and start from a clean slate (use with caution ??this clears everything,
 including defaults from other mods).
 
 Mods that add new skull types via custom `SkullBlock` subclasses are
@@ -191,13 +219,13 @@ Learning to listen before building. Still a long way to go.
 ### Added
 
 - **Detector Sonar**: The Civilization Detector now fires a sonar
-  pulse. Right-click to charge up — with a rising tone — then an
+  pulse. Right-click to charge up ??with a rising tone ??then an
   expanding shockwave booms outward, sweeping the terrain. Particle
   colors tell you where you stand: white sparks mean protected
   ground, soul-blue flames mean exposed territory, and orange fire
   marks active totem zones
 - **Aura Walls**: Glowing barriers rise at your civilization
-  boundaries as the shockwave passes — gold for civilization edges,
+  boundaries as the shockwave passes ??gold for civilization edges,
   amethyst for totem zones. They breathe, scroll, then gently fade.
   Fire the detector again and existing walls hold steady while new
   faces appear
@@ -214,7 +242,7 @@ See your borders, my lord.
 - **Spawn eggs, spawners, and commands now work properly in civilized areas**:
   Civilization scoring previously intercepted all monster spawns
   regardless of origin. Now only natural spawns are subject to
-  civilization checks — spawn eggs, mob spawners, /summon, raid
+  civilization checks ??spawn eggs, mob spawners, /summon, raid
   events, and zombie reinforcements all bypass it as intended
 
 ## [1.0.0-beta]
@@ -235,8 +263,8 @@ See your borders, my lord.
 At last, I see the light.
 
 After two weeks of dedicated work, I am finally at peace with
-how this mod performs. Global civilization impact — something
-I long believed to be out of reach — is now real.
+how this mod performs. Global civilization impact ??something
+I long believed to be out of reach ??is now real.
 
 Ready for beta.
 Will keep doing better. Will not disappoint.
@@ -246,11 +274,11 @@ Will keep doing better. Will not disappoint.
 ### Added
 
 - **Mob heads are now true totems**: Monster skulls no longer just
-  allow spawns nearby — they actively pull hostile mobs toward them
+  allow spawns nearby ??they actively pull hostile mobs toward them
   from across the dimension. Place a skeleton skull and watch
   monsters converge on it, even from deep underground caves. No more
   lighting up every last tunnel or building your mob farm in the sky
-  — let the totems do the work
+  ??let the totems do the work
 - **Configurable attraction**: Adjust how strongly and how far totems
   attract mobs through the in-game settings GUI (Mod Menu + Cloth
   Config). Dial it up for a powerful funnel, or tone it down for a
@@ -272,7 +300,7 @@ Civillis won't break your farms, it only makes them better.
 ### Added
 
 - **Full MC 1.21 series compatibility**: The mod now ships separate
-  builds for MC 1.21.1, 1.21.2–1.21.3, 1.21.4, and 1.21.5–1.21.11,
+  builds for MC 1.21.1, 1.21.2??.21.3, 1.21.4, and 1.21.5??.21.11,
   covering the entire 1.21 release line
 
 ### Fixed
@@ -293,7 +321,7 @@ Civillis won't break your farms, it only makes them better.
   recovery speed, decay floor, and freshness duration
 - **Gradual civilization decay and recovery**: Civilization protection
   now fades smoothly over time when you leave an area. Revisiting a
-  decayed settlement gradually restores its protection — the longer you
+  decayed settlement gradually restores its protection ??the longer you
   stay, the more it recovers
 
 ### Changed
@@ -302,14 +330,14 @@ Civillis won't break your farms, it only makes them better.
   efficiently and reliably, reducing file overhead and improving
   compatibility with large multiplayer servers
 - **Smarter patrol detection**: The game now detects your presence
-  around settlements more precisely, with built-in "debounce" —
+  around settlements more precisely, with built-in "debounce" ??
   flying past an abandoned city at high speed does not count as a
   proper patrol
 
 ### Fixed
 
 - **Offline decay**: Logging out of a single-player world no longer
-  counts as absence — your civilization protection picks up right
+  counts as absence ??your civilization protection picks up right
   where you left off
 - **Monster head score spike**: Monster heads placed far from the
   detection center no longer inflate the civilization score at a
@@ -326,10 +354,10 @@ Initial public release.
 
 - **Civilization-based spawn control**: Mob spawning is dynamically
   suppressed near player-built structures based on a real-time
-  civilization score computed over a 240×240×48 block detection area
-  (15×15×3 voxel chunks)
+  civilization score computed over a 240?240?48 block detection area
+  (15?15?3 voxel chunks)
 - **Monster head mechanic**: Placing monster skulls overrides spawn
-  blocking — matching skull types attract specific mob types, enabling
+  blocking ??matching skull types attract specific mob types, enabling
   players to selectively invite danger
 - **Civilization Detector**: A craftable handheld item that scans and
   displays the local civilization level with color-coded visual feedback
@@ -338,7 +366,7 @@ Initial public release.
   score over 24 hours, weakening but not eliminating protection for
   well-established settlements. For reference, a maximally developed city
   maintains a ~90-block spawn-free perimeter at full strength; after
-  decay, this shrinks to ~40 blocks — still well within the detection
+  decay, this shrinks to ~40 blocks ??still well within the detection
   range. Smaller builds see proportionally less protection to begin with
 - **Scalable architecture**: Designed for large multiplayer servers with
   async database persistence and player-aware cache prefetching

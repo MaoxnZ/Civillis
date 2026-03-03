@@ -34,6 +34,8 @@
   "civil.config.slider.decay.hours": "\u2248%2$s\u65f6 t\u00bd",
   "civil.config.slider.recovery": "~%2$d\u5206\u949f \u26a1",
   "civil.config.slider.freshness": "%1$d\u5c0f\u65f6",
+  "civil.config.simple.patrolRange": "\u5de1\u903b\u5f71\u54cd\u8303\u56f4",
+  "civil.config.slider.patrolRange": "%1$d \u683c",
 
   "civil.config.subcategory.headAttract": "怪物头聚怪",
   "civil.config.subcategory.headAttract.tooltip.1": "怪物头充当图腾，",
@@ -45,10 +47,19 @@
   "civil.config.slider.headAttractStrength": "%1$d (\u03bb%2$s)",
   "civil.config.slider.headAttractRange": "%1$d \u683c",
 
-  "civil.config.auraEffect": "探测器声纳",
-  "civil.config.auraEffect.tooltip.1": "探测器触发的声纳扫描：",
-  "civil.config.auraEffect.tooltip.2": "边界光墙、激波粒子、音效。",
-  "civil.config.auraEffect.tooltip.3": "\u00a77关闭后仅保留基础检测反馈。",
+  "civil.config.subcategory.sonar": "声纳可视化",
+  "civil.config.subcategory.sonar.tooltip.1": "声纳扫描的边界光墙、",
+  "civil.config.subcategory.sonar.tooltip.2": "激波粒子和音效设置。",
+  "civil.config.subcategory.sonar.tooltip.3": "\u00a77探测器声纳与钟声纳互相独立。",
+
+  "civil.config.sonar.detectorEnabled": "探测器声纳",
+  "civil.config.sonar.detectorEnabled.tooltip.1": "使用文明检测器时",
+  "civil.config.sonar.detectorEnabled.tooltip.2": "启用声纳可视化效果。",
+  "civil.config.sonar.detectorEnabled.tooltip.3": "\u00a77不影响钟声纳。",
+
+  "civil.config.sonar.detectorRadius": "探测器声纳范围",
+  "civil.config.sonar.staticRadius": "钟声纳范围",
+  "civil.config.slider.sonarRadius": "%1$d 格",
 
   "civil.config.override.warning": "\u00a7e\u26a0 检测到 civil.properties 中存在手动自定义值。修改此滑块将覆盖您的自定义配置。",
 

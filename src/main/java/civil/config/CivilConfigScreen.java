@@ -108,17 +108,49 @@ public final class CivilConfigScreen {
                 .setSaveConsumer(v -> CivilConfig.mobFleeEnabled = v)
                 .build());
 
-        // ── 2c. Aura Effect toggle ──
-        cat.addEntry(eb.startBooleanToggle(
-                        Component.translatable("civil.config.auraEffect"),
-                        CivilConfig.auraEffectEnabled)
+        // ── 2c. Sonar Visualization (collapsible) ──
+        SubCategoryBuilder sonar = eb.startSubCategory(
+                Component.translatable("civil.config.subcategory.sonar"));
+        sonar.setExpanded(false);
+        sonar.setTooltip(
+                Component.translatable("civil.config.subcategory.sonar.tooltip.1"),
+                Component.translatable("civil.config.subcategory.sonar.tooltip.2"),
+                Component.translatable("civil.config.subcategory.sonar.tooltip.3"));
+
+        sonar.add(eb.startBooleanToggle(
+                        Component.translatable("civil.config.sonar.detectorEnabled"),
+                        CivilConfig.detectorSonarEnabled)
                 .setDefaultValue(true)
                 .setTooltip(
-                        Component.translatable("civil.config.auraEffect.tooltip.1"),
-                        Component.translatable("civil.config.auraEffect.tooltip.2"),
-                        Component.translatable("civil.config.auraEffect.tooltip.3"))
-                .setSaveConsumer(v -> CivilConfig.auraEffectEnabled = v)
+                        Component.translatable("civil.config.sonar.detectorEnabled.tooltip.1"),
+                        Component.translatable("civil.config.sonar.detectorEnabled.tooltip.2"),
+                        Component.translatable("civil.config.sonar.detectorEnabled.tooltip.3"))
+                .setSaveConsumer(v -> CivilConfig.detectorSonarEnabled = v)
                 .build());
+
+        sonar.add(eb.startIntSlider(
+                        Component.translatable("civil.config.sonar.detectorRadius"),
+                        CivilConfig.sonarDetectorRadius, 3, 7)
+                .setDefaultValue(5)
+                .setTextGetter(val -> {
+                    int blocks = val * 16;
+                    return Component.translatable("civil.config.slider.sonarRadius", blocks);
+                })
+                .setSaveConsumer(v -> CivilConfig.sonarDetectorRadius = v)
+                .build());
+
+        sonar.add(eb.startIntSlider(
+                        Component.translatable("civil.config.sonar.staticRadius"),
+                        CivilConfig.sonarStaticRadius, 8, 12)
+                .setDefaultValue(10)
+                .setTextGetter(val -> {
+                    int blocks = val * 16;
+                    return Component.translatable("civil.config.slider.sonarRadius", blocks);
+                })
+                .setSaveConsumer(v -> CivilConfig.sonarStaticRadius = v)
+                .build());
+
+        cat.addEntry(sonar.build());
 
         // ── 3. Decay Details (collapsible) ──
         SubCategoryBuilder decay = eb.startSubCategory(

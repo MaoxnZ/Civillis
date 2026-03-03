@@ -47,10 +47,19 @@
   "civil.config.slider.headAttractStrength": "%1$d (\u03bb%2$s)",
   "civil.config.slider.headAttractRange": "%1$d blocks",
 
-  "civil.config.auraEffect": "Detector Sonar",
-  "civil.config.auraEffect.tooltip.1": "Sonar scan triggered by the detector:",
-  "civil.config.auraEffect.tooltip.2": "boundary walls, shockwave particles, sounds.",
-  "civil.config.auraEffect.tooltip.3": "\u00a77Disable to keep only basic feedback.",
+  "civil.config.subcategory.sonar": "Sonar Visualization",
+  "civil.config.subcategory.sonar.tooltip.1": "Sonar scan boundary walls,",
+  "civil.config.subcategory.sonar.tooltip.2": "shockwave particles, and sounds.",
+  "civil.config.subcategory.sonar.tooltip.3": "\u00a77Detector and bell sonar are independent.",
+
+  "civil.config.sonar.detectorEnabled": "Detector Sonar",
+  "civil.config.sonar.detectorEnabled.tooltip.1": "Enable sonar visualization when",
+  "civil.config.sonar.detectorEnabled.tooltip.2": "using the Civil Detector item.",
+  "civil.config.sonar.detectorEnabled.tooltip.3": "\u00a77Does not affect bell sonar.",
+
+  "civil.config.sonar.detectorRadius": "Detector Sonar Range",
+  "civil.config.sonar.staticRadius": "Bell Sonar Range",
+  "civil.config.slider.sonarRadius": "%1$d blocks",
 
   "civil.config.override.warning": "\u00a7e\u26a0 Advanced override detected in civil.properties. Changing this slider will overwrite your custom value.",
 

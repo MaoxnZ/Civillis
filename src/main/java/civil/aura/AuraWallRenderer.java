@@ -99,9 +99,6 @@ public final class AuraWallRenderer {
     /** Delay before walls appear on first activation (sonar plays first). */
     private static final long SONAR_DELAY_NS = (long) (1.2 * 1_000_000_000L);
 
-    /** How long walls stay at full brightness per activation / renewal. */
-    private static final long STEADY_DURATION_NS = (long) (2.5 * 1_000_000_000L);
-
     /** Fade-in speed: alpha per second.  1/0.6 ≈ 1.667 → reaches 1.0 in 0.6 s. */
     private static final float FADE_IN_RATE = 1.0f / 0.6f;
 
@@ -188,8 +185,10 @@ public final class AuraWallRenderer {
         wallMaxY = payload.wallMaxY();
 
         // Sonar delay always applies: shockwave is visual feedback for a new scan.
+        SonarType type = SonarType.fromId(payload.sonarType());
+        long steadyDurationNs = (long) (type.wallSteadyDurationSeconds() * 1_000_000_000L);
         visibleAfterNano = now + SONAR_DELAY_NS;
-        steadyEndNano = visibleAfterNano + STEADY_DURATION_NS;
+        steadyEndNano = visibleAfterNano + steadyDurationNs;
 
         // Fresh activation vs. renewal determines the arrival timestamp for new faces.
         boolean freshActivation = timedFaces.isEmpty() && timedHeadFaces.isEmpty();
