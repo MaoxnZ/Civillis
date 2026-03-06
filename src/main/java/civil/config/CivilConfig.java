@@ -36,6 +36,9 @@ public final class CivilConfig {
     /** Freshness duration: hours before decay starts. Range [1, 48], default 6. */
     public static int simpleFreshnessDuration = 6;
 
+    /** Master toggle for civilization decay (outerSum freshness factor). */
+    public static boolean decayEnabled = true;
+
     /** Decay speed: 1 (very slow) to 10 (very fast), default 5. */
     public static int simpleDecaySpeed = 5;
 
@@ -326,6 +329,8 @@ public final class CivilConfig {
         simpleFreshnessDuration = parseInt(p.getProperty("simple.freshnessDuration"), simpleFreshnessDuration);
         simpleFreshnessDuration = Math.max(1, Math.min(48, simpleFreshnessDuration));
 
+        decayEnabled = parseBoolean(p.getProperty("decay.enabled"), decayEnabled);
+
         simpleDecaySpeed = parseInt(p.getProperty("simple.decaySpeed"), simpleDecaySpeed);
         simpleDecaySpeed = Math.max(1, Math.min(10, simpleDecaySpeed));
 
@@ -485,6 +490,7 @@ public final class CivilConfig {
 
             sb.append("# ── Simple Settings (GUI) ──\n");
             sb.append("simple.freshnessDuration=").append(simpleFreshnessDuration).append('\n');
+            sb.append("decay.enabled=").append(decayEnabled).append('\n');
             sb.append("simple.decaySpeed=").append(simpleDecaySpeed).append('\n');
             sb.append("simple.decayFloor=").append(simpleDecayFloor).append('\n');
             sb.append("simple.recoverySpeed=").append(simpleRecoverySpeed).append('\n');
@@ -549,7 +555,7 @@ public final class CivilConfig {
             sb.append('\n');
 
             sb.append("# ── Advanced: Head Attraction (totem spawn suppression) ──\n");
-            sb.append("#headAttract.enabled=").append(headAttractEnabled).append('\n');
+            sb.append("headAttract.enabled=").append(headAttractEnabled).append('\n');
             sb.append("#headAttract.nearBlocks=").append(headAttractNearBlocks)
                     .append("   # deprecated: parsed for backward compatibility only\n");
             sb.append(pHead).append("headAttract.maxRadius=").append(headAttractMaxRadius).append('\n');

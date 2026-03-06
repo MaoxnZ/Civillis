@@ -9,10 +9,10 @@
   "civil.config.title": "Civillis Settings",
   "civil.config.category.main": "Civilization",
 
-  "civil.config.simple.spawnSuppression": "Spawn Suppression Strength",
+  "civil.config.simple.spawnSuppression": "Civilization Strength",
   "civil.config.simple.spawnSuppression.tooltip": "How strongly your buildings suppress hostile mob spawning.",
-  "civil.config.simple.detectionRange": "Detection Range",
-  "civil.config.simple.detectionRange.tooltip": "Area scanned around each mob spawn attempt for nearby civilization.",
+  "civil.config.simple.impactRadius": "Max. Civilization Radius",
+  "civil.config.simple.impactRadius.tooltip": "How far your civilization's influence extends from buildings.",
   "civil.config.simple.decaySpeed": "Decay Speed",
   "civil.config.simple.decaySpeed.tooltip": "How fast the extra protection fades after the grace period.",
   "civil.config.simple.decayFloor": "Decay Floor",
@@ -29,7 +29,8 @@
 
   "civil.config.slider.spawn": "%1$d",
   "civil.config.slider.spawn.unsafe": "\u00a7e\u26a0 %1$d",
-  "civil.config.slider.range": "%1$d",
+  "civil.config.slider.impactRadius": "%1$d blocks",
+  "civil.config.decay.enabled": "Decay Enabled",
   "civil.config.slider.decay.days": "\u2248%2$sd t\u00bd",
   "civil.config.slider.decay.hours": "\u2248%2$sh t\u00bd",
   "civil.config.slider.recovery": "~%2$dmin \u26a1",
@@ -41,6 +42,7 @@
   "civil.config.subcategory.headAttract.tooltip.1": "Mob heads act as totems that",
   "civil.config.subcategory.headAttract.tooltip.2": "attract specific monsters nearby.",
   "civil.config.subcategory.headAttract.tooltip.3": "\u00a77More skulls strengthen the pull.",
+  "civil.config.headAttract.enabled": "Mob Head System",
 
   "civil.config.simple.headAttractStrength": "Attraction Strength",
   "civil.config.simple.headAttractRange": "Attraction Range",
@@ -66,6 +68,6 @@
   "civil.config.subcategory.mobFlee": "Mob Flee Behavior",
   "civil.config.subcategory.mobFlee.tooltip.1": "Hostile mobs in civilized areas",
   "civil.config.subcategory.mobFlee.tooltip.2": "will flee — even deserting mid-combat in city centers.",
-  "civil.config.subcategory.mobFlee.tooltip.3": "\u00a77Linked to Spawn Suppression strength.",
+  "civil.config.subcategory.mobFlee.tooltip.3": "\u00a77Linked to Civilization Strength.",
   "civil.config.mobFlee.enabled": "Mob Flee AI"
 }

@@ -80,18 +80,18 @@ public final class CivilConfigScreen {
                 .setSaveConsumer(v -> CivilConfig.simpleSpawnSuppression = v)
                 .build());
 
-        // ── 2. Detection Range (discrete: 13 steps → 112..496 blocks) ──
+        // ── 2. Impact Radius (discrete: 13 steps → 112..496 blocks) ──
         if (CivilConfig.hasRawOverride(CivilConfig.PARAM_RANGE)) {
             cat.addEntry(eb.startTextDescription(
                     Component.translatable("civil.config.override.warning")).build());
         }
         cat.addEntry(eb.startIntSlider(
-                        Component.translatable("civil.config.simple.detectionRange"),
+                        Component.translatable("civil.config.simple.impactRadius"),
                         rangeToIndex(CivilConfig.simpleDetectionRange), 0, 12)
                 .setDefaultValue(rangeToIndex(240))
                 .setTextGetter(idx -> {
                     int blocks = RANGE_STEPS[Math.max(0, Math.min(12, idx))];
-                    return Component.translatable("civil.config.slider.range", blocks, blocks);
+                    return Component.translatable("civil.config.slider.impactRadius", blocks);
                 })
                 .setSaveConsumer(idx -> CivilConfig.simpleDetectionRange = RANGE_STEPS[Math.max(0, Math.min(12, idx))])
                 .build());
@@ -161,7 +161,15 @@ public final class CivilConfigScreen {
                 Component.translatable("civil.config.subcategory.decay.tooltip.2"),
                 Component.translatable("civil.config.subcategory.decay.tooltip.3"));
 
-        // 3a. Decay Speed (1-10)
+        // 3a. Decay Enabled toggle
+        decay.add(eb.startBooleanToggle(
+                        Component.translatable("civil.config.decay.enabled"),
+                        CivilConfig.decayEnabled)
+                .setDefaultValue(true)
+                .setSaveConsumer(v -> CivilConfig.decayEnabled = v)
+                .build());
+
+        // 3b. Decay Speed (1-10)
         if (CivilConfig.hasRawOverride(CivilConfig.PARAM_DECAY_SPEED)) {
             decay.add(eb.startTextDescription(
                     Component.translatable("civil.config.override.warning")).build());
@@ -253,7 +261,15 @@ public final class CivilConfigScreen {
                 Component.translatable("civil.config.subcategory.headAttract.tooltip.2"),
                 Component.translatable("civil.config.subcategory.headAttract.tooltip.3"));
 
-        // 4a. Attraction Strength (1-10) → headAttractLambda
+        // 4a. Mob head system enabled (spawn bypass / suppression)
+        headAttract.add(eb.startBooleanToggle(
+                        Component.translatable("civil.config.headAttract.enabled"),
+                        CivilConfig.headAttractEnabled)
+                .setDefaultValue(true)
+                .setSaveConsumer(v -> CivilConfig.headAttractEnabled = v)
+                .build());
+
+        // 4c. Attraction Strength (1-10) → headAttractLambda
         if (CivilConfig.hasRawOverride(CivilConfig.PARAM_HEAD_ATTRACT)) {
             headAttract.add(eb.startTextDescription(
                     Component.translatable("civil.config.override.warning")).build());
@@ -270,7 +286,7 @@ public final class CivilConfigScreen {
                 .setSaveConsumer(v -> CivilConfig.simpleHeadAttractStrength = v)
                 .build());
 
-        // 4b. Attraction Range (3-10) → headAttractMaxRadius (val × 16 blocks)
+        // 4d. Attraction Range (3-10) → headAttractMaxRadius (val × 16 blocks)
         headAttract.add(eb.startIntSlider(
                         Component.translatable("civil.config.simple.headAttractRange"),
                         CivilConfig.simpleHeadAttractRange, 3, 10)

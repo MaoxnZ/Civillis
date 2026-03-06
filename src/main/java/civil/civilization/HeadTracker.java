@@ -159,6 +159,7 @@ public final class HeadTracker {
      * @return combined result; {@link HeadQuery#NONE} if no enabled heads are found
      */
     public HeadQuery queryHeads(String dim, BlockPos pos, int rangeCX, int rangeCZ, int rangeSY) {
+        if (!CivilConfig.headAttractEnabled) return HeadQuery.NONE;
         var dimIndex = headsByVcXZ.get(dim);
         if (dimIndex == null || dimIndex.isEmpty()) return HeadQuery.NONE;
 
@@ -254,6 +255,7 @@ public final class HeadTracker {
      * not a conversion-specific one).
      */
     public List<EntityType<?>> getHeadTypesNear(String dim, BlockPos pos, int rangeCX, int rangeCZ, int rangeSY) {
+        if (!CivilConfig.headAttractEnabled) return List.of();
         var dimHeads = heads.get(dim);
         if (dimHeads == null || dimHeads.isEmpty()) return List.of();
 
@@ -311,6 +313,7 @@ public final class HeadTracker {
      * @return collection of head entries, or empty collection if no heads in dimension
      */
     public java.util.Collection<HeadEntry> getHeadsInDimension(String dim) {
+        if (!CivilConfig.headAttractEnabled) return List.of();
         var dimHeads = heads.get(dim);
         if (dimHeads == null || dimHeads.isEmpty()) return List.of();
         return dimHeads.values();

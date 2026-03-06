@@ -107,7 +107,7 @@ public final class ResultEntry {
      * @return civilization score in [0, 1]
      */
     public double getEffectiveScore(long serverNow) {
-        double freshness = computeDecayFactor(serverNow, presenceTime);
+        double freshness = CivilConfig.decayEnabled ? computeDecayFactor(serverNow, presenceTime) : 1.0;
         double raw = coreSum + outerSum * freshness;
         return sigmoid(raw);
     }
@@ -116,7 +116,7 @@ public final class ResultEntry {
      * Get the raw (pre-sigmoid) score for debugging / logging.
      */
     public double getRawScore(long serverNow) {
-        double freshness = computeDecayFactor(serverNow, presenceTime);
+        double freshness = CivilConfig.decayEnabled ? computeDecayFactor(serverNow, presenceTime) : 1.0;
         return coreSum + outerSum * freshness;
     }
 

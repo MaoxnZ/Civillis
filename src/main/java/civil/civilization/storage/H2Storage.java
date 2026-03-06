@@ -8,6 +8,8 @@ import net.minecraft.world.level.storage.LevelResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -89,38 +91,57 @@ public final class H2Storage {
      * @param world server world (used to determine storage path)
      */
     public void initialize(ServerLevel world) {
+        // DB under data/ subdir — see h2-packaging skill
+        Path dataDir = world.getServer().getWorldPath(LevelResource.ROOT).resolve("data");
+        try { Files.createDirectories(dataDir); } catch (Exception ignored) {}
+        String dbPath = dataDir.resolve(DB_NAME).toAbsolutePath().toString();
+
+        // All platforms use shadow+relocate → civil.repack.org.h2. No org.h2 fallback.
         try {
-            // Database file placed under the world save directory
-            String dbPath = world.getServer()
-                    .getWorldPath(LevelResource.ROOT)
-                    .resolve(DB_NAME)
-                    .toAbsolutePath()
-                    .toString();
+            Class.forName("civil.repack.org.h2.Driver");
+        } catch (ClassNotFoundException e) {
+            LOGGER.error("H2 driver not found at civil.repack.org.h2; check shadow/relocate config", e);
+        }
 
-            // H2 connection URL
-            // MODE=MySQL provides better compatibility
-            // AUTO_SERVER=TRUE allows multi-process access (though we don't need it)
-            String url = "jdbc:h2:" + dbPath + ";MODE=MySQL;AUTO_RECONNECT=TRUE";
-
-            // Forge's modular classloader hides the H2 driver from DriverManager's
-            // ServiceLoader scan. Explicit Class.forName forces driver registration.
+        try {
+            tryOpenAndInit(dbPath);
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] DB open failed ({}), deleting and retrying with fresh DB", e.getMessage());
+            closeQuietly();
+            deleteDbFiles(dbPath);
             try {
-                Class.forName("org.h2.Driver");
-            } catch (ClassNotFoundException ignored) {
-                // Fabric/NeoForge: driver auto-registers via ServiceLoader
+                tryOpenAndInit(dbPath);
+            } catch (SQLException e2) {
+                LOGGER.error("[civil-storage] H2 database initialization failed after retry", e2);
+                throw new RuntimeException("Failed to initialize H2 database", e2);
             }
+        }
 
-            connection = DriverManager.getConnection(url);
+        if (CivilMod.DEBUG) {
+            LOGGER.info("[civil-storage] H2 database initialized: {} (schema v{})", dbPath, CURRENT_SCHEMA_VERSION);
+        }
+    }
 
-            // Schema version management: create meta table, run migrations if needed
-            initializeSchema();
+    private void tryOpenAndInit(String dbPath) throws SQLException {
+        String url = "jdbc:h2:" + dbPath + ";MODE=MySQL;AUTO_RECONNECT=TRUE";
+        connection = DriverManager.getConnection(url);
+        initializeSchema();
+    }
 
-            if (CivilMod.DEBUG) {
-                LOGGER.info("[civil-storage] H2 database initialized: {} (schema v{})", dbPath, CURRENT_SCHEMA_VERSION);
+    private void closeQuietly() {
+        if (connection != null) {
+            try { connection.close(); } catch (SQLException ignored) {}
+            connection = null;
+        }
+    }
+
+    private void deleteDbFiles(String dbPath) {
+        for (String suffix : new String[]{".mv.db", ".trace.db", ".lock.db"}) {
+            try {
+                Files.deleteIfExists(Path.of(dbPath + suffix));
+            } catch (Exception e) {
+                LOGGER.debug("[civil-storage] Could not delete {}: {}", dbPath + suffix, e.getMessage());
             }
-        } catch (SQLException e) {
-            LOGGER.error("[civil-storage] H2 database initialization failed", e);
-            throw new RuntimeException("Failed to initialize H2 database", e);
         }
     }
 

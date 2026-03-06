@@ -9,10 +9,10 @@
   "civil.config.title": "Civillis 设置",
   "civil.config.category.main": "文明参数",
 
-  "civil.config.simple.spawnSuppression": "刷怪抑制强度",
+  "civil.config.simple.spawnSuppression": "文明强度",
   "civil.config.simple.spawnSuppression.tooltip": "建筑对敌对生物生成的抑制力度。",
-  "civil.config.simple.detectionRange": "检测范围",
-  "civil.config.simple.detectionRange.tooltip": "每次怪物生成时扫描周围文明的区域大小。",
+  "civil.config.simple.impactRadius": "最大文明半径",
+  "civil.config.simple.impactRadius.tooltip": "文明影响从建筑向外延伸的距离。",
   "civil.config.simple.decaySpeed": "衰落速度",
   "civil.config.simple.decaySpeed.tooltip": "宽限期过后额外防护消退的速度。",
   "civil.config.simple.decayFloor": "衰落下限",
@@ -29,7 +29,8 @@
 
   "civil.config.slider.spawn": "%1$d",
   "civil.config.slider.spawn.unsafe": "\u00a7e\u26a0 %1$d",
-  "civil.config.slider.range": "%1$d",
+  "civil.config.slider.impactRadius": "%1$d 格",
+  "civil.config.decay.enabled": "启用衰减",
   "civil.config.slider.decay.days": "\u2248%2$s\u5929 t\u00bd",
   "civil.config.slider.decay.hours": "\u2248%2$s\u65f6 t\u00bd",
   "civil.config.slider.recovery": "~%2$d\u5206\u949f \u26a1",
@@ -41,6 +42,7 @@
   "civil.config.subcategory.headAttract.tooltip.1": "怪物头充当图腾，",
   "civil.config.subcategory.headAttract.tooltip.2": "吸引对应怪物到附近。",
   "civil.config.subcategory.headAttract.tooltip.3": "\u00a77头颅越多，吸引力越强。",
+  "civil.config.headAttract.enabled": "怪物头系统",
 
   "civil.config.simple.headAttractStrength": "\u805a\u602a\u5f3a\u5ea6",
   "civil.config.simple.headAttractRange": "\u8679\u5438\u8303\u56f4",
@@ -66,6 +68,6 @@
   "civil.config.subcategory.mobFlee": "怪物逃离行为",
   "civil.config.subcategory.mobFlee.tooltip.1": "文明区域中的敌对生物",
   "civil.config.subcategory.mobFlee.tooltip.2": "会主动逃离，在市中心甚至会临阵脱逃。",
-  "civil.config.subcategory.mobFlee.tooltip.3": "\u00a77与刷怪抑制强度联动。",
+  "civil.config.subcategory.mobFlee.tooltip.3": "\u00a77与文明强度联动。",
   "civil.config.mobFlee.enabled": "怪物逃离 AI"
 }

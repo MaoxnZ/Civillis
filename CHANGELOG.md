@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.1.1-release]
+
+### Fixed
+
+- **Major compatibility issue resolved**: H2 database dependency is now fully
+  relocated and isolated, eliminating conflicts with mods like Biomancy that
+  bundle their own H2 version. Civillis should now run stable in large modpacks.
+
+### Added
+
+- **Mob Head System toggle**: New option to globally disable mob head gameplay
+  effects (spawn attraction, detector zone display, flee AI awareness) while
+  keeping the data intact. Useful for players who like decorating walls with
+  skulls without affecting spawn behavior.
+- **Civilization Decay toggle**: New option in the Decay settings to disable
+  time-based decay entirely. When off, your settlements stay forever fresh —
+  no need to patrol them to maintain protection.
+
+### Changed
+
+- **Config labels clarified**: "Spawn Suppression Strength" is now "Civilization
+  Strength" and "Detection Range" is now "Max. Civilization Radius" (with block
+  units shown). The Mob Flee AI tooltip now references the renamed setting.
+
+### Note
+
+- Thanks to **Blugori** and **Stick Boy** for reporting the Biomancy
+  incompatibility — your feedback made this fix possible.
+- If you notice anything off, join our Discord and I'll always be there to
+  help: [Civillis Official](https://discord.gg/dA7QCPx7zd)
+
 ## [1.1.0-release]
 
 ### Added
