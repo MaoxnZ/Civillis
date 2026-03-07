@@ -71,8 +71,8 @@ Scoring-related parameters are adjustable via the in-game GUI (requires [Mod Men
 
 | Setting | Range | Default | What it controls |
 |---------|-------|---------|-----------------|
-| Spawn Suppression | 1–10 | 5 | Adjusts both spawn thresholds together — higher values make it easier to reach full protection |
-| Detection Range | 112–496 blocks | 240 blocks | Size of the area evaluated around each spawn point (also affects sonar scan radius) |
+| Civilization Strength | 1–10 | 5 | Adjusts both spawn thresholds together — higher values make it easier to reach full protection |
+| Max. Civilization Radius | 112–496 blocks | 240 blocks | Size of the area evaluated around each spawn point |
 
 !!! warning "Advanced: civil.properties"
     Raw parameters can also be edited in `config/civil.properties`, but this is intended for advanced users only. If things break, delete `civil.properties` and restart — the mod will regenerate it with defaults.

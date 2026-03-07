@@ -59,12 +59,13 @@ Custom skull types added by other mods via `SkullBlock` subclasses are automatic
 
 ## In-Game Configuration
 
-Head attraction parameters are adjustable via the in-game GUI under the "Head Attraction" subcategory (requires [Mod Menu](https://modrinth.com/mod/modmenu) + [Cloth Config](https://modrinth.com/mod/cloth-config)):
+Head attraction parameters are adjustable via the in-game GUI under the "Mob Head Attraction" subcategory (requires [Mod Menu](https://modrinth.com/mod/modmenu) + [Cloth Config](https://modrinth.com/mod/cloth-config)):
 
-| Setting | Range | Default | What it controls |
-|---------|-------|---------|-----------------|
-| Attraction Strength | 1–10 | 5 | How strongly skulls suppress distant spawns |
-| Attraction Range | 48–160 blocks | 128 blocks | Maximum horizontal radius for redirection |
+| Setting | Type | Range/Default | What it controls |
+|---------|------|---------------|------------------|
+| Mob Head System | Toggle | on (default) | Master switch for all head gameplay effects. When off, bypass zones, spawn attraction, detector zone display, and flee AI awareness are disabled — skulls become purely decorative (data is still tracked) |
+| Attraction Strength | Slider | 1–10, default 5 | How strongly skulls suppress distant spawns |
+| Attraction Range | Slider | 48–160 blocks, default 128 | Maximum horizontal radius for redirection |
 
 !!! warning "Advanced: civil.properties"
     Raw parameters can also be edited in `config/civil.properties`, but this is intended for advanced users only. If things break, delete `civil.properties` and restart — the mod will regenerate it with defaults.

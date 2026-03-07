@@ -24,8 +24,8 @@ Settings are organized into one top-level category (**Civilization**) with two e
 
 | Setting | Type | Range | Default | Description |
 |---------|------|-------|---------|-------------|
-| Spawn Suppression Strength | Slider | 1–10 | 5 | How strongly buildings suppress hostile mob spawning. Higher values lower both spawn thresholds, making it easier to reach full protection |
-| Detection Range | Slider | 112–496 blocks (step 32) | 240 blocks | Size of the area scanned around each spawn attempt for nearby civilization. Also determines the sonar scan radius |
+| Civilization Strength | Slider | 1–10 | 5 | How strongly buildings suppress hostile mob spawning. Higher values lower both spawn thresholds, making it easier to reach full protection |
+| Max. Civilization Radius | Slider | 112–496 blocks (step 32) | 240 blocks | Size of the area scanned around each spawn attempt for nearby civilization |
 | Detector Sonar | Toggle | on / off | on | Whether the Civilization Detector's sonar effects (boundary walls, shockwave particles, sounds) are enabled. Disabling keeps only the basic color/sound feedback |
 
 ### Decay & Recovery Details
@@ -34,6 +34,7 @@ Controls how protection fades when you leave and recovers when you return. See [
 
 | Setting | Type | Range | Default | Description |
 |---------|------|-------|---------|-------------|
+| Decay Enabled | Toggle | on / off | on | Whether time-based decay is active. When off, settlements stay forever fresh — no need to patrol to maintain protection |
 | Freshness Duration | Slider | 1–48 hours | 6 hours | Grace period before protection starts fading after your last visit |
 | Decay Speed | Slider | 1–10 | 5 | How fast protection fades after the grace period expires. The slider label shows the approximate half-life |
 | Decay Floor | Slider | 0–50% | 25% | Minimum remaining protection even if fully abandoned. At 0% a settlement can decay to nothing; at 50% half the score always remains |
@@ -46,6 +47,7 @@ Controls how monster skulls attract and redirect spawns. See [Monster Heads](mon
 
 | Setting | Type | Range | Default | Description |
 |---------|------|-------|---------|-------------|
+| Mob Head System | Toggle | on / off | on | Whether mob head gameplay effects (spawn attraction, detector zone display, flee AI awareness) are active. When off, heads are purely decorative — useful for wall displays without affecting spawn behavior |
 | Attraction Strength | Slider | 1–10 | 5 | How strongly skulls suppress distant spawns, concentrating mobs near the heads |
 | Attraction Range | Slider | 48–160 blocks (step 16) | 128 blocks | Maximum horizontal radius within which skulls exert their redirection effect |
 
@@ -55,7 +57,7 @@ Controls whether hostile mobs retreat from civilized zones after spawning.
 
 | Setting | Type | Range | Default | Description |
 |---------|------|-------|---------|-------------|
-| Mob Flee AI | Toggle | on / off | on | Enables hostile-mob retreat behavior in civilized areas. In highly civilized city centers, mobs may panic and disengage from combat to escape |
+| Mob Flee AI | Toggle | on / off | on | Enables hostile-mob retreat behavior in civilized areas. In highly civilized city centers, mobs may panic and disengage from combat to escape. Thresholds are linked to Civilization Strength |
 
 ---
 
@@ -109,6 +111,7 @@ Below is the full list of raw parameters. Values shown are defaults derived from
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| `decay.enabled` | boolean | true | Whether time-based decay is active. When false, settlements stay forever fresh |
 | `decay.gracePeriodHours` | double | 6.0 | Hours before decay begins after your last visit |
 | `decay.lambda` | double | ~0.008 | Exponential decay rate; half-life ≈ ln(2) / λ hours |
 | `decay.minFloor` | double | 0.25 | Minimum score fraction retained after full decay (0.0–1.0) |
@@ -125,7 +128,7 @@ Below is the full list of raw parameters. Values shown are defaults derived from
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `headAttract.enabled` | boolean | true | Master switch for the head attraction system |
+| `headAttract.enabled` | boolean | true | Master switch for all mob head gameplay effects (spawn attraction, detector zone, flee AI awareness). When false, heads are purely decorative |
 | `headAttract.nearBlocks` | double | 32.0 | Distance (blocks) within which skulls never suppress spawns |
 | `headAttract.maxRadius` | double | 128.0 | Maximum horizontal attraction radius in blocks |
 | `headAttract.lambda` | double | 0.15 | Attraction decay rate — higher values concentrate mobs more tightly around skulls |

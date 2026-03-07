@@ -10,7 +10,7 @@ When enabled, hostile mobs periodically evaluate the local civilization level an
 
 - In moderately civilized areas, mobs tend to disengage and drift outward
 - In highly civilized city centers, mobs can panic and may even give up fighting to escape
-- This behavior is linked to your Spawn Suppression tuning, so stronger suppression generally means stronger flee pressure
+- This behavior is linked to your Civilization Strength setting, so higher strength generally means stronger flee pressure
 
 This gives settlements a more believable defensive atmosphere: danger does not just fail to appear, it also struggles to stay.
 
@@ -39,12 +39,12 @@ In practice, this means:
 
 ---
 
-## Relationship to Spawn Suppression
+## Relationship to Civilization Strength
 
 Mob Flee AI is a behavior layer, not a replacement for spawn suppression:
 
-- **Spawn suppression** controls whether new hostile mobs are allowed to spawn
-- **Mob flee AI** controls how already-present hostile mobs behave after spawning
+- **Civilization Strength** (main config slider) controls the spawn thresholds — how easily buildings reach full protection and how strong the flee pressure zones are
+- **Mob Flee AI** controls whether already-present hostile mobs retreat from civilized areas
 
 Together, they produce a smoother "civilized territory" feeling:
 

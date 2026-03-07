@@ -31,15 +31,16 @@ In multiplayer, the server keeps running, so the clock keeps ticking. If no play
 
 ## In-Game Configuration
 
-All decay parameters are adjustable via the in-game GUI (requires [Mod Menu](https://modrinth.com/mod/modmenu) + [Cloth Config](https://modrinth.com/mod/cloth-config)):
+All decay parameters are adjustable via the in-game GUI under "Decay & Recovery Details" (requires [Mod Menu](https://modrinth.com/mod/modmenu) + [Cloth Config](https://modrinth.com/mod/cloth-config)):
 
-| Setting | Range | Default | What it controls |
-|---------|-------|---------|-----------------|
-| Freshness Duration | 1–48 hours | 6 hours | Grace period before decay begins |
-| Decay Speed | 1–10 | 5 | How fast outer scores fade (higher = faster) |
-| Decay Floor | 0–50% | 25% | Minimum retained score after full decay |
-| Recovery Speed | 1–10 | 5 | How quickly protection returns when you're nearby |
-| Patrol Influence Range | 32–128 blocks | 64 blocks | How far your presence sustains and restores settlements |
+| Setting | Type | Range/Default | What it controls |
+|---------|------|---------------|------------------|
+| Decay Enabled | Toggle | on (default) | When off, time-based decay is disabled — settlements stay forever fresh. No need to patrol to maintain protection |
+| Freshness Duration | Slider | 1–48 hours, default 6 | Grace period before decay begins |
+| Decay Speed | Slider | 1–10, default 5 | How fast outer scores fade (higher = faster) |
+| Decay Floor | Slider | 0–50%, default 25% | Minimum retained score after full decay |
+| Recovery Speed | Slider | 1–10, default 5 | How quickly protection returns when you're nearby |
+| Patrol Influence Range | Slider | 32–128 blocks, default 64 | How far your presence sustains and restores settlements |
 
 !!! warning "Advanced: civil.properties"
     Raw parameters can also be edited in `config/civil.properties`, but this is intended for advanced users only. The file contains many internal parameters that interact in non-obvious ways. If things break, delete `civil.properties` and restart — the mod will regenerate it with defaults.

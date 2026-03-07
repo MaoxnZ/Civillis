@@ -18,7 +18,7 @@ Optional: install [Mod Menu](https://modrinth.com/mod/modmenu) + [Cloth Config](
 
 ## Core Concepts
 
-- [How It Works](how-it-works.md) — civilization scoring, detection range, spawn suppression
+- [How It Works](how-it-works.md) — civilization scoring, Max. Civilization Radius, Civilization Strength
 - [Blocks & Scoring](blocks-and-scoring.md) — which blocks count and how much they weigh
 - [Civilization Decay](civilization-decay.md) — how protection fades and recovers
 - [Monster Heads](monster-heads.md) — spawn gate bypass, distant redirection, mob conversion

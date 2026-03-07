@@ -20,11 +20,11 @@ The civilization score maps to one of three outcomes:
 - **MID** (score between low and high thresholds) — Spawn is probabilistically blocked. The higher the score, the more likely the block. This is the frontier.
 - **HIGH** (score at or above suppression threshold) — Spawn is fully blocked. This is civilization.
 
-The in-game "Spawn Suppression" strength slider (1–10) adjusts both thresholds together — a higher value makes it easier to reach full protection with fewer blocks.
+The in-game **Civilization Strength** slider (1–10) adjusts both thresholds together — a higher value makes it easier to reach full protection with fewer blocks.
 
-## Detection Range
+## Max. Civilization Radius
 
-The detection area is centered on the spawn point, not the player. Default size is **240×240×48 blocks** (15×15×3 voxel chunks). This can be adjusted from 112 to 496 blocks per side in the settings.
+The detection area is centered on the spawn point, not the player. Default size is **240×240×48 blocks** (15×15×3 voxel chunks). This can be adjusted from 112 to 496 blocks per side via the **Max. Civilization Radius** setting.
 
 A larger detection range means distant builds contribute to the score — your city's outskirts help protect the center. A smaller range makes protection more localized.
 
