@@ -16,14 +16,4 @@ dependencies {
     common(project(path: ':', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':', configuration: 'transformProductionFabric')
 
-    // H2 Database: implementation for dev runtime, shadowBundle for release jar
-    implementation 'com.h2database:h2:2.2.224'
-    shadowBundle 'com.h2database:h2:2.2.224'
-}
-
-shadowJar {
-    relocate 'org.h2', 'civil.repack.org.h2'
-    // H2's META-INF/services/java.sql.Driver declares org.h2.Driver; JPMS fails because we relocated classes.
-    // We load the driver via Class.forName, so exclude the service file.
-    exclude 'META-INF/services/java.sql.Driver'
 }

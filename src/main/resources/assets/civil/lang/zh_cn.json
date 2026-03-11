@@ -10,17 +10,11 @@
   "civil.config.category.main": "文明参数",
 
   "civil.config.simple.spawnSuppression": "文明强度",
-  "civil.config.simple.spawnSuppression.tooltip": "建筑对敌对生物生成的抑制力度。",
   "civil.config.simple.impactRadius": "最大文明半径",
-  "civil.config.simple.impactRadius.tooltip": "文明影响从建筑向外延伸的距离。",
   "civil.config.simple.decaySpeed": "衰落速度",
-  "civil.config.simple.decaySpeed.tooltip": "宽限期过后额外防护消退的速度。",
   "civil.config.simple.decayFloor": "衰落下限",
-  "civil.config.simple.decayFloor.tooltip": "即使完全废弃，额外防护仍保留的最低强度。",
   "civil.config.simple.recoverySpeed": "恢复速度",
-  "civil.config.simple.recoverySpeed.tooltip": "重新造访时额外防护恢复的速度。",
   "civil.config.simple.freshnessDuration": "文明保鲜时长",
-  "civil.config.simple.freshnessDuration.tooltip": "离开后额外防护开始衰退前的宽限时间。",
 
   "civil.config.subcategory.decay": "衰减与恢复 详细设置",
   "civil.config.subcategory.decay.tooltip.1": "\u7e41\u8363\u7684\u805a\u843d\u80fd\u5c06",
@@ -69,5 +63,19 @@
   "civil.config.subcategory.mobFlee.tooltip.1": "文明区域中的敌对生物",
   "civil.config.subcategory.mobFlee.tooltip.2": "会主动逃离，在市中心甚至会临阵脱逃。",
   "civil.config.subcategory.mobFlee.tooltip.3": "\u00a77与文明强度联动。",
-  "civil.config.mobFlee.enabled": "怪物逃离 AI"
+  "civil.config.mobFlee.enabled": "怪物逃离 AI",
+
+  "civil.config.subcategory.podiumOfUndying": "不死祭坛",
+  "civil.config.subcategory.podiumOfUndying.tooltip.1": "用图腾激活的绿宝石结构。",
+  "civil.config.subcategory.podiumOfUndying.tooltip.2": "濒死时传送到最近的锚点并获得图腾效果。",
+  "civil.config.subcategory.podiumOfUndying.tooltip.3": "\u00a77锚点需处于高文明区。",
+  "civil.config.undyingAnchor.enabled": "启用不死祭坛",
+  "civil.config.undyingAnchor.maxSearchRadius": "最大复活距离",
+  "civil.config.slider.undyingAnchorRadius": "%1$d 格",
+  "civil.config.undyingAnchor.cooldownSeconds": "救助冷却",
+  "civil.config.slider.undyingAnchorCooldown": "%1$d 秒",
+
+  "civil.config.subcategory.miscellaneous": "其他",
+  "civil.config.subcategory.miscellaneous.tooltip.1": "不易归类的杂项选项。",
+  "civil.config.subcategory.miscellaneous.tooltip.2": "\u00a77今后的小功能会放这里。"
 }

@@ -28,7 +28,7 @@
     { "block": "minecraft:beacon",           "weight": 5.0 },
     { "block": "minecraft:conduit",          "weight": 5.0 },
 
-    { "block": "minecraft:respawn_anchor",   "weight": 2.0 },
+    { "block": "minecraft:emerald_block",    "weight": 2.0 },
 
     { "block": "minecraft:enchanting_table", "weight": 1.5 },
     { "block": "minecraft:lodestone",        "weight": 1.5 },

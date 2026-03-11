@@ -37,7 +37,7 @@ public final class SpawnPolicy {
         // ===== Stage 1: Head Detection (single O(N) pass via HeadTracker) =====
         HeadTracker tracker = CivilServices.getHeadTracker();
         if (tracker != null && tracker.isInitialized()) {
-            String dim = world.dimension().toString();
+            String dim = world.dimension().identifier().toString();
 
             HeadTracker.HeadQuery hq = tracker.queryHeads(
                     dim, pos,

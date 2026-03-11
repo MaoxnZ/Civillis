@@ -3,8 +3,9 @@ package civil.civilization;
 import civil.registry.BlockWeightRegistry;
 import net.minecraft.world.level.block.AbstractSkullBlock;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SkullBlock;
+import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * Stateless utility for block-level civilization queries.
@@ -55,5 +56,13 @@ public final class BlockScanner {
      */
     public static boolean isTargetBlock(BlockState state) {
         return BlockWeightRegistry.hasWeight(state.getBlock()) || isSkullBlock(state);
+    }
+
+    /**
+     * Whether this block state is an emerald block (civil save point).
+     * Used by UndyingAnchorTracker for civil save.
+     */
+    public static boolean isEmeraldSaveBlock(BlockState state) {
+        return state.is(Blocks.EMERALD_BLOCK);
     }
 }

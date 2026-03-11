@@ -1,8 +1,13 @@
 package civil.fabric;
 
+import civil.CivilMod;
 import civil.aura.AuraWallRenderer;
 import civil.aura.SonarBoundaryPayload;
 import civil.aura.SonarChargePayload;
+import civil.respawn.UndyingAnchorCinematicEffect;
+import civil.respawn.UndyingAnchorParticleEffect;
+import civil.respawn.UndyingAnchorParticlePayload;
+import civil.respawn.UndyingAnchorPreTeleportPayload;
 import civil.aura.SonarShockwaveEffect;
 import civil.aura.SonarType;
 import civil.item.CivilDetectorClientParticles;
@@ -10,8 +15,11 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.Environment;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.HashMap;
@@ -40,6 +48,13 @@ public class CivilModClientFabric implements ClientModInitializer {
                     }
                 });
 
+        ClientPlayNetworking.registerGlobalReceiver(UndyingAnchorPreTeleportPayload.ID,
+                (payload, context) -> UndyingAnchorCinematicEffect.startPreTeleport(payload.phase0Ticks(),
+                        payload.anchorX(), payload.anchorY(), payload.anchorZ()));
+
+        ClientPlayNetworking.registerGlobalReceiver(UndyingAnchorParticlePayload.ID,
+                (payload, context) -> UndyingAnchorParticleEffect.updateFromPayload(payload));
+
         ClientPlayNetworking.registerGlobalReceiver(SonarBoundaryPayload.ID,
                 (payload, context) -> {
                     AuraWallRenderer.updateBoundaries(payload);
@@ -56,9 +71,17 @@ public class CivilModClientFabric implements ClientModInitializer {
                 });
 
         WorldRenderEvents.BEFORE_TRANSLUCENT.register(context -> {
+            UndyingAnchorCinematicEffect.tickAndApplyShake(null);
+            UndyingAnchorParticleEffect.tick();
             Vec3 cam = context.worldState().cameraRenderState.pos;
             AuraWallRenderer.onRender(cam);
         });
+
+        HudElementRegistry.attachElementBefore(
+                VanillaHudElements.MISC_OVERLAYS,
+                Identifier.fromNamespaceAndPath(CivilMod.MOD_ID, "undying_anchor_overlay"),
+                (guiGraphics, tickCounter) -> UndyingAnchorCinematicEffect.renderOverlay(
+                        guiGraphics, tickCounter.getGameTimeDeltaPartialTick(true)));
     }
 
     private static Set<Long> buildLongSet(long[] array) {

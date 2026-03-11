@@ -158,10 +158,9 @@ public final class ScalableCivilizationService implements CivilizationService {
             }
         }
 
-        // Restore persisted presenceTime / lastRecoveryTime from H2 if available.
-        // Without this, TTL eviction would permanently lose decay state.
-        String dimKey = world.dimension().toString();
-        long[] persisted = cacheService.getStorage().loadPresenceSync(dimKey, centerVC);
+        // Restore persisted presenceTime / lastRecoveryTime (preload from bulk load or cold).
+        String dimKey = world.dimension().identifier().toString();
+        long[] persisted = cacheService.getPresenceForCompute(dimKey, centerVC);
         if (persisted != null) {
             return new ResultEntry(coreSum, outerSum, persisted[0], persisted[1]);
         }
@@ -173,27 +172,14 @@ public final class ScalableCivilizationService implements CivilizationService {
     /**
      * Get L1 score for a single shard.
      *
-     * <p>Lookup chain: hot cache → H2 cold storage → palette recompute.
-     * The cold storage check is a safety net for the rare case where a shard
-     * has been TTL-evicted but the prefetcher hasn't refreshed it yet (~0.1ms).
+     * <p>Lookup chain: hot cache → region bulk load (if not activated) → palette recompute.
+     * TtlCacheService.getChunkCScore handles bulk load on miss.
      */
     private double getL1Score(ServerLevel world, VoxelChunkKey key) {
-        // 1. Hot cache hit (typical case — prefetcher keeps entries alive)
         Optional<CScore> cached = cacheService.getChunkCScore(world, key);
         if (cached.isPresent()) {
             return cached.get().score();
         }
-
-        // 2. H2 cold storage (TTL-evicted but persisted — sync single-row lookup)
-        Double coldScore = cacheService.getStorage().loadL1Sync(
-                world.dimension().toString(), key);
-        if (coldScore != null) {
-            CScore restored = new CScore(coldScore);
-            cacheService.putChunkCScore(world, key, restored); // re-fill hot cache
-            return coldScore;
-        }
-
-        // 3. Both miss — full palette + operator recompute
         return computeAndCacheL1(world, key).score();
     }
 
@@ -296,16 +282,12 @@ public final class ScalableCivilizationService implements CivilizationService {
     public void onCivilBlockChanged(ServerLevel world, BlockPos pos) {
         long startNs = CivilMod.DEBUG ? System.nanoTime() : 0;
         VoxelChunkKey shardKey = VoxelChunkKey.from(pos);
-        String dim = world.dimension().toString();
+        String dim = world.dimension().identifier().toString();
 
-        // 1. Get old L1 score (hot → cold → 0.0)
-        // Must check H2 cold storage to avoid incorrect delta when L1 was TTL-evicted.
+        // 1. Get old L1 score (hot + bulk load on miss via getChunkCScore, else 0.0)
         double oldScore = cacheService.getChunkCScore(world, shardKey)
                 .map(CScore::score)
-                .orElseGet(() -> {
-                    Double cold = cacheService.getStorage().loadL1Sync(dim, shardKey);
-                    return cold != null ? cold : 0.0;
-                });
+                .orElse(0.0);
 
         // 2. Palette recompute new L1 score
         CScore newCScore = computeCScoreForChunk(world, shardKey);

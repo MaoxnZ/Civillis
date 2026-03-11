@@ -1,11 +1,14 @@
 package civil;
 
-import civil.civilization.CScore;
+import civil.civilization.ServerClock;
 import civil.civilization.BlockScanner;
 import civil.civilization.HeadTracker;
-import civil.civilization.VoxelChunkKey;
+import civil.civilization.UndyingAnchorTracker;
+import civil.aura.SonarScanManager;
 import civil.civilization.cache.TtlCacheService;
 import civil.civilization.scoring.ScalableCivilizationService;
+import civil.respawn.UndyingAnchorParticleManager;
+import civil.respawn.UndyingAnchorSaveHandler;
 import civil.config.CivilConfig;
 import net.minecraft.world.level.block.AbstractSkullBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -15,7 +18,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.chunk.LevelChunkSection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +53,9 @@ public class CivilMod {
     /** Head tracker (persistent head position tracking for attraction system). */
     private static HeadTracker headTracker;
 
+    /** Undying anchor tracker (civil save system). */
+    private static UndyingAnchorTracker undyingAnchorTracker;
+
     /**
      * Common initialization — creates services and registers items/sounds.
      * Called by the platform-specific entry point (Fabric or NeoForge).
@@ -65,9 +70,11 @@ public class CivilMod {
         ScalableCivilizationService civilizationService =
                 new ScalableCivilizationService(cacheService);
         headTracker = new HeadTracker();
+        undyingAnchorTracker = new UndyingAnchorTracker();
         CivilServices.initCivilizationService(civilizationService);
         CivilServices.initCivilizationCache(cacheService);
         CivilServices.initHeadTracker(headTracker);
+        CivilServices.initUndyingAnchorTracker(undyingAnchorTracker);
 
         // Registry calls (ModComponents, ModSounds, ModItems) are handled by
         // platform-specific entry points: Fabric calls registerDirect(),
@@ -98,6 +105,9 @@ public class CivilMod {
             if (headTracker != null) {
                 headTracker.initialize(cacheService.getStorage());
             }
+            if (undyingAnchorTracker != null) {
+                undyingAnchorTracker.initialize(cacheService.getStorage());
+            }
         }
     }
 
@@ -107,10 +117,19 @@ public class CivilMod {
             if (DEBUG) {
                 LOGGER.info("[civil] Cache service shutting down...");
             }
+            UndyingAnchorSaveHandler.clearForWorld(world);
+            SonarScanManager.shutdown();
+            UndyingAnchorParticleManager.reset();
+            // Shutdown cache first: unified flush snapshots from headTracker/anchorTracker, then awaits
+            if (cacheService != null) {
+                cacheService.shutdown();
+            }
             if (headTracker != null) {
                 headTracker.shutdown();
             }
-            cacheService.shutdown();
+            if (undyingAnchorTracker != null) {
+                undyingAnchorTracker.shutdown();
+            }
         }
     }
 
@@ -123,7 +142,7 @@ public class CivilMod {
 
     /** Called when a chunk loads. Discovers pre-existing heads and pre-fills L1 shards. */
     public static void onChunkLoad(ServerLevel world, ChunkAccess chunk) {
-        String dim = world.dimension().toString();
+        String dim = world.dimension().identifier().toString();
 
         if (headTracker != null && headTracker.isInitialized()) {
             for (BlockPos bePos : chunk.getBlockEntitiesPos()) {
@@ -139,28 +158,7 @@ public class CivilMod {
         }
 
         if (cacheService != null && cacheService.isInitialized()) {
-            var cache = cacheService.getCache();
-            var storage = cacheService.getStorage();
-            LevelChunkSection[] sections = chunk.getSections();
-            int bottomSy = Math.floorDiv(world.dimensionType().minY(), 16);
-
-            for (int i = 0; i < sections.length; i++) {
-                int sy = bottomSy + i;
-                VoxelChunkKey key = new VoxelChunkKey(chunk.getPos().x, chunk.getPos().z, sy);
-
-                if (cache.containsL1(world, key)) continue;
-
-                Double coldScore = storage.loadL1Sync(dim, key);
-                if (coldScore != null) {
-                    cache.restoreL1(world, key, new CScore(coldScore), System.currentTimeMillis());
-                    continue;
-                }
-
-                LevelChunkSection section = sections[i];
-                if (!section.maybeHas(BlockScanner::isTargetBlock)) {
-                    cache.restoreL1(world, key, new CScore(0.0), System.currentTimeMillis());
-                }
-            }
+            cacheService.onChunkLoadPreFill(world, chunk);
         }
     }
 

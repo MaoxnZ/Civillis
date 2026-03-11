@@ -9,6 +9,11 @@ import civil.aura.SonarBoundaryPayload;
 import civil.aura.SonarChargePayload;
 import civil.aura.SonarScanManager;
 import civil.aura.SonarType;
+import civil.respawn.UndyingAnchorActivationHandler;
+import civil.respawn.UndyingAnchorParticleManager;
+import civil.respawn.UndyingAnchorParticlePayload;
+import civil.respawn.UndyingAnchorPreTeleportPayload;
+import civil.respawn.UndyingAnchorSaveHandler;
 import civil.item.CivilDetectorAnimationReset;
 import civil.perf.TpsLogger;
 import civil.registry.BlockWeightLoader;
@@ -35,6 +40,7 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.ChunkEvent;
@@ -118,6 +124,7 @@ public class CivilModNeoForge {
         NeoForge.EVENT_BUS.addListener(this::onChunkLoad);
         NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(this::onRightClickBlock);
+        NeoForge.EVENT_BUS.addListener(this::onLivingDeath);
 
         CivilMod.init();
 
@@ -144,6 +151,10 @@ public class CivilModNeoForge {
                 NeoForgeClientPayloadHandler::handleSonarCharge);
         registrar.playToClient(SonarBoundaryPayload.ID, SonarBoundaryPayload.CODEC,
                 NeoForgeClientPayloadHandler::handleSonarBoundary);
+        registrar.playToClient(UndyingAnchorPreTeleportPayload.ID, UndyingAnchorPreTeleportPayload.CODEC,
+                NeoForgeClientPayloadHandler::handleUndyingAnchorPreTeleport);
+        registrar.playToClient(UndyingAnchorParticlePayload.ID, UndyingAnchorParticlePayload.CODEC,
+                NeoForgeClientPayloadHandler::handleUndyingAnchorParticles);
     }
 
     private void onBuildCreativeTab(BuildCreativeModeTabContentsEvent event) {
@@ -186,6 +197,8 @@ public class CivilModNeoForge {
         CivilMod.onServerTick(event.getServer());
         TpsLogger.onEndTick(event.getServer());
         CivilDetectorAnimationReset.onServerTick(event.getServer());
+        UndyingAnchorSaveHandler.onServerTick(event.getServer());
+        UndyingAnchorParticleManager.onServerTick(event.getServer());
         SonarScanManager.onServerTick(event.getServer());
     }
 
@@ -202,10 +215,25 @@ public class CivilModNeoForge {
         }
     }
 
+    private void onLivingDeath(LivingDeathEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            boolean saved = UndyingAnchorSaveHandler.trySave(player);
+            if (saved) {
+                event.setCanceled(true);
+            }
+        }
+    }
+
     private void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
         if (event.getLevel().isClientSide()) return;
         BlockPos pos = event.getPos();
         var state = event.getLevel().getBlockState(pos);
+        if (state.is(Blocks.EMERALD_BLOCK) && event.getEntity() instanceof ServerPlayer player) {
+            if (UndyingAnchorActivationHandler.tryActivate(player, event.getLevel(), pos, event.getHand())) {
+                event.setCanceled(true);
+                return;
+            }
+        }
         if (!state.is(Blocks.BELL)) return;
         if (!event.getLevel().getBlockState(pos.below()).is(Blocks.LODESTONE)) return;
         if (!CivilConfig.auraEffectEnabled) return;

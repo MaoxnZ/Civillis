@@ -10,17 +10,11 @@
   "civil.config.category.main": "Civilization",
 
   "civil.config.simple.spawnSuppression": "Civilization Strength",
-  "civil.config.simple.spawnSuppression.tooltip": "How strongly your buildings suppress hostile mob spawning.",
   "civil.config.simple.impactRadius": "Max. Civilization Radius",
-  "civil.config.simple.impactRadius.tooltip": "How far your civilization's influence extends from buildings.",
   "civil.config.simple.decaySpeed": "Decay Speed",
-  "civil.config.simple.decaySpeed.tooltip": "How fast the extra protection fades after the grace period.",
   "civil.config.simple.decayFloor": "Decay Floor",
-  "civil.config.simple.decayFloor.tooltip": "Minimum strength the protection aura retains even if fully abandoned.",
   "civil.config.simple.recoverySpeed": "Recovery Speed",
-  "civil.config.simple.recoverySpeed.tooltip": "How fast the protection aura recovers when you return.",
   "civil.config.simple.freshnessDuration": "Freshness Duration",
-  "civil.config.simple.freshnessDuration.tooltip": "Grace period before the protection aura starts fading after you leave.",
 
   "civil.config.subcategory.decay": "Decay \u0026 Recovery Details",
   "civil.config.subcategory.decay.tooltip.1": "Thriving settlements push",
@@ -69,5 +63,19 @@
   "civil.config.subcategory.mobFlee.tooltip.1": "Hostile mobs in civilized areas",
   "civil.config.subcategory.mobFlee.tooltip.2": "will flee — even deserting mid-combat in city centers.",
   "civil.config.subcategory.mobFlee.tooltip.3": "\u00a77Linked to Civilization Strength.",
-  "civil.config.mobFlee.enabled": "Mob Flee AI"
+  "civil.config.mobFlee.enabled": "Mob Flee AI",
+
+  "civil.config.subcategory.podiumOfUndying": "Podium of Undying",
+  "civil.config.subcategory.podiumOfUndying.tooltip.1": "Emerald structure activated with totem.",
+  "civil.config.subcategory.podiumOfUndying.tooltip.2": "On death, teleport to nearest anchor + totem effects.",
+  "civil.config.subcategory.podiumOfUndying.tooltip.3": "\u00a77Requires high civilization at anchor.",
+  "civil.config.undyingAnchor.enabled": "Enable Podium of Undying",
+  "civil.config.undyingAnchor.maxSearchRadius": "Max Resurrection Distance",
+  "civil.config.slider.undyingAnchorRadius": "%1$d blocks",
+  "civil.config.undyingAnchor.cooldownSeconds": "Rescue Cooldown",
+  "civil.config.slider.undyingAnchorCooldown": "%1$d s",
+
+  "civil.config.subcategory.miscellaneous": "Miscellaneous",
+  "civil.config.subcategory.miscellaneous.tooltip.1": "Options that don't fit other categories.",
+  "civil.config.subcategory.miscellaneous.tooltip.2": "\u00a77Future small features will go here."
 }

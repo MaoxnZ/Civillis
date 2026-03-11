@@ -3,6 +3,7 @@
   "package": "civil.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "CivilGameRendererFovMixin",
     "CivilLevelBlockChangeMixin",
     "CivilMobGoalMixin",
     "CivilServerLevelSpawnGateMixin",

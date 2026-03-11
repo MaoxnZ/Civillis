@@ -66,6 +66,27 @@ public final class CivilConfig {
     /** Whether the protection aura visualization is enabled (sonar scan, particles, walls, sounds). */
     public static boolean auraEffectEnabled = true;
 
+    /** Whether the civil undying anchor save is enabled (teleport + totem effects on near-death). */
+    public static boolean undyingAnchorEnabled = true;
+
+    /** Fraction of (1.0 - greenLine) to advance beyond greenLine for undying anchor validity.
+     * 0.8 = "80% toward full score from greenLine". Formula: greenLine + (1 - greenLine) * civRatio.
+     * See {@link #getUndyingAnchorCivRequired()}. */
+    public static double undyingAnchorCivRatio = 0.8;
+
+    /** Global cooldown in seconds after rescue before anchor can save again. */
+    public static int undyingAnchorGlobalCooldownSeconds = 10;
+
+    /** Max search radius in blocks (3D Euclidean) when looking for a valid anchor on death. */
+    public static int undyingAnchorMaxSearchRadius = 128;
+
+    /** Civilization score required for undying anchor: greenLine + (1 - greenLine) * civRatio.
+     * Aligns with Mob Flee's "过半逃兵" philosophy: anchor needs stricter than greenLine, softer than 1.0. */
+    public static double getUndyingAnchorCivRequired() {
+        double greenLine = spawnThresholdMid;
+        return greenLine + (1.0 - greenLine) * undyingAnchorCivRatio;
+    }
+
     // ══════════════════════════════════════════════════════════
     //  Raw override detection
     // ══════════════════════════════════════════════════════════
@@ -357,6 +378,14 @@ public final class CivilConfig {
         simplePatrolRange = Math.max(2, Math.min(8, simplePatrolRange));
 
         auraEffectEnabled = parseBoolean(p.getProperty("aura.enabled"), auraEffectEnabled);
+        undyingAnchorEnabled = parseBoolean(p.getProperty("undyingAnchor.enabled"),
+                parseBoolean(p.getProperty("respawnAnchor.enabled"), undyingAnchorEnabled));
+        undyingAnchorCivRatio = Math.max(0.0, Math.min(1.0,
+                parseDouble(p.getProperty("undyingAnchor.civRatio"), undyingAnchorCivRatio)));
+        undyingAnchorGlobalCooldownSeconds = Math.max(1, Math.min(300,
+                parseInt(p.getProperty("undyingAnchor.globalCooldownSeconds"), undyingAnchorGlobalCooldownSeconds)));
+        undyingAnchorMaxSearchRadius = Math.max(32, Math.min(256,
+                parseInt(p.getProperty("undyingAnchor.maxSearchRadius"), undyingAnchorMaxSearchRadius)));
 
         detectorSonarEnabled  = parseBoolean(p.getProperty("sonar.detectorEnabled"), detectorSonarEnabled);
         sonarDetectorRadius   = Math.max(3, Math.min(7,  parseInt(p.getProperty("sonar.detectorRadius"), sonarDetectorRadius)));
@@ -503,6 +532,12 @@ public final class CivilConfig {
 
             sb.append("# ── Aura Visualization ──\n");
             sb.append("aura.enabled=").append(auraEffectEnabled).append('\n');
+            sb.append("# Civil undying anchor save (teleport + totem on near-death)\n");
+            sb.append("undyingAnchor.enabled=").append(undyingAnchorEnabled).append('\n');
+            sb.append("# 0.8 = 80%% toward full score from greenLine; see getUndyingAnchorCivRequired()\n");
+            sb.append("undyingAnchor.civRatio=").append(undyingAnchorCivRatio).append('\n');
+            sb.append("undyingAnchor.globalCooldownSeconds=").append(undyingAnchorGlobalCooldownSeconds).append('\n');
+            sb.append("undyingAnchor.maxSearchRadius=").append(undyingAnchorMaxSearchRadius).append('\n');
             sb.append('\n');
 
             sb.append("# ── Sonar System ──\n");

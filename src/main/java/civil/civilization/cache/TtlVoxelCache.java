@@ -3,7 +3,7 @@ package civil.civilization.cache;
 import civil.CivilMod;
 import civil.civilization.CScore;
 import civil.config.CivilConfig;
-import civil.civilization.storage.H2Storage;
+import civil.civilization.storage.CivilStorage;
 import civil.civilization.VoxelChunkKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
@@ -11,6 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -29,11 +31,14 @@ public final class TtlVoxelCache implements CivilizationCache {
 
     private final long ttlMillis;
 
-    // L1 cache: VoxelChunk -> CScore
+    // L1 cache: dim|cx|cz|sy -> CScore
     private final ConcurrentHashMap<String, TimestampedEntry<CScore>> l1Cache = new ConcurrentHashMap<>();
 
+    /** Pending L1 writes for unified flush. Key: dim|cx|cz|sy, value: CScore. */
+    private final ConcurrentHashMap<String, CScore> pendingScoreWrites = new ConcurrentHashMap<>();
+
     // Persistent storage
-    private H2Storage storage;
+    private CivilStorage storage;
 
     // Loading state tracker
     private final LoadingStateTracker loadingTracker = new LoadingStateTracker();
@@ -46,7 +51,7 @@ public final class TtlVoxelCache implements CivilizationCache {
         this.ttlMillis = ttlMillis;
     }
 
-    public void setStorage(H2Storage storage) {
+    public void setStorage(CivilStorage storage) {
         this.storage = storage;
     }
 
@@ -57,11 +62,11 @@ public final class TtlVoxelCache implements CivilizationCache {
     // ========== Cache key generation ==========
 
     private static String l1Key(ServerLevel level, VoxelChunkKey key) {
-        return level.dimension().toString() + "|" + key.getCx() + "|" + key.getCz() + "|" + key.getSy();
+        return level.dimension().identifier().toString() + "|" + key.getCx() + "|" + key.getCz() + "|" + key.getSy();
     }
 
     private static String getDim(ServerLevel level) {
-        return level.dimension().toString();
+        return level.dimension().identifier().toString();
     }
 
     // ========== L1 operations ==========
@@ -87,16 +92,12 @@ public final class TtlVoxelCache implements CivilizationCache {
     public void putChunkCScore(ServerLevel level, VoxelChunkKey key, CScore cScore) {
         String k = l1Key(level, key);
         l1Cache.put(k, new TimestampedEntry<>(cScore));
+        // NBT: add to pendingScoreWrites; unified flush writes to Cold
+        pendingScoreWrites.put(k, cScore);
 
         if (CivilMod.DEBUG) {
             CACHE_LOG.info("[civil-cache] L1 PUT dim={} cx={} cz={} sy={} score={}",
                     getDim(level), key.getCx(), key.getCz(), key.getSy(), cScore.score());
-        }
-
-        // Fusion Architecture: persist L1 to H2 for cold recovery
-        if (storage != null) {
-            String dim = getDim(level);
-            storage.saveL1Async(dim, key, cScore);
         }
     }
 
@@ -166,5 +167,24 @@ public final class TtlVoxelCache implements CivilizationCache {
 
     public long getTtlMillis() {
         return ttlMillis;
+    }
+
+    /**
+     * Drain pending L1 writes for unified flush. Returns map (key=dim|cx|cz|sy -> CScore) and clears.
+     */
+    public Map<String, CScore> drainPendingScoreWrites() {
+        Map<String, CScore> snapshot = new HashMap<>(pendingScoreWrites);
+        pendingScoreWrites.clear();
+        return snapshot;
+    }
+
+    /**
+     * Clear all L1 entries. Called on world shutdown to prevent cross-world cache contamination.
+     * Cache keys (dim|cx|cz|sy) do not include world identifier, so switching worlds would
+     * return stale scores from the previous world.
+     */
+    public void clearAll() {
+        l1Cache.clear();
+        pendingScoreWrites.clear();
     }
 }

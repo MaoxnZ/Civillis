@@ -3,6 +3,8 @@ package civil.mixin;
 import civil.CivilServices;
 import civil.civilization.BlockScanner;
 import civil.civilization.HeadTracker;
+import civil.civilization.structure.StructureBlockChangeListener;
+import civil.civilization.structure.StructureBlockChangeListeners;
 import civil.civilization.scoring.ScalableCivilizationService;
 import net.minecraft.world.level.block.AbstractSkullBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -10,12 +12,26 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Level.class)
 public abstract class CivilLevelBlockChangeMixin {
+
+    @Unique
+    private static final ThreadLocal<BlockState> civil$oldBlockState = ThreadLocal.withInitial(() -> null);
+
+    @Inject(
+            method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",
+            at = @At("HEAD")
+    )
+    private void civil$captureOldState(BlockPos pos, BlockState state, int flags, int maxUpdateDepth, CallbackInfoReturnable<Boolean> cir) {
+        if ((Object) this instanceof ServerLevel) {
+            civil$oldBlockState.set(((Level) (Object) this).getBlockState(pos));
+        }
+    }
 
     @Inject(
             method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",
@@ -54,7 +70,7 @@ public abstract class CivilLevelBlockChangeMixin {
         // Track head placement/removal in HeadTracker.
         HeadTracker registry = CivilServices.getHeadTracker();
         if (registry != null && registry.isInitialized()) {
-            String dim = serverWorld.dimension().toString();
+            String dim = serverWorld.dimension().identifier().toString();
 
             if (isNowHead) {
                 AbstractSkullBlock skull = (AbstractSkullBlock) state.getBlock();
@@ -62,6 +78,15 @@ public abstract class CivilLevelBlockChangeMixin {
                 registry.onHeadAdded(dim, pos.getX(), pos.getY(), pos.getZ(), skullType);
             } else {
                 registry.onHeadRemoved(dim, pos.getX(), pos.getY(), pos.getZ());
+            }
+        }
+
+        // Structure invalidation (uses OLD block state). Delegates to per-structure listeners.
+        BlockState oldState = civil$oldBlockState.get();
+        civil$oldBlockState.remove();
+        if (oldState != null) {
+            for (StructureBlockChangeListener listener : StructureBlockChangeListeners.LISTENERS) {
+                listener.onBlockRemoved(serverWorld, pos, oldState);
             }
         }
     }

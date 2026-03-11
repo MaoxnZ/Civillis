@@ -105,7 +105,7 @@ public final class FleeCivilizationGoal extends Goal {
         HeadTracker tracker = CivilServices.getHeadTracker();
         if (tracker != null && tracker.isInitialized()) {
             HeadTracker.HeadQuery hq = tracker.queryHeads(
-                    world.dimension().toString(), mob.blockPosition(),
+                    world.dimension().identifier().toString(), mob.blockPosition(),
                     CivilConfig.headRangeX, CivilConfig.headRangeZ, CivilConfig.headRangeY);
             if (hq.hasNearbyHeads()) return false;
         }
@@ -182,7 +182,7 @@ public final class FleeCivilizationGoal extends Goal {
         HeadTracker tracker = CivilServices.getHeadTracker();
         if (tracker != null && tracker.isInitialized()) {
             HeadTracker.HeadQuery hq = tracker.queryHeads(
-                    world.dimension().toString(), mob.blockPosition(),
+                    world.dimension().identifier().toString(), mob.blockPosition(),
                     CivilConfig.headRangeX, CivilConfig.headRangeZ, CivilConfig.headRangeY);
             if (hq.hasNearbyHeads()) { stopReason = "head_zone"; return false; }
         }
@@ -260,7 +260,7 @@ public final class FleeCivilizationGoal extends Goal {
         HeadTracker tracker = CivilServices.getHeadTracker();
         if (tracker == null || !tracker.isInitialized()) return null;
 
-        String dim = world.dimension().toString();
+        String dim = world.dimension().identifier().toString();
         String dimId = world.dimension().identifier().toString();
 
         int mobCx = mobX >> 4;

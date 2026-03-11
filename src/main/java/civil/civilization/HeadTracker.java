@@ -1,7 +1,7 @@
 package civil.civilization;
 
 import civil.CivilMod;
-import civil.civilization.storage.H2Storage;
+import civil.civilization.storage.CivilStorage;
 import civil.config.CivilConfig;
 import civil.registry.HeadTypeRegistry;
 import civil.registry.HeadTypeRegistry.HeadTypeEntry;
@@ -55,8 +55,24 @@ public final class HeadTracker {
     private final ConcurrentHashMap<String, ConcurrentHashMap<Long, ConcurrentHashMap<Integer, ConcurrentHashMap<Long, HeadEntry>>>>
             headsByVcXZ = new ConcurrentHashMap<>();
 
-    private volatile H2Storage storage;
+    private volatile CivilStorage storage;
     private volatile boolean initialized = false;
+    private volatile boolean mobHeadsDirty;
+
+    /** For unified flush: produce full snapshot. Clears dirty after flush. */
+    public List<CivilStorage.StoredMobHead> snapshotAllHeads() {
+        List<CivilStorage.StoredMobHead> out = new ArrayList<>();
+        for (var dimEntry : heads.entrySet()) {
+            String dim = dimEntry.getKey();
+            for (HeadEntry h : dimEntry.getValue().values()) {
+                out.add(new CivilStorage.StoredMobHead(dim, h.x(), h.y(), h.z(), h.skullType()));
+            }
+        }
+        return out;
+    }
+
+    public boolean isMobHeadsDirty() { return mobHeadsDirty; }
+    public void clearMobHeadsDirty() { mobHeadsDirty = false; }
 
     /** Single head entry: exact block position + skull type name. */
     public record HeadEntry(int x, int y, int z, String skullType) {}
@@ -92,23 +108,24 @@ public final class HeadTracker {
     // ========== Lifecycle ==========
 
     /**
-     * Initialize the tracker by loading all persisted heads from H2.
-     * Must be called on the server thread during world load, after H2 is ready.
+     * Initialize the tracker by loading all persisted heads from storage.
+     * Must be called on the server thread during world load.
      */
-    public void initialize(H2Storage h2Storage) {
-        this.storage = h2Storage;
+    public void initialize(CivilStorage civilStorage) {
+        this.storage = civilStorage;
+        this.mobHeadsDirty = false;
         heads.clear();
         headsByVcXZ.clear();
 
-        List<H2Storage.StoredMobHead> stored = h2Storage.loadAllMobHeads();
-        for (H2Storage.StoredMobHead h : stored) {
+        List<CivilStorage.StoredMobHead> stored = civilStorage.loadMobHeads();
+        for (CivilStorage.StoredMobHead h : stored) {
             HeadEntry entry = new HeadEntry(h.x(), h.y(), h.z(), h.skullType());
             getOrCreateDim(h.dim()).put(packPos(h.x(), h.y(), h.z()), entry);
             indexHead(h.dim(), entry);
         }
 
         initialized = true;
-        LOGGER.info("[civil-heads] Loaded {} mob head(s) from database", stored.size());
+        LOGGER.info("[civil-heads] Loaded {} mob head(s) from storage", stored.size());
     }
 
     /**
@@ -123,19 +140,6 @@ public final class HeadTracker {
 
     public boolean isInitialized() {
         return initialized;
-    }
-
-    /**
-     * Extract the dimension identifier from a {@code RegistryKey.toString()} string.
-     * Converts {@code "ResourceKey[minecraft:dimension / minecraft:the_nether]"}
-     * to {@code "minecraft:the_nether"}.
-     */
-    static String dimIdOf(String registryKeyStr) {
-        int idx = registryKeyStr.lastIndexOf(" / ");
-        if (idx >= 0 && registryKeyStr.endsWith("]")) {
-            return registryKeyStr.substring(idx + 3, registryKeyStr.length() - 1);
-        }
-        return registryKeyStr;
     }
 
     // ========== Queries ==========
@@ -163,7 +167,7 @@ public final class HeadTracker {
         var dimIndex = headsByVcXZ.get(dim);
         if (dimIndex == null || dimIndex.isEmpty()) return HeadQuery.NONE;
 
-        String dimId = dimIdOf(dim);
+        String dimId = dim;
         int centerVCX = pos.getX() >> 4;
         int centerVCZ = pos.getZ() >> 4;
         int centerVCY = Math.floorDiv(pos.getY(), 16);
@@ -259,7 +263,7 @@ public final class HeadTracker {
         var dimHeads = heads.get(dim);
         if (dimHeads == null || dimHeads.isEmpty()) return List.of();
 
-        String dimId = dimIdOf(dim);
+        String dimId = dim;
 
         int centerCX = pos.getX() >> 4;
         int centerCZ = pos.getZ() >> 4;
@@ -336,10 +340,7 @@ public final class HeadTracker {
 
         if (prev == null) {
             indexHead(dim, entry);
-            // New head — persist to H2
-            if (storage != null) {
-                storage.saveMobHeadAsync(dim, x, y, z, skullType);
-            }
+            mobHeadsDirty = true;
             if (CivilMod.DEBUG) {
                 LOGGER.info("[civil-heads] Added head dim={} pos=({},{},{}) type={}",
                         dim, x, y, z, skullType);
@@ -363,9 +364,7 @@ public final class HeadTracker {
         HeadEntry removed = dimHeads.remove(key);
         if (removed != null) {
             unindexHead(dim, removed);
-            if (storage != null) {
-                storage.deleteMobHeadAsync(dim, x, y, z);
-            }
+            mobHeadsDirty = true;
             if (CivilMod.DEBUG) {
                 LOGGER.info("[civil-heads] Removed head dim={} pos=({},{},{})",
                         dim, x, y, z);

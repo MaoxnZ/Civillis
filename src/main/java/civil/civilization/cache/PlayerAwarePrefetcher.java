@@ -2,7 +2,7 @@ package civil.civilization.cache;
 
 import civil.CivilServices;
 import civil.config.CivilConfig;
-import civil.civilization.storage.H2Storage;
+import civil.civilization.storage.CivilStorage;
 import civil.civilization.VoxelChunkKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -59,7 +59,7 @@ public final class PlayerAwarePrefetcher {
     /** Last known player position (for smart move detection). */
     private final Map<UUID, VoxelChunkKey> lastPlayerVC = new HashMap<>();
 
-    public PlayerAwarePrefetcher(TtlVoxelCache cache, H2Storage storage) {
+    public PlayerAwarePrefetcher(TtlVoxelCache cache, CivilStorage storage) {
         this.cache = cache;
     }
 
@@ -140,6 +140,11 @@ public final class PlayerAwarePrefetcher {
 
     public void removePlayer(UUID playerId) {
         lastPlayerVC.remove(playerId);
+    }
+
+    /** Clear all player position state. Call on world unload to avoid stale cross-world data. */
+    public void clear() {
+        lastPlayerVC.clear();
     }
 
     public int getPendingQueueSize() {

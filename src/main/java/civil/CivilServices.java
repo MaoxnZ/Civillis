@@ -1,6 +1,7 @@
 package civil;
 
 import civil.civilization.HeadTracker;
+import civil.civilization.UndyingAnchorTracker;
 import civil.civilization.cache.CivilizationCache;
 import civil.civilization.cache.ResultCache;
 import civil.civilization.scoring.CivilizationService;
@@ -17,6 +18,7 @@ public final class CivilServices {
     private static CivilizationService civilizationService;
     private static CivilizationCache civilizationCache;
     private static HeadTracker headTracker;
+    private static UndyingAnchorTracker undyingAnchorTracker;
 
     private CivilServices() {
     }
@@ -33,6 +35,10 @@ public final class CivilServices {
         headTracker = tracker;
     }
 
+    public static void initUndyingAnchorTracker(UndyingAnchorTracker tracker) {
+        undyingAnchorTracker = tracker;
+    }
+
     public static CivilizationService getCivilizationService() {
         return civilizationService;
     }
@@ -45,6 +51,11 @@ public final class CivilServices {
     /** Head tracker for head attraction system. null if not initialized. */
     public static HeadTracker getHeadTracker() {
         return headTracker;
+    }
+
+    /** Undying anchor tracker for civil save system. null if not initialized. */
+    public static UndyingAnchorTracker getUndyingAnchorTracker() {
+        return undyingAnchorTracker;
     }
 
     /**

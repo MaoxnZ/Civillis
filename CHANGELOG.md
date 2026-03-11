@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.2.0-release]
+
+### Changed
+
+- **Storage engine replaced — H2 removed**: Civillis no longer uses the H2 database.
+  All persistence (civilization scores, mob heads, undying anchors) now runs on a
+  custom NBT-based storage layer with a dedicated I/O queue. Functionality is
+  unchanged, but the mod jar is now 20× smaller.
+
+### Added
+
+- **Podium of Undying**: Build a small altar in a high-civilization area and
+  activate it with a totem. When you would die, you are teleported there and
+  revived with totem effects — regeneration, absorption, fire resistance —
+  without consuming a totem. One activation per altar. Hint: gold blocks, waxed
+  oxidized cut copper stairs, and an emerald at the heart. Can you guess the
+  layout?
+- **Config screen update**: Added a dedicated Podium of Undying section
+  (including options such as enable/disable, civilization requirement
+  threshold, and cooldown-related controls) and a Miscellaneous category for
+  options that do not fit cleanly into other groups.
+
+### Fixed
+
+- **World-switch cache pollution**: Cached civilization data from the previous
+  world no longer pollutes the current one when switching worlds or reloading.
+  Each world now keeps its own data strictly isolated.
+- **Payload completion on world switch**: Fixed potential crashes when changing
+  worlds while sonar, particle, or other payloads were still in progress.
+
+### Note
+
+- Thanks to **Stick Boy** for designing the Podium of Undying altar structure.
+- Feedback, bug reports, ideas — join our Discord: [Civillis Official](https://discord.gg/dA7QCPx7zd)
+
 ## [1.1.1-release]
 
 ### Fixed

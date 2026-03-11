@@ -118,7 +118,7 @@ public class CivilDetectorItem extends Item {
         // Check HeadTracker directly (fusion architecture: heads decoupled from CScore)
         HeadTracker registry = CivilServices.getHeadTracker();
         if (registry != null && registry.isInitialized()) {
-            String dim = world.dimension().toString();
+            String dim = world.dimension().identifier().toString();
             List<EntityType<?>> headTypes = registry.getHeadTypesNear(
                     dim, pos,
                     CivilConfig.headRangeX,

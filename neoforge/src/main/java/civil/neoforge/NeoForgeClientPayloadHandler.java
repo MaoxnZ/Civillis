@@ -5,6 +5,10 @@ import civil.aura.SonarBoundaryPayload;
 import civil.aura.SonarChargePayload;
 import civil.aura.SonarShockwaveEffect;
 import civil.aura.SonarType;
+import civil.respawn.UndyingAnchorCinematicEffect;
+import civil.respawn.UndyingAnchorParticleEffect;
+import civil.respawn.UndyingAnchorParticlePayload;
+import civil.respawn.UndyingAnchorPreTeleportPayload;
 import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -51,6 +55,15 @@ final class NeoForgeClientPayloadHandler {
         Set<Long> set = new HashSet<>(array.length);
         for (long v : array) set.add(v);
         return set;
+    }
+
+    static void handleUndyingAnchorPreTeleport(UndyingAnchorPreTeleportPayload payload, IPayloadContext context) {
+        UndyingAnchorCinematicEffect.startPreTeleport(payload.phase0Ticks(),
+                payload.anchorX(), payload.anchorY(), payload.anchorZ());
+    }
+
+    static void handleUndyingAnchorParticles(UndyingAnchorParticlePayload payload, IPayloadContext context) {
+        UndyingAnchorParticleEffect.updateFromPayload(payload);
     }
 
     private static Map<Long, float[]> buildHeadZoneYMap(long[] keys, float[] minY, float[] maxY) {

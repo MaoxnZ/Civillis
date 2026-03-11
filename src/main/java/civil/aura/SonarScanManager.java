@@ -69,6 +69,16 @@ public final class SonarScanManager {
     private SonarScanManager() {}
 
     /**
+     * Shutdown: clear all in-memory state. Call when overworld unloads to avoid
+     * orphaned scans/booms referencing the old ServerLevel.
+     */
+    public static void shutdown() {
+        ACTIVE_SCANS.clear();
+        PENDING_BOOMS.clear();
+        BELL_COOLDOWNS.clear();
+    }
+
+    /**
      * Replicates vanilla {@code BellBlock.isProperHit()} so we only trigger the sonar
      * when the bell would actually ring. Prevents sonar from firing when the bell
      * is hit from a direction that can't produce a ring (e.g. vertical hit on a
@@ -194,7 +204,7 @@ public final class SonarScanManager {
         HeadTracker registry = CivilServices.getHeadTracker();
         if (registry == null || !registry.isInitialized()) return false;
 
-        String dim = world.dimension().toString();
+        String dim = world.dimension().identifier().toString();
         var allHeads = registry.getHeadsInDimension(dim);
         if (allHeads.isEmpty()) return false;
 
@@ -436,7 +446,7 @@ public final class SonarScanManager {
      */
     private static HeadZoneResult computeHeadZoneData(SonarScan scan) {
         ServerLevel world = scan.getWorld();
-        String dim = world.dimension().toString();
+        String dim = world.dimension().identifier().toString();
         HeadTracker registry = CivilServices.getHeadTracker();
         if (registry == null || !registry.isInitialized()) return HeadZoneResult.EMPTY;
 

@@ -8,11 +8,17 @@ import civil.aura.SonarBoundaryPayload;
 import civil.aura.SonarChargePayload;
 import civil.aura.SonarScanManager;
 import civil.aura.SonarType;
+import civil.respawn.UndyingAnchorActivationHandler;
+import civil.respawn.UndyingAnchorParticleManager;
+import civil.respawn.UndyingAnchorParticlePayload;
+import civil.respawn.UndyingAnchorSaveHandler;
+import civil.respawn.UndyingAnchorPreTeleportPayload;
 import civil.item.CivilDetectorAnimationReset;
 import civil.perf.TpsLogger;
 import civil.registry.BlockWeightLoader;
 import civil.registry.HeadTypeLoader;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
@@ -83,6 +89,8 @@ public class CivilModFabric implements ModInitializer {
     private void registerPayloadTypes() {
         PayloadTypeRegistry.playS2C().register(SonarChargePayload.ID, SonarChargePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(SonarBoundaryPayload.ID, SonarBoundaryPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(UndyingAnchorPreTeleportPayload.ID, UndyingAnchorPreTeleportPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(UndyingAnchorParticlePayload.ID, UndyingAnchorParticlePayload.CODEC);
     }
 
     private void registerEvents() {
@@ -94,10 +102,20 @@ public class CivilModFabric implements ModInitializer {
             CivilMod.onServerTick(server);
             TpsLogger.onEndTick(server);
             CivilDetectorAnimationReset.onServerTick(server);
+            UndyingAnchorSaveHandler.onServerTick(server);
+            UndyingAnchorParticleManager.onServerTick(server);
             SonarScanManager.onServerTick(server);
         });
 
         ServerChunkEvents.CHUNK_LOAD.register(CivilMod::onChunkLoad);
+
+        ServerLivingEntityEvents.ALLOW_DEATH.register((entity, damageSource, damageAmount) -> {
+            if (entity instanceof ServerPlayer player) {
+                boolean saved = UndyingAnchorSaveHandler.trySave(player);
+                return !saved;
+            }
+            return true;
+        });
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 CivilDetectorAnimationReset.onPlayerJoin(handler.player));
@@ -106,6 +124,11 @@ public class CivilModFabric implements ModInitializer {
             if (world.isClientSide()) return InteractionResult.PASS;
             BlockPos pos = hitResult.getBlockPos();
             var state = world.getBlockState(pos);
+            if (state.is(Blocks.EMERALD_BLOCK) && player instanceof ServerPlayer sp) {
+                if (UndyingAnchorActivationHandler.tryActivate(sp, world, pos, hand)) {
+                    return InteractionResult.SUCCESS;
+                }
+            }
             if (!state.is(Blocks.BELL)) return InteractionResult.PASS;
             if (!world.getBlockState(pos.below()).is(Blocks.LODESTONE)) return InteractionResult.PASS;
             if (!civil.config.CivilConfig.auraEffectEnabled) return InteractionResult.PASS;

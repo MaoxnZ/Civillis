@@ -158,6 +158,7 @@ public final class SonarShockwaveEffect {
      */
     public static void tick() {
         if (phase == PHASE_NONE) return;
+        if (Minecraft.getInstance().isPaused()) return;  // Level doesn't tick when paused; particles don't age
 
         long now = System.nanoTime();
         if (now - lastTickNano < TICK_INTERVAL_NS) return;

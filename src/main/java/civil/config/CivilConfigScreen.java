@@ -96,19 +96,7 @@ public final class CivilConfigScreen {
                 .setSaveConsumer(idx -> CivilConfig.simpleDetectionRange = RANGE_STEPS[Math.max(0, Math.min(12, idx))])
                 .build());
 
-        // ── 2b. Mob Flee AI toggle ──
-        cat.addEntry(eb.startBooleanToggle(
-                        Component.translatable("civil.config.mobFlee.enabled"),
-                        CivilConfig.mobFleeEnabled)
-                .setDefaultValue(true)
-                .setTooltip(
-                        Component.translatable("civil.config.subcategory.mobFlee.tooltip.1"),
-                        Component.translatable("civil.config.subcategory.mobFlee.tooltip.2"),
-                        Component.translatable("civil.config.subcategory.mobFlee.tooltip.3"))
-                .setSaveConsumer(v -> CivilConfig.mobFleeEnabled = v)
-                .build());
-
-        // ── 2c. Sonar Visualization (collapsible) ──
+        // ── 2d. Sonar Visualization (collapsible) ──
         SubCategoryBuilder sonar = eb.startSubCategory(
                 Component.translatable("civil.config.subcategory.sonar"));
         sonar.setExpanded(false);
@@ -299,6 +287,61 @@ public final class CivilConfigScreen {
                 .build());
 
         cat.addEntry(headAttract.build());
+
+        // ── Podium of Undying (collapsible, second-to-last) ──
+        SubCategoryBuilder podium = eb.startSubCategory(
+                Component.translatable("civil.config.subcategory.podiumOfUndying"));
+        podium.setExpanded(false);
+        podium.setTooltip(
+                Component.translatable("civil.config.subcategory.podiumOfUndying.tooltip.1"),
+                Component.translatable("civil.config.subcategory.podiumOfUndying.tooltip.2"),
+                Component.translatable("civil.config.subcategory.podiumOfUndying.tooltip.3"));
+
+        podium.add(eb.startBooleanToggle(
+                        Component.translatable("civil.config.undyingAnchor.enabled"),
+                        CivilConfig.undyingAnchorEnabled)
+                .setDefaultValue(true)
+                .setSaveConsumer(v -> CivilConfig.undyingAnchorEnabled = v)
+                .build());
+
+        podium.add(eb.startIntSlider(
+                        Component.translatable("civil.config.undyingAnchor.maxSearchRadius"),
+                        CivilConfig.undyingAnchorMaxSearchRadius, 32, 256)
+                .setDefaultValue(128)
+                .setTextGetter(val -> Component.translatable("civil.config.slider.undyingAnchorRadius", val))
+                .setSaveConsumer(v -> CivilConfig.undyingAnchorMaxSearchRadius = v)
+                .build());
+
+        podium.add(eb.startIntSlider(
+                        Component.translatable("civil.config.undyingAnchor.cooldownSeconds"),
+                        CivilConfig.undyingAnchorGlobalCooldownSeconds, 1, 300)
+                .setDefaultValue(10)
+                .setTextGetter(val -> Component.translatable("civil.config.slider.undyingAnchorCooldown", val))
+                .setSaveConsumer(v -> CivilConfig.undyingAnchorGlobalCooldownSeconds = v)
+                .build());
+
+        cat.addEntry(podium.build());
+
+        // ── Miscellaneous (collapsible, last) ──
+        SubCategoryBuilder misc = eb.startSubCategory(
+                Component.translatable("civil.config.subcategory.miscellaneous"));
+        misc.setExpanded(false);
+        misc.setTooltip(
+                Component.translatable("civil.config.subcategory.miscellaneous.tooltip.1"),
+                Component.translatable("civil.config.subcategory.miscellaneous.tooltip.2"));
+
+        misc.add(eb.startBooleanToggle(
+                        Component.translatable("civil.config.mobFlee.enabled"),
+                        CivilConfig.mobFleeEnabled)
+                .setDefaultValue(true)
+                .setTooltip(
+                        Component.translatable("civil.config.subcategory.mobFlee.tooltip.1"),
+                        Component.translatable("civil.config.subcategory.mobFlee.tooltip.2"),
+                        Component.translatable("civil.config.subcategory.mobFlee.tooltip.3"))
+                .setSaveConsumer(v -> CivilConfig.mobFleeEnabled = v)
+                .build());
+
+        cat.addEntry(misc.build());
 
         return builder.build();
     }
