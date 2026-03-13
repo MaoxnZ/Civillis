@@ -17,25 +17,23 @@ import civil.item.CivilDetectorAnimationReset;
 import civil.perf.TpsLogger;
 import civil.registry.BlockWeightLoader;
 import civil.registry.HeadTypeLoader;
+import civil.command.CivilAdminCommands;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
-import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Items;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.server.packs.PackType;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.block.Blocks;
 
@@ -52,38 +50,9 @@ public class CivilModFabric implements ModInitializer {
         ModItems.registerDirect();
         CivilMod.init();
 
-        registerDatapackReloadListeners();
         registerPayloadTypes();
         registerEvents();
         registerItemGroups();
-    }
-
-    private void registerDatapackReloadListeners() {
-        ResourceManagerHelper.get(PackType.SERVER_DATA)
-                .registerReloadListener(new SimpleSynchronousResourceReloadListener() {
-                    @Override
-                    public Identifier getFabricId() {
-                        return Identifier.fromNamespaceAndPath("civil", "block_weights");
-                    }
-
-                    @Override
-                    public void onResourceManagerReload(ResourceManager manager) {
-                        BlockWeightLoader.reload(manager);
-                    }
-                });
-
-        ResourceManagerHelper.get(PackType.SERVER_DATA)
-                .registerReloadListener(new SimpleSynchronousResourceReloadListener() {
-                    @Override
-                    public Identifier getFabricId() {
-                        return Identifier.fromNamespaceAndPath("civil", "head_types");
-                    }
-
-                    @Override
-                    public void onResourceManagerReload(ResourceManager manager) {
-                        HeadTypeLoader.reload(manager);
-                    }
-                });
     }
 
     private void registerPayloadTypes() {
@@ -96,6 +65,16 @@ public class CivilModFabric implements ModInitializer {
     private void registerEvents() {
         ServerWorldEvents.LOAD.register(CivilMod::onWorldLoad);
         ServerWorldEvents.UNLOAD.register(CivilMod::onWorldUnload);
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            BlockWeightLoader.reload(server.getResourceManager());
+            HeadTypeLoader.reload(server.getResourceManager());
+        });
+        ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resourceManager, success) -> {
+            if (!success) return;
+            // Resource manager is up-to-date at END_DATA_PACK_RELOAD; resolve tags here.
+            BlockWeightLoader.reload(server.getResourceManager());
+            HeadTypeLoader.reload(server.getResourceManager());
+        });
 
         ServerTickEvents.START_SERVER_TICK.register(TpsLogger::onStartTick);
         ServerTickEvents.END_SERVER_TICK.register(server -> {
@@ -142,6 +121,9 @@ public class CivilModFabric implements ModInitializer {
             }
             return InteractionResult.PASS;
         });
+
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
+                CivilAdminCommands.register(dispatcher));
     }
 
     private void registerItemGroups() {

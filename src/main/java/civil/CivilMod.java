@@ -17,9 +17,14 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Comparator;
+import java.util.stream.Stream;
 
 /**
  * Common mod entry point — platform-agnostic initialization and event handlers.
@@ -165,5 +170,38 @@ public class CivilMod {
     /** Get the cache service. */
     public static TtlCacheService getCacheService() {
         return cacheService;
+    }
+
+    /**
+     * Rebuild Civil runtime data by deleting data/civil and reinitializing services.
+     * Intended for admin command use (/civil rebuild).
+     */
+    public static boolean rebuildCivilData(MinecraftServer server) {
+        ServerLevel overworld = server.overworld();
+        if (overworld == null) {
+            LOGGER.warn("[civil] rebuild failed: overworld is null");
+            return false;
+        }
+        try {
+            onWorldUnload(server, overworld);
+            Path civilDir = server.getWorldPath(LevelResource.ROOT).resolve("data").resolve("civil");
+            if (Files.exists(civilDir)) {
+                try (Stream<Path> walk = Files.walk(civilDir)) {
+                    walk.sorted(Comparator.reverseOrder()).forEach(p -> {
+                        try {
+                            Files.deleteIfExists(p);
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+                }
+            }
+            onWorldLoad(server, overworld);
+            LOGGER.info("[civil] rebuild completed");
+            return true;
+        } catch (Exception e) {
+            LOGGER.error("[civil] rebuild failed", e);
+            return false;
+        }
     }
 }

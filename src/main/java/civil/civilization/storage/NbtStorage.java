@@ -34,6 +34,7 @@ import java.util.concurrent.TimeoutException;
 public final class NbtStorage implements CivilStorage {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("civil-storage");
+    private static final int DATA_SCHEMA_VERSION = 1;
 
     /** Recreated on re-initialize after close; executor is terminated after close(). */
     private volatile ColdIOQueue coldQueue = new ColdIOQueue();
@@ -85,6 +86,11 @@ public final class NbtStorage implements CivilStorage {
         try {
             CompoundTag tag = new CompoundTag();
             tag.putLong("serverClockMillis", serverClockMillis);
+            tag.putInt("dataSchemaVersion", DATA_SCHEMA_VERSION);
+            String modVersion = CivilMod.class.getPackage() != null
+                    ? CivilMod.class.getPackage().getImplementationVersion()
+                    : null;
+            tag.putString("writtenByModVersion", modVersion == null ? "dev" : modVersion);
             NbtIo.writeCompressed(tag, p);
         } catch (Exception e) {
             LOGGER.warn("[civil-storage] Failed to write meta.nbt: {}", e.getMessage());

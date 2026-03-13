@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.2.1-release]
+
+### Fixed
+
+- **Podium "drains civilization"**: Fixed the major issue where moving far away from an
+  activated Podium of Undying could unexpectedly drain nearby civilization scores over
+  time (creating civilization hollows), and fixed a broader set of instability paths
+  tied to unloaded chunks and high-mobility scenarios that could cause civilization
+  values to read too low.
+- **Shared-gold Podium deactivation**: Fixed an issue where two Podiums of Undying
+  sharing connected gold blocks could deactivate only one podium when the shared block
+  was broken.
+- **Beds/Campfires not contributing to civilization**: On some Forge/Fabric ports, beds, campfires,
+  and similar blocks could fail to contribute civilization score correctly. For
+  modpack users, this actually fixes `#tag`-based block weight loading.
+
+### Added
+
+- **`/civil rebuild` admin command**: Added a one-shot rebuild command to clear
+  stale or historically polluted civilization data and rebuild clean state.
+
+### Note
+
+- If this is **not your first time** using Civillis in the same world, it is strongly
+  recommended to run `/civil rebuild` once after updating to `1.2.1-release`.
+- The only known side effect is that already-activated **Podiums of Undying** will reset.
+  Most players who rely on Undying are serious endgame survivors, so we hope this impact
+  is acceptable for a cleaner and more stable data baseline.
+- Feedback, bug reports, ideas — join our Discord: [Civillis Official](https://discord.gg/dA7QCPx7zd)
+
 ## [1.2.0-release]
 
 ### Changed

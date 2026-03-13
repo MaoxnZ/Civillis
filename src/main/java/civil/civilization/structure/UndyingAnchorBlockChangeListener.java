@@ -35,6 +35,7 @@ public final class UndyingAnchorBlockChangeListener implements StructureBlockCha
         }
 
         if (oldState.is(Blocks.GOLD_BLOCK)) {
+            boolean removedAny = false;
             for (BlockPos emerald : UndyingAnchorStructureValidator.getEmeraldCandidatesFromGold(pos)) {
                 if (level.getBlockState(emerald).is(Blocks.EMERALD_BLOCK)
                         && tracker.isAnchorAt(dim, emerald.getX(), emerald.getY(), emerald.getZ())) {
@@ -43,9 +44,10 @@ public final class UndyingAnchorBlockChangeListener implements StructureBlockCha
                         level.playSound(null, emerald, SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.BLOCKS, 1.0f, 1.0f);
                     }
                     tracker.onAnchorRemoved(dim, emerald.getX(), emerald.getY(), emerald.getZ());
-                    return;
+                    removedAny = true;
                 }
             }
+            if (removedAny) return;
             return;
         }
 

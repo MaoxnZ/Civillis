@@ -39,6 +39,7 @@ import java.util.*;
 public final class ScalableCivilizationService implements CivilizationService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("civil-scalable");
+    private record L1Lookup(boolean known, double score) {}
 
     // (callCounter / LOG_SAMPLE_RATE removed — debug logging is now gated entirely by CivilMod.DEBUG)
 
@@ -81,6 +82,17 @@ public final class ScalableCivilizationService implements CivilizationService {
 
         VoxelChunkKey centerVC = VoxelChunkKey.from(pos);
 
+        // Center chunk not loaded: return conservative 0 and do not cache.
+        if (!world.hasChunk(centerVC.getCx(), centerVC.getCz())) {
+            if (CivilMod.DEBUG) {
+                long elapsedUs = System.nanoTime() / 1000 - startTimeUs;
+                String dimName = world.dimension().identifier().toString();
+                LOGGER.info("[civil-fusion-score] dim={} cx={} cz={} sy={} score=0.0000 raw=0.0000 freshness=1.0000 elapsed_us={} status=UNAVAILABLE",
+                        dimName, centerVC.getCx(), centerVC.getCz(), centerVC.getSy(), elapsedUs);
+            }
+            return new CScore(0.0);
+        }
+
         // O(1) result shard lookup (or lazy compute on miss)
         ResultEntry entry = resultCache.getOrCompute(world, centerVC, this::computeResultEntry);
         double score = entry.getEffectiveScore(ServerClock.now());
@@ -116,9 +128,10 @@ public final class ScalableCivilizationService implements CivilizationService {
      *
      * <p>Cost: ~675 HashMap lookups × ~50ns = ~34μs (all L1 pre-filled by chunk load)
      */
-    private ResultEntry computeResultEntry(ServerLevel world, VoxelChunkKey centerVC) {
+    private ResultCache.ComputeResult computeResultEntry(ServerLevel world, VoxelChunkKey centerVC) {
         double coreSum = 0.0;
         double outerSum = 0.0;
+        int unknownCount = 0;
 
         int rx = CivilConfig.detectionRadiusX;
         int rz = CivilConfig.detectionRadiusZ;
@@ -137,7 +150,12 @@ public final class ScalableCivilizationService implements CivilizationService {
                     if (!shard.isValidIn(world, dimMinY, dimMaxY)) continue;
 
                     // Get L1 score: hot cache hit or synchronous compute
-                    double l1Score = getL1Score(world, shard);
+                    L1Lookup lookup = getL1Lookup(world, shard);
+                    if (!lookup.known()) {
+                        unknownCount++;
+                        continue;
+                    }
+                    double l1Score = lookup.score();
                     if (l1Score <= 0.0) continue;
 
                     // Euclidean distance squared — no sqrt needed since weight uses d²
@@ -161,10 +179,15 @@ public final class ScalableCivilizationService implements CivilizationService {
         // Restore persisted presenceTime / lastRecoveryTime (preload from bulk load or cold).
         String dimKey = world.dimension().identifier().toString();
         long[] persisted = cacheService.getPresenceForCompute(dimKey, centerVC);
+        boolean cacheable = unknownCount == 0;
         if (persisted != null) {
-            return new ResultEntry(coreSum, outerSum, persisted[0], persisted[1]);
+            return new ResultCache.ComputeResult(
+                    new ResultEntry(coreSum, outerSum, persisted[0], persisted[1]),
+                    cacheable);
         }
-        return new ResultEntry(coreSum, outerSum, ServerClock.now());
+        return new ResultCache.ComputeResult(
+                new ResultEntry(coreSum, outerSum, ServerClock.now()),
+                cacheable);
     }
 
     // ========== L1 score access ==========
@@ -175,12 +198,16 @@ public final class ScalableCivilizationService implements CivilizationService {
      * <p>Lookup chain: hot cache → region bulk load (if not activated) → palette recompute.
      * TtlCacheService.getChunkCScore handles bulk load on miss.
      */
-    private double getL1Score(ServerLevel world, VoxelChunkKey key) {
+    private L1Lookup getL1Lookup(ServerLevel world, VoxelChunkKey key) {
         Optional<CScore> cached = cacheService.getChunkCScore(world, key);
         if (cached.isPresent()) {
-            return cached.get().score();
+            return new L1Lookup(true, cached.get().score());
         }
-        return computeAndCacheL1(world, key).score();
+        Optional<CScore> computed = computeAndCacheL1(world, key);
+        if (computed.isPresent()) {
+            return new L1Lookup(true, computed.get().score());
+        }
+        return new L1Lookup(false, 0.0);
     }
 
     // ========== L1 computation ==========
@@ -189,16 +216,16 @@ public final class ScalableCivilizationService implements CivilizationService {
      * Compute L1 score and write to cache.
      * Uses palette pre-filter (ChunkSection.hasAny) to skip empty sections.
      */
-    CScore computeAndCacheL1(ServerLevel world, VoxelChunkKey key) {
+    Optional<CScore> computeAndCacheL1(ServerLevel world, VoxelChunkKey key) {
         if (!key.isValidIn(world)) {
-            return new CScore(0.0);
+            return Optional.of(new CScore(0.0));
         }
         // Guard: if the chunk isn't loaded, return 0.0 instead of force-loading it.
         // Any previously computed non-zero L1 would already be in H2 (caught by
         // getL1Score's cold-storage check), so reaching here means the chunk is
         // either brand-new or was empty — returning 0.0 is safe.
         if (!world.hasChunk(key.getCx(), key.getCz())) {
-            return new CScore(0.0);
+            return Optional.empty();
         }
         long startUs = CivilMod.DEBUG ? System.nanoTime() / 1000 : 0;
         CScore cScore = computeCScoreForChunk(world, key);
@@ -212,7 +239,7 @@ public final class ScalableCivilizationService implements CivilizationService {
                     String.format("%.4f", cScore.score()), elapsedUs);
         }
 
-        return cScore;
+        return Optional.of(cScore);
     }
 
     /**
@@ -281,7 +308,8 @@ public final class ScalableCivilizationService implements CivilizationService {
      */
     public void onCivilBlockChanged(ServerLevel world, BlockPos pos) {
         long startNs = CivilMod.DEBUG ? System.nanoTime() : 0;
-        VoxelChunkKey shardKey = VoxelChunkKey.from(pos);
+        BlockPos safePos = Objects.requireNonNull(pos, "pos");
+        VoxelChunkKey shardKey = VoxelChunkKey.from(safePos);
         String dim = world.dimension().identifier().toString();
 
         // 1. Get old L1 score (hot + bulk load on miss via getChunkCScore, else 0.0)
@@ -306,7 +334,7 @@ public final class ScalableCivilizationService implements CivilizationService {
             long elapsedUs = (System.nanoTime() - startNs) / 1000;
             String dimLog = world.dimension().identifier().toString();
             LOGGER.info("[civil-block-change] dim={} x={} y={} z={} cx={} cz={} sy={} old={} new={} delta={} elapsed_us={}",
-                    dimLog, pos.getX(), pos.getY(), pos.getZ(),
+                    dimLog, safePos.getX(), safePos.getY(), safePos.getZ(),
                     shardKey.getCx(), shardKey.getCz(), shardKey.getSy(),
                     String.format("%.4f", oldScore), String.format("%.4f", newScore),
                     String.format("%.4f", delta), elapsedUs);

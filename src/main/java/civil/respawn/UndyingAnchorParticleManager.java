@@ -71,6 +71,11 @@ public final class UndyingAnchorParticleManager {
             List<AnchorEntry> activated = tracker.collectActivatedAnchors(dim);
             List<UndyingAnchorParticlePayload.Entry> entries = new ArrayList<>();
             for (AnchorEntry a : activated) {
+                int cx = a.x() >> 4;
+                int cz = a.z() >> 4;
+                if (!level.hasChunk(cx, cz)) {
+                    continue;
+                }
                 double score = civService.getCScoreAt(level, new BlockPos(a.x(), a.y(), a.z())).score();
                 if (score + UndyingAnchorTracker.CIV_EPSILON < civRequired) continue;
 

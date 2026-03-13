@@ -30,8 +30,10 @@ import civil.civilization.storage.CivilStorage;
 public final class ResultCache {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("civil-result-cache");
+    private static final long PARTIAL_BACKOFF_MS = 500;
 
     private final ConcurrentHashMap<String, TimestampedEntry<ResultEntry>> cache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, TimestampedEntry<ResultEntry>> partialBackoffCache = new ConcurrentHashMap<>();
     private final long ttlMillis;
 
     /**
@@ -53,6 +55,8 @@ public final class ResultCache {
     public ResultCache(long ttlMillis) {
         this.ttlMillis = ttlMillis;
     }
+
+    public record ComputeResult(ResultEntry entry, boolean cacheable) {}
 
     // ========== Cache key ==========
 
@@ -82,7 +86,7 @@ public final class ResultCache {
      * @return the result entry (never null)
      */
     public ResultEntry getOrCompute(ServerLevel world, VoxelChunkKey centerVC,
-                                    BiFunction<ServerLevel, VoxelChunkKey, ResultEntry> computer) {
+                                    BiFunction<ServerLevel, VoxelChunkKey, ComputeResult> computer) {
         String k = key(world, centerVC);
         TimestampedEntry<ResultEntry> cached = cache.get(k);
 
@@ -92,23 +96,35 @@ public final class ResultCache {
                 cached.touch();
                 return entry; // O(1) hit
             }
-            // Config mismatch → recompute (preserve presenceTime)
-            ResultEntry fresh = computer.apply(world, centerVC);
-            fresh.presenceTime = entry.presenceTime;
-            fresh.lastRecoveryTime = entry.lastRecoveryTime;
-            cache.put(k, new TimestampedEntry<>(fresh));
-            return fresh;
         }
 
-        // Miss → compute
-        ResultEntry entry = computer.apply(world, centerVC);
-        cache.put(k, new TimestampedEntry<>(entry));
+        TimestampedEntry<ResultEntry> partial = partialBackoffCache.get(k);
+        if (partial != null && !partial.isExpired(PARTIAL_BACKOFF_MS)) {
+            partial.touch();
+            return partial.getValue();
+        }
 
-        // Stage initial presenceTime for H2 persistence.
-        // Without this, entries outside the patrol radius would never have their
-        // presenceTime saved to H2.  On TTL eviction (60 min) + cache miss,
-        // computeResultEntry would find no H2 data and reset presenceTime to now(),
-        // perpetually restarting the grace period → decay never takes effect.
+        // Miss or config mismatch → compute
+        ComputeResult computed = computer.apply(world, centerVC);
+        ResultEntry entry = computed.entry();
+        if (!computed.cacheable()) {
+            partialBackoffCache.put(k, new TimestampedEntry<>(entry));
+            return entry;
+        }
+
+        // Config mismatch → preserve presence from previous cached entry.
+        if (cached != null && !cached.isExpired(ttlMillis)) {
+            ResultEntry prev = cached.getValue();
+            if (!prev.isConfigValid()) {
+                entry.presenceTime = prev.presenceTime;
+                entry.lastRecoveryTime = prev.lastRecoveryTime;
+            }
+        }
+
+        cache.put(k, new TimestampedEntry<>(entry));
+        partialBackoffCache.remove(k);
+
+        // Stage initial presenceTime for persistence.
         pendingPresenceWrites.putIfAbsent(k, new CivilStorage.PresenceSaveRequest(
                 world.dimension().identifier().toString(), centerVC,
                 entry.presenceTime, entry.lastRecoveryTime));
@@ -274,6 +290,13 @@ public final class ResultCache {
                 it.remove();
             }
         }
+        var partialIt = partialBackoffCache.entrySet().iterator();
+        while (partialIt.hasNext()) {
+            var entry = partialIt.next();
+            if (now - entry.getValue().getCreateTime() > PARTIAL_BACKOFF_MS) {
+                partialIt.remove();
+            }
+        }
     }
 
     // ========== Statistics ==========
@@ -287,6 +310,7 @@ public final class ResultCache {
      */
     public void clearAll() {
         cache.clear();
+        partialBackoffCache.clear();
         pendingPresenceWrites.clear();
     }
 }

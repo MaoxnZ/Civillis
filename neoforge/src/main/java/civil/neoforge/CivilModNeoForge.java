@@ -19,6 +19,7 @@ import civil.perf.TpsLogger;
 import civil.registry.BlockWeightLoader;
 import civil.registry.HeadTypeLoader;
 import civil.config.CivilConfig;
+import civil.command.CivilAdminCommands;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.core.BlockPos;
@@ -46,6 +47,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -116,6 +118,7 @@ public class CivilModNeoForge {
         modBus.addListener(this::onBuildCreativeTab);
 
         NeoForge.EVENT_BUS.addListener(this::onServerAboutToStart);
+        NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
         NeoForge.EVENT_BUS.addListener(this::onDatapackSync);
         NeoForge.EVENT_BUS.addListener(this::onLevelLoad);
         NeoForge.EVENT_BUS.addListener(this::onLevelUnload);
@@ -175,6 +178,10 @@ public class CivilModNeoForge {
         ResourceManager manager = server.getResourceManager();
         BlockWeightLoader.reload(manager);
         HeadTypeLoader.reload(manager);
+    }
+
+    private void onRegisterCommands(RegisterCommandsEvent event) {
+        CivilAdminCommands.register(event.getDispatcher());
     }
 
     private void onLevelLoad(LevelEvent.Load event) {

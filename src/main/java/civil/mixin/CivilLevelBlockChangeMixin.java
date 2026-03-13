@@ -16,6 +16,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import java.util.Objects;
 
 @Mixin(Level.class)
 public abstract class CivilLevelBlockChangeMixin {
@@ -27,9 +28,11 @@ public abstract class CivilLevelBlockChangeMixin {
             method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",
             at = @At("HEAD")
     )
+    @SuppressWarnings("null")
     private void civil$captureOldState(BlockPos pos, BlockState state, int flags, int maxUpdateDepth, CallbackInfoReturnable<Boolean> cir) {
+        BlockPos safePos = Objects.requireNonNull(pos, "pos");
         if ((Object) this instanceof ServerLevel) {
-            civil$oldBlockState.set(((Level) (Object) this).getBlockState(pos));
+            civil$oldBlockState.set(((Level) (Object) this).getBlockState(safePos));
         }
     }
 
@@ -58,12 +61,14 @@ public abstract class CivilLevelBlockChangeMixin {
 
         boolean isNowHead = BlockScanner.isSkullBlock(state);
 
-        // Fusion Architecture: immediate L1 recompute + delta propagation.
-        // onCivilBlockChanged compares old vs new L1 scores; if delta is non-zero,
-        // it propagates to all affected ResultEntries. For non-special→non-special
-        // block changes, the delta will be 0 and propagation is skipped (cheap).
+        // Fusion Architecture: only trigger L1 recompute when a civilization block
+        // is involved in the transition (old or new). Non-civilization-only changes
+        // are ignored to avoid unnecessary 4096-block scans.
         ScalableCivilizationService scalableService = CivilServices.getScalableService();
-        if (scalableService != null) {
+        BlockState oldStateForCivil = civil$oldBlockState.get();
+        boolean oldIsCivil = oldStateForCivil != null && BlockScanner.isTargetBlock(oldStateForCivil);
+        boolean newIsCivil = BlockScanner.isTargetBlock(state);
+        if (scalableService != null && (oldIsCivil || newIsCivil)) {
             scalableService.onCivilBlockChanged(serverWorld, pos);
         }
 
