@@ -4,6 +4,8 @@
 
 Civillis is a Fabric mod that suppresses hostile mob spawning near player-built structures by computing a real-time civilization score based on block composition. No special items, no commands — just play, and the land responds.
 
+Roadmap: [View the public Civillis roadmap](https://maoxnz.github.io/Civillis/roadmap/).
+
 ---
 
 ## Quick Start
