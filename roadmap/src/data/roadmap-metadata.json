@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 2,
+  "title": "Civillis Roadmap",
+  "subtitle": "Build more, spawn less. Hostile mobs naturally avoid civilized areas.",
+  "lastUpdated": "2026-03-14",
+  "timeline": {
+    "range": {
+      "start": "2025-01-01",
+      "end": "2027-12-31"
+    }
+  },
+  "authoringGuide": {
+    "statusMachine": {
+      "featureStatus": {
+        "allowed": ["Planned", "Developing", "Committed", "Released"],
+        "notes": [
+          "Feature source-of-truth input should be Planned/Developing/Committed.",
+          "Released is usually produced by release linkage when a containing release is Released."
+        ]
+      },
+      "releaseStatus": {
+        "allowed": ["Tentative", "In Progress", "Under Review", "Released"],
+        "notes": [
+          "Tentative: scope exists but not actively landing.",
+          "In Progress: active implementation window.",
+          "Under Review: implementation done, verification/port/test in progress.",
+          "Released: public release complete."
+        ]
+      }
+    }
+  }
+}

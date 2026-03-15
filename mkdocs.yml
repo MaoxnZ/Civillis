@@ -29,6 +29,7 @@ theme:
 
 nav:
   - Home: index.md
+  - Roadmap: https://maoxnz.github.io/Civillis/roadmap/
   - How It Works: how-it-works.md
   - Blocks & Scoring: blocks-and-scoring.md
   - Civilization Decay: civilization-decay.md

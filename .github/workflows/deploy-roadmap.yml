@@ -1,0 +1,42 @@
+name: Deploy Roadmap
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'roadmap/**'
+      - '.github/workflows/deploy-roadmap.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build roadmap app
+        working-directory: roadmap
+        run: |
+          npm ci
+          npm run build
+
+      - name: Sync roadmap into docs
+        run: |
+          rm -rf docs/roadmap
+          mkdir -p docs/roadmap
+          cp -a roadmap/dist/. docs/roadmap/
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install mkdocs-material
+
+      - run: mkdocs gh-deploy --force

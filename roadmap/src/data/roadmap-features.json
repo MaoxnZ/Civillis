@@ -1,0 +1,794 @@
+[
+  {
+    "id": "f-civil-spawn-control",
+    "name": "Civilization-based spawn control",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Hostile natural spawns are suppressed around player-built areas using live civilization score checks.",
+    "items": [
+      "Natural hostile spawns are gated by civilization score in real time.",
+      "Higher civilization score means stronger local suppression."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-monster-head-mechanic",
+    "name": "Monster head totem mechanics",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Monster heads can locally bypass civilization suppression near head zones.",
+    "items": [
+      "Head zones reopen spawn access near placed heads.",
+      "This mechanic enables controlled danger inside protected areas."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-civil-detector",
+    "name": "Civilization Detector item",
+    "status": "Committed",
+    "progress": 100,
+    "details": "The Civilization Detector provides handheld local civilization readouts with visual and audio feedback.",
+    "items": [
+      "Color output shows local protection state at a glance.",
+      "Sound feedback confirms detector state during use."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-decay-recovery",
+    "name": "Civilization decay and recovery model",
+    "status": "Committed",
+    "progress": 100,
+    "details": "If an area is left unvisited for about 24 hours, civilization protection decays and restores as soon as players return.",
+    "items": [
+      "Around 24 hours without visits triggers the decayed state.",
+      "Returning activity restores protection immediately."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-scalable-architecture",
+    "name": "Scalable async architecture baseline",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Core runtime moved to asynchronous services for scoring, caching, and persistence.",
+    "items": [
+      "Scan and cache paths are split into dedicated services.",
+      "Background persistence reduces main-thread pressure."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-zero-config-defaults",
+    "name": "Zero-config default onboarding",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Default data and weights are bundled so the mod works without manual setup.",
+    "items": [
+      "Built-in defaults load automatically at startup.",
+      "Datapack overrides remain optional."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-settings-gui",
+    "name": "In-game settings GUI",
+    "status": "Committed",
+    "progress": 100,
+    "details": "An in-game config screen exposes core tuning options through the standard mod settings flow.",
+    "items": [
+      "Key sliders and toggles are available without file editing.",
+      "Settings are grouped for quick in-game adjustments."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-patrol-presence-detection",
+    "name": "Smarter patrol presence detection",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Settlement presence detection now includes debounce so brief fly-bys do not count as patrol activity.",
+    "items": [
+      "Presence checks ignore short high-speed pass-through events.",
+      "Patrol-related refresh logic triggers only on meaningful presence."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-offline-decay-fix",
+    "name": "Offline decay fix",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Decay state handling is corrected for offline and unloaded intervals.",
+    "items": [
+      "Decay timing remains consistent through offline periods.",
+      "Invalid decay jumps caused by load timing are removed."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-head-score-separation-fix",
+    "name": "Head influence separation fix",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Head influence scoring paths are separated to prevent mixed contributions.",
+    "items": [
+      "Head-zone and baseline scoring no longer bleed into each other.",
+      "Score composition remains deterministic per source."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-detector-threshold-color-fix",
+    "name": "Detector threshold color correctness",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Detector color thresholds are corrected so visual state matches actual score bands.",
+    "items": [
+      "Each color maps to its intended threshold range.",
+      "Borderline transitions no longer show wrong colors."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-teleport-stability",
+    "name": "Unloaded-region score correctness",
+    "status": "Committed",
+    "progress": 100,
+    "details": "First-teleport score inflation is fixed by treating unloaded regions as zero instead of a maximum estimate.",
+    "items": [
+      "Teleporting into unvisited space no longer briefly reports inflated civilization.",
+      "Unloaded-region reads now default to zero for stable correctness."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-mc121-compat",
+    "name": "Full 1.21 series compatibility",
+    "status": "Committed",
+    "progress": 100,
+    "details": "The codebase is updated for 1.21 API and mapping changes.",
+    "items": [
+      "Registries and hooks are aligned with the target API.",
+      "Platform glue is adjusted for mapping differences."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-head-attraction",
+    "name": "Dimension-wide head attraction",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Head zones can attract hostile spawn pressure across the configured search scope.",
+    "items": [
+      "Attraction can be evaluated beyond immediate local override.",
+      "Head influence supports broader zone targeting."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-fusion-architecture",
+    "name": "Fusion architecture performance revamp",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Fusion Architecture performs a 0-1 engine rewrite with the same gameplay behavior at much higher runtime efficiency.",
+    "items": [
+      "Core processing flow is rewritten for large performance gains.",
+      "Feature behavior remains consistent with pre-rewrite semantics."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-patrol-influence-range-slider",
+    "name": "Patrol influence range slider",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Patrol influence radius is configurable directly from settings.",
+    "items": [
+      "Range can be tuned without datapack edits.",
+      "Runtime checks use the configured radius consistently."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-natural-spawn-filter",
+    "name": "Natural-spawn-only civilization gating",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Civilization checks now apply only to natural hostile spawns.",
+    "items": [
+      "Spawn eggs, spawners, commands, raids, and zombie reinforcements bypass civilization gating.",
+      "Natural spawn sources remain the only path filtered by civilization score."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-sonar-detector",
+    "name": "Detector sonar and shockwave visuals",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Detector Sonar adds a charge-up scan with rising tone and an expanding shockwave pulse.",
+    "items": [
+      "Particle colors encode local state: white for protected ground, soul-blue for exposed territory, orange for active totem zones.",
+      "The pulse sweeps terrain outward as a handheld detector scan."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-aura-walls",
+    "name": "Aura wall boundary renderer",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Aura Walls render boundary faces during detector sonar sweeps.",
+    "items": [
+      "Gold walls mark civilization edges and amethyst walls mark totem-zone edges.",
+      "Walls breathe and fade over time, and existing walls hold steady when a new scan is fired."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-sonar-charge-particle-fix",
+    "name": "Sonar charge particle correctness",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Sonar charge-up particles now match active totem-zone semantics.",
+    "items": [
+      "Charge-up columns no longer show civilization particles inside active totem zones.",
+      "Active totem-zone charge-up now displays orange fire consistently."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-block-scoring-rebalance",
+    "name": "Block scoring framework rebalance",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Block scoring is rebalanced around crafting complexity and symbolic weight.",
+    "items": [
+      "Early-workbench blocks stay low, iron-age workstations are stronger, and Nether/End anchors carry higher weight.",
+      "Beacon and conduit remain top-weight structural anchors, with glow/magical bonuses applied on top."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-mod-compat-scored-blocks",
+    "name": "Expanded scored blocks and mod compat",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Scored block coverage expands to new vanilla blocks and built-in mod compatibility sets.",
+    "items": [
+      "New scored vanilla blocks include bells, respawn anchors, lodestones, end rods, and decorated pots.",
+      "Built-in support includes Farmers Delight, Supplementaries, and Create block sets."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-head-datapack-system",
+    "name": "Datapack-driven block/head registries",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Block scoring and head registries are loaded from JSON and fully overridable through datapacks.",
+    "items": [
+      "Pack authors can add or override weights and head mappings without code edits.",
+      "Registry loading supports replace-style overrides for full dataset replacement when needed."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-head-dimension-rules",
+    "name": "Dimension-aware skull behavior",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Head behavior supports per-dimension rule handling.",
+    "items": [
+      "Dimension context is part of head influence evaluation.",
+      "Rules can differ across dimensions in the same world."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-wither-conversion-restore",
+    "name": "Wither conversion restoration",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Wither-related conversion behavior is restored for supported head interactions.",
+    "items": [
+      "Conversion paths now run where they were previously skipped.",
+      "Related head logic resolves with the expected conversion state."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-conversion-gate-bypass-fix",
+    "name": "Conversion ping-pong fix",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Conversion gating is corrected to prevent repeated bypass loops.",
+    "items": [
+      "Gate state transitions no longer bounce between conflicting paths.",
+      "Conversion flow exits cleanly after valid completion."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-wiki-docs",
+    "name": "Public documentation wiki",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Public wiki documentation is published for system behavior and configuration.",
+    "items": [
+      "Core mechanics are documented for players and pack authors.",
+      "Configuration references are organized for maintenance use."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-mob-flee-ai",
+    "name": "Mob flee AI and panic behavior",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Hostile mobs can flee from high-civilization zones with dedicated panic behavior.",
+    "items": [
+      "Flee path selection reacts to civilization pressure.",
+      "Panic mode uses distinct movement goals from normal wandering."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-mob-flee-border-pathing-fix",
+    "name": "Mob flee border pathing fix",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Border pathing for flee behavior is corrected to avoid oscillation at zone edges.",
+    "items": [
+      "Edge transitions choose stable escape directions.",
+      "Mobs stop stalling at boundary lines while fleeing."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-head-zone-entry-fix",
+    "name": "Head-zone entry correctness fix",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Entry detection for head zones is corrected for consistent state changes.",
+    "items": [
+      "Crossing into zone bounds now triggers reliably.",
+      "Zone entry checks no longer miss near-boundary movement."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-mob-flee-ui-cleanup",
+    "name": "Mob Flee UI cleanup",
+    "status": "Committed",
+    "progress": 100,
+    "details": "The empty expandable Mob Flee AI section is removed from the in-game settings UI.",
+    "items": [
+      "Mob Flee AI is exposed as a single toggle in this stage.",
+      "The previous empty expandable panel is no longer shown."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-combat-panic-vfx",
+    "name": "Combat panic visual effects",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Combat panic states gain dedicated visual feedback effects.",
+    "items": [
+      "Panic transitions render recognizable cues during engagement.",
+      "Effects are tied to panic-triggered behavior windows."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-architectury-porting",
+    "name": "Architectury refactor and port matrix",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Civillis now ships a standardized port matrix across Fabric, Forge, and NeoForge for the full 1.20.1-1.21.11 line.",
+    "items": [
+      "Supported ranges are explicitly aligned to 1.20.1 through 1.21.11 across the three-loader release matrix.",
+      "Architectury shared-core refactor and platform glue are used to keep cross-platform behavior consistent."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-detector-crafting-fix",
+    "name": "Detector crafting compatibility fix",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Civil Detector crafting is restored across affected 1.20.1-1.21.1 ports.",
+    "items": [
+      "Cross-version recipe compatibility no longer leaves civil_detector uncraftable on part of the port matrix.",
+      "Detector recipe resolution now behaves consistently on supported ports."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-head-index-optimization",
+    "name": "Head index acceleration and range cap",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Head lookups are accelerated with indexing and bounded scan ranges.",
+    "items": [
+      "Spatial queries avoid full repeated scans.",
+      "Range caps limit expensive far-field checks."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-mapping-remap-stability-fix",
+    "name": "Mapping/remap stability fixes",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Remap and mapping-edge failures are corrected for cross-loader build stability.",
+    "items": [
+      "Problematic name-resolution cases are patched in the build path.",
+      "Packaging pipeline runs with fewer remap breakpoints."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-bell-lodestone-sonar",
+    "name": "Bell-on-lodestone stationary sonar",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Placing a bell on a lodestone creates a stationary sonar that can be triggered by ringing the bell.",
+    "items": [
+      "Right-clicking the bell runs a surrounding civilization sweep without requiring a Civil Detector.",
+      "This provides a vanilla-style fixed detection station before building."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-sonar-config-reorg",
+    "name": "Sonar config reorganization",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Sonar visualization settings are reorganized into clearer detector and bell controls.",
+    "items": [
+      "Detector sonar can be disabled independently in settings.",
+      "Bell sonar always runs when rung and uses a larger default range for stationary detection stations."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-bell-sonar-tuning",
+    "name": "Bell sonar tuning profile",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Bell sonar is tuned as a heavier profile than detector sonar.",
+    "items": [
+      "Bell sonar uses a longer cooldown than the portable detector sonar.",
+      "Bell sonar keeps aura wall effects visible for longer than detector sonar."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-h2-compat-fix",
+    "name": "H2 conflict isolation for modpacks",
+    "status": "Committed",
+    "progress": 100,
+    "details": "H2 packaging conflicts with other mods are isolated through safer relocation and loading paths.",
+    "items": [
+      "Database classes are relocated to avoid shared-class collisions.",
+      "Runtime initialization handles conflicting environments more safely."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-head-system-toggle",
+    "name": "Mob head system toggle",
+    "status": "Committed",
+    "progress": 100,
+    "details": "A global toggle can disable mob-head gameplay effects while keeping head data intact.",
+    "items": [
+      "Spawn attraction, detector zone display, and flee-AI head awareness can be switched off together.",
+      "Decorative head placement remains available without gameplay-side head effects."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-decay-toggle",
+    "name": "Civilization decay toggle",
+    "status": "Committed",
+    "progress": 100,
+    "details": "A decay toggle can disable time-based civilization decay entirely.",
+    "items": [
+      "When disabled, settlements do not lose freshness over time.",
+      "Decay/recovery processing respects the toggle state at runtime."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-config-label-clarity",
+    "name": "Config label clarity update",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Core config labels are renamed for clearer semantics.",
+    "items": [
+      "\"Spawn Suppression Strength\" is renamed to \"Civilization Strength\".",
+      "\"Detection Range\" is renamed to \"Max. Civilization Radius\" with block units shown."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-storage-nbt-refactor",
+    "name": "Persistence engine migration (H2 -> NBT)",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Persistence storage is moved from H2 to a custom NBT-based layer with a dedicated I/O queue.",
+    "items": [
+      "Civilization scores, mob heads, and undying anchors now persist through the NBT storage path.",
+      "Functional behavior remains unchanged while the packaged mod size becomes much smaller."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-podium-undying",
+    "name": "Podium of Undying system",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Podium of Undying adds an altar-based survival system in high-civilization areas.",
+    "items": [
+      "The altar layout uses gold blocks, waxed oxidized cut copper stairs, and an emerald core as the build hint set.",
+      "After activation, fatal damage teleports the player to the podium and applies totem-style recovery effects.",
+      "Each altar activation is single-use until reactivated."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-undying-config-screen-update",
+    "name": "Undying config screen update",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Undying-related settings are integrated into the in-game configuration screen.",
+    "items": [
+      "The Podium of Undying section includes controls such as enable/disable, civilization requirement threshold, and cooldown-related options.",
+      "A Miscellaneous category is added for options that do not fit cleanly into other sections."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-world-switch-cache-isolation",
+    "name": "World-switch cache isolation",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Caches are isolated across world switches to prevent stale state leakage.",
+    "items": [
+      "World-specific caches reset on dimension or world context change.",
+      "Previous world artifacts no longer affect new world reads."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-payload-world-switch-safety",
+    "name": "World-switch payload safety",
+    "status": "Committed",
+    "progress": 100,
+    "details": "World-switch handling is hardened for in-progress sonar, particle, and related payload flows.",
+    "items": [
+      "Changing worlds during payload execution no longer leaves unsafe completion paths.",
+      "Payload processing now exits safely across world transitions."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-podium-drain-stability-fix",
+    "name": "Podium drain stability fix",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Podium civilization-drain instability is fixed in far-distance and unloaded-chunk scenarios.",
+    "items": [
+      "Moving far away from an activated podium no longer creates unexpected civilization hollows over time.",
+      "Low-read instability paths tied to unloaded chunks and high-mobility movement are corrected."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-podium-shared-gold-fix",
+    "name": "Podium shared-gold deactivation fix",
+    "status": "Committed",
+    "progress": 100,
+    "details": "A shared-gold podium deactivation bug is fixed.",
+    "items": [
+      "When two Podiums of Undying share connected gold blocks, breaking the shared block now deactivates both podiums correctly."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-block-tag-weight-fix",
+    "name": "Tag-based block weight loading fix",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Tag-driven block weight loading is fixed for reliable registry resolution.",
+    "items": [
+      "Tag entries resolve into expected weighted block sets.",
+      "Missing or misread tag weights no longer silently fail."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-rebuild-command",
+    "name": "/civil rebuild recovery workflow",
+    "status": "Committed",
+    "progress": 100,
+    "details": "The /civil rebuild command provides a one-shot recovery pass to clear stale or historically polluted civilization data.",
+    "items": [
+      "Running the command rebuilds clean civilization state for the world.",
+      "After updating to 1.2.1-release, running it once is recommended for existing worlds."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ],
+    "links": [
+      {
+        "label": "Civillis Discord",
+        "url": "https://discord.gg/dA7QCPx7zd"
+      }
+    ]
+  },
+  {
+    "id": "f-prefetch-result-centric-queue",
+    "name": "Prefetch-driven decay accuracy refactor",
+    "status": "Developing",
+    "progress": 20,
+    "details": "Prefetch is being rebuilt so civilization decay and recovery timing stays accurate from the start while runtime cost stays controlled.",
+    "items": [
+      "Result-centered prefetch keeps important areas warm so decay calculations are less delayed or skewed.",
+      "Round-robin and per-tick budget control keep this accuracy upgrade from creating heavy frame-time spikes.",
+      "Storage cleanup paths are merged into this refactor to prevent unnecessary NBT growth during long-world runs."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-presence-raw-epsilon-gating",
+    "name": "Meaningful-civilization decay gating",
+    "status": "Developing",
+    "progress": 20,
+    "details": "Raw-epsilon gating limits decay/presence work to places that actually have meaningful civilization activity.",
+    "items": [
+      "Areas without meaningful civilization no longer run pointless decay and presence updates.",
+      "Decay behavior remains focused on settlements that players actually care about."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-roadmap-site",
+    "name": "Public roadmap website",
+    "status": "Developing",
+    "progress": 70,
+    "details": "A public roadmap website is being delivered for release-view and timeline-tracker visibility.",
+    "items": [
+      "Release view presents structured version entries and linked features.",
+      "Tracker view presents scheduled features on a horizontal timeline."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-civil-map-vanilla-overlay",
+    "name": "Civilization map overlay system",
+    "status": "Planned",
+    "progress": 0,
+    "details": "A Civilization Map item is planned to show civilization coverage on top of vanilla terrain context.",
+    "items": [
+      "Surface-aware sampling is intended to keep map output aligned with real ground-level gameplay.",
+      "Civilization tint is intended to highlight safe and weak zones without hiding familiar landmarks.",
+      "Refresh cadence is planned to be throttled and batched to keep the item practical on live worlds."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  }
+]

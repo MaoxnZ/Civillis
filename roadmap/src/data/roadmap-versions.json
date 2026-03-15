@@ -1,0 +1,345 @@
+[
+  {
+    "stream": "1.0-alpha",
+    "phase": "alpha",
+    "summaryTitle": "Core Foundations",
+    "releases": [
+      {
+        "id": "r100-alpha",
+        "version": "1.0.0",
+        "phase": "alpha",
+        "status": "Released",
+        "theme": "Initial Civilization Core",
+        "summary": "First public Civillis drop with dynamic civilization suppression, detector, and baseline decay.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-civil-spawn-control",
+          "f-monster-head-mechanic",
+          "f-civil-detector",
+          "f-decay-recovery",
+          "f-scalable-architecture",
+          "f-zero-config-defaults"
+        ]
+      }
+    ]
+  },
+  {
+    "stream": "1.1-alpha",
+    "phase": "alpha",
+    "summaryTitle": "Config & Compatibility",
+    "releases": [
+      {
+        "id": "r110-alpha",
+        "version": "1.1.0",
+        "phase": "alpha",
+        "status": "Released",
+        "theme": "Config and Decay Maturity",
+        "summary": "Introduced in-game settings UI and refined decay/recovery semantics.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-settings-gui",
+          "f-patrol-presence-detection",
+          "f-offline-decay-fix",
+          "f-head-score-separation-fix",
+          "f-detector-threshold-color-fix"
+        ]
+      },
+      {
+        "id": "r111-alpha",
+        "version": "1.1.1",
+        "phase": "alpha",
+        "status": "Released",
+        "theme": "Full 1.21 Compatibility",
+        "summary": "Expanded 1.21 compatibility and fixed initial-teleport score inflation.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-mc121-compat",
+          "f-teleport-stability"
+        ]
+      }
+    ]
+  },
+  {
+    "stream": "1.2-alpha",
+    "phase": "alpha",
+    "summaryTitle": "Totem Attraction Era",
+    "releases": [
+      {
+        "id": "r120-alpha",
+        "version": "1.2.0",
+        "phase": "alpha",
+        "status": "Released",
+        "theme": "Powerful Skull Attraction",
+        "summary": "Monster heads became true attraction totems with configurable pull strength.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-head-attraction"
+        ]
+      }
+    ]
+  },
+  {
+    "stream": "1.0-beta",
+    "phase": "beta",
+    "summaryTitle": "Fusion Scoring Architecture",
+    "releases": [
+      {
+        "id": "r100-beta",
+        "version": "1.0.0",
+        "phase": "beta",
+        "status": "Released",
+        "theme": "Fusion Performance Revamp",
+        "summary": "0-1 engine rewrite and beta readiness with patrol-range tuning controls.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-fusion-architecture",
+          "f-patrol-influence-range-slider"
+        ]
+      },
+      {
+        "id": "r101-beta",
+        "version": "1.0.1",
+        "phase": "beta",
+        "status": "Released",
+        "theme": "Spawn Blocking Correctness",
+        "summary": "Civilization checks now apply only to natural hostile spawns.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-natural-spawn-filter"
+        ]
+      }
+    ]
+  },
+  {
+    "stream": "1.1-beta",
+    "phase": "beta",
+    "summaryTitle": "Sonar Visualization Expansion",
+    "releases": [
+      {
+        "id": "r110-beta",
+        "version": "1.1.0",
+        "phase": "beta",
+        "status": "Released",
+        "theme": "Sonar and Boundary Visualization",
+        "summary": "Detector sonar + aura wall system established for readable territory scans.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-sonar-detector",
+          "f-aura-walls"
+        ]
+      },
+      {
+        "id": "r111-beta",
+        "version": "1.1.1",
+        "phase": "beta",
+        "status": "Released",
+        "theme": "Sonar Visual Correctness",
+        "summary": "Fixed charge-up particle mismatch in active totem zones.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-sonar-charge-particle-fix"
+        ]
+      }
+    ]
+  },
+  {
+    "stream": "1.2-beta",
+    "phase": "beta",
+    "summaryTitle": "Data-Driven Mechanics",
+    "releases": [
+      {
+        "id": "r120-beta",
+        "version": "1.2.0",
+        "phase": "beta",
+        "status": "Released",
+        "theme": "Data-Driven Head and Block Systems",
+        "summary": "Head mechanics reworked, block scoring rebalanced, and datapack registries shipped.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-monster-head-mechanic",
+          "f-block-scoring-rebalance",
+          "f-mod-compat-scored-blocks",
+          "f-head-datapack-system"
+        ]
+      },
+      {
+        "id": "r121-beta",
+        "version": "1.2.1",
+        "phase": "beta",
+        "status": "Released",
+        "theme": "Dimension Rules and Documentation",
+        "summary": "Dimension-aware skull behaviors and conversion stability improvements.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-head-dimension-rules",
+          "f-wither-conversion-restore",
+          "f-conversion-gate-bypass-fix",
+          "f-wiki-docs"
+        ]
+      }
+    ]
+  },
+  {
+    "stream": "1.3-beta",
+    "phase": "beta",
+    "summaryTitle": "Mob Flee AI",
+    "releases": [
+      {
+        "id": "r130-beta",
+        "version": "1.3.0",
+        "phase": "beta",
+        "status": "Released",
+        "theme": "Behavioral AI Expansion",
+        "summary": "Mob Flee AI pipeline introduced with head-zone awareness and panic behavior.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-mob-flee-ai"
+        ]
+      }
+    ]
+  },
+  {
+    "stream": "1.0-release",
+    "phase": "release",
+    "summaryTitle": "Cross-Platform Release",
+    "releases": [
+      {
+        "id": "r100-release",
+        "version": "1.0.0",
+        "phase": "release",
+        "status": "Released",
+        "theme": "Three-Loader Support Baseline",
+        "summary": "Out-of-beta release with standardized Fabric/Forge/NeoForge support across the 1.20.1-1.21.11 line.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-mob-flee-border-pathing-fix",
+          "f-head-zone-entry-fix",
+          "f-mob-flee-ui-cleanup",
+          "f-combat-panic-vfx",
+          "f-architectury-porting"
+        ]
+      },
+      {
+        "id": "r101-release",
+        "version": "1.0.1",
+        "phase": "release",
+        "status": "Released",
+        "theme": "Compatibility and Performance Hardening",
+        "summary": "Detector crafting recovery, head-range performance fixes, and mapping/remap stability cleanup.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-detector-crafting-fix",
+          "f-head-index-optimization",
+          "f-mapping-remap-stability-fix"
+        ]
+      }
+    ]
+  },
+  {
+    "stream": "1.1-release",
+    "phase": "release",
+    "summaryTitle": "Bell Sonar",
+    "releases": [
+      {
+        "id": "r110-release",
+        "version": "1.1.0",
+        "phase": "release",
+        "status": "Released",
+        "theme": "Vanilla Sonar Counterpart",
+        "summary": "Bell-on-lodestone sonar added with dedicated tuning and visualization controls.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-bell-lodestone-sonar",
+          "f-sonar-config-reorg",
+          "f-bell-sonar-tuning"
+        ]
+      },
+      {
+        "id": "r111-release",
+        "version": "1.1.1",
+        "phase": "release",
+        "status": "Released",
+        "theme": "Modpack Stability and Optionality",
+        "summary": "Resolved H2 conflicts, added head/decay toggles, and clarified key config labels.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-h2-compat-fix",
+          "f-head-system-toggle",
+          "f-decay-toggle",
+          "f-config-label-clarity"
+        ]
+      }
+    ]
+  },
+  {
+    "stream": "1.2-release",
+    "phase": "release",
+    "summaryTitle": "Podium of Undying",
+    "releases": [
+      {
+        "id": "r120-release",
+        "version": "1.2.0",
+        "phase": "release",
+        "status": "Released",
+        "theme": "Undying + Persistence Overhaul",
+        "summary": "Podium of Undying and NBT-based persistence engine landed in release line.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-storage-nbt-refactor",
+          "f-podium-undying",
+          "f-undying-config-screen-update",
+          "f-world-switch-cache-isolation",
+          "f-payload-world-switch-safety"
+        ]
+      },
+      {
+        "id": "r121-release",
+        "version": "1.2.1",
+        "phase": "release",
+        "status": "Released",
+        "theme": "Data Integrity Recovery",
+        "summary": "Fixed podium drain and shared-gold deactivation issues, corrected tag-based block weight loading, and added /civil rebuild recovery.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-podium-drain-stability-fix",
+          "f-podium-shared-gold-fix",
+          "f-block-tag-weight-fix",
+          "f-rebuild-command"
+        ]
+      },
+      {
+        "id": "r122-release",
+        "version": "1.2.2",
+        "phase": "release",
+        "status": "In Progress",
+        "theme": "Roadmap & Better Decay",
+        "summary": "The public roadmap is being rolled out. Decay logic is being optimized for better startup accuracy and fewer meaningless updates in non-civilized areas.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-prefetch-result-centric-queue",
+          "f-presence-raw-epsilon-gating",
+          "f-roadmap-site"
+        ]
+      }
+    ]
+  },
+  {
+    "stream": "1.3-release",
+    "phase": "release",
+    "summaryTitle": "Civilization Map",
+    "releases": [
+      {
+        "id": "r130-release",
+        "version": "1.3.0",
+        "phase": "release",
+        "status": "Tentative",
+        "theme": "Civilization Map Item",
+        "summary": "This release plans to introduce a Civilization Map item that overlays civilization coverage on vanilla terrain with surface-aware sampling and controlled refresh cost.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-civil-map-vanilla-overlay"
+        ]
+      }
+    ]
+  }
+]

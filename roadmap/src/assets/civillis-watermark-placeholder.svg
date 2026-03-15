@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="CIVILLIS placeholder">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f141e" />
+      <stop offset="100%" stop-color="#1b2434" />
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#2c3548" stroke-width="1" />
+    </pattern>
+  </defs>
+
+  <rect width="960" height="540" fill="url(#bg)" />
+  <rect width="960" height="540" fill="url(#grid)" opacity="0.45" />
+
+  <g opacity="0.16">
+    <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle"
+      font-family="Inter, Segoe UI, Arial, sans-serif" font-size="96" font-weight="700" letter-spacing="8" fill="#d9e4ff">
+      CIVILLIS
+    </text>
+  </g>
+</svg>

@@ -1,0 +1,456 @@
+{
+  "pipelines": [
+    {
+      "id": "track-core-systems",
+      "name": "Core Systems Evolution",
+      "description": "Core spawn policy, head semantics, decay model, and behavior logic.",
+      "status": "In Progress",
+      "startDate": "2026-01-24",
+      "endDate": "2026-03-07",
+      "children": [
+        {
+          "id": "core-systems-1",
+          "featureRef": "f-civil-spawn-control",
+          "archived": true,
+          "startDate": "2026-01-24",
+          "endDate": "2026-02-07"
+        },
+        {
+          "id": "core-systems-2",
+          "featureRef": "f-decay-recovery",
+          "archived": true,
+          "startDate": "2026-01-24",
+          "endDate": "2026-02-07"
+        },
+        {
+          "id": "core-systems-9",
+          "featureRef": "f-monster-head-mechanic",
+          "archived": true,
+          "startDate": "2026-01-24",
+          "endDate": "2026-02-07"
+        },
+        {
+          "id": "core-systems-14",
+          "featureRef": "f-zero-config-defaults",
+          "archived": true,
+          "startDate": "2026-01-24",
+          "endDate": "2026-02-07"
+        },
+        {
+          "id": "core-systems-7",
+          "featureRef": "f-head-score-separation-fix",
+          "archived": true,
+          "startDate": "2026-02-08",
+          "endDate": "2026-02-08"
+        },
+        {
+          "id": "core-systems-11",
+          "featureRef": "f-offline-decay-fix",
+          "archived": true,
+          "startDate": "2026-02-08",
+          "endDate": "2026-02-08"
+        },
+        {
+          "id": "core-systems-12",
+          "featureRef": "f-patrol-presence-detection",
+          "archived": true,
+          "startDate": "2026-02-08",
+          "endDate": "2026-02-08"
+        },
+        {
+          "id": "core-systems-13",
+          "featureRef": "f-settings-gui",
+          "archived": true,
+          "startDate": "2026-02-08",
+          "endDate": "2026-02-08"
+        },
+        {
+          "id": "core-systems-4",
+          "featureRef": "f-head-attraction",
+          "archived": true,
+          "startDate": "2026-02-10",
+          "endDate": "2026-02-11"
+        },
+        {
+          "id": "core-systems-3",
+          "featureRef": "f-fusion-architecture",
+          "archived": true,
+          "startDate": "2026-02-12",
+          "endDate": "2026-02-12"
+        },
+        {
+          "id": "core-systems-x9",
+          "featureRef": "f-patrol-influence-range-slider",
+          "archived": true,
+          "startDate": "2026-02-12",
+          "endDate": "2026-02-12"
+        },
+        {
+          "id": "core-systems-10",
+          "featureRef": "f-natural-spawn-filter",
+          "archived": true,
+          "startDate": "2026-02-13",
+          "endDate": "2026-02-13"
+        },
+        {
+          "id": "core-systems-5",
+          "featureRef": "f-head-dimension-rules",
+          "archived": true,
+          "startDate": "2026-02-18",
+          "endDate": "2026-02-18"
+        },
+        {
+          "id": "core-systems-x4",
+          "featureRef": "f-wither-conversion-restore",
+          "archived": true,
+          "startDate": "2026-02-18",
+          "endDate": "2026-02-18"
+        },
+        {
+          "id": "core-systems-x5",
+          "featureRef": "f-conversion-gate-bypass-fix",
+          "archived": true,
+          "startDate": "2026-02-18",
+          "endDate": "2026-02-18"
+        },
+        {
+          "id": "core-systems-8",
+          "featureRef": "f-mob-flee-ai",
+          "archived": true,
+          "startDate": "2026-02-19",
+          "endDate": "2026-02-21"
+        },
+        {
+          "id": "core-systems-x1",
+          "featureRef": "f-mob-flee-border-pathing-fix",
+          "archived": true,
+          "startDate": "2026-02-22",
+          "endDate": "2026-02-25"
+        },
+        {
+          "id": "core-systems-x2",
+          "featureRef": "f-head-zone-entry-fix",
+          "archived": true,
+          "startDate": "2026-02-22",
+          "endDate": "2026-02-25"
+        },
+        {
+          "id": "core-systems-x3",
+          "featureRef": "f-mob-flee-ui-cleanup",
+          "archived": true,
+          "startDate": "2026-02-22",
+          "endDate": "2026-02-25"
+        },
+        {
+          "id": "core-systems-6",
+          "featureRef": "f-head-index-optimization",
+          "archived": true,
+          "startDate": "2026-02-26",
+          "endDate": "2026-02-28"
+        },
+        {
+          "id": "core-systems-x6",
+          "featureRef": "f-head-system-toggle",
+          "archived": false,
+          "startDate": "2026-03-04",
+          "endDate": "2026-03-07"
+        },
+        {
+          "id": "core-systems-x7",
+          "featureRef": "f-decay-toggle",
+          "archived": false,
+          "startDate": "2026-03-04",
+          "endDate": "2026-03-07"
+        },
+        {
+          "id": "core-systems-x8",
+          "featureRef": "f-config-label-clarity",
+          "archived": false,
+          "startDate": "2026-03-04",
+          "endDate": "2026-03-07"
+        }
+      ]
+    },
+    {
+      "id": "track-visual-ux",
+      "name": "Visualization and UX Systems",
+      "description": "Detector readability, sonar/aura rendering, and user-facing feedback.",
+      "status": "In Progress",
+      "startDate": "2026-01-24",
+      "endDate": "2026-03-03",
+      "children": [
+        {
+          "id": "visual-ux-3",
+          "featureRef": "f-civil-detector",
+          "archived": true,
+          "startDate": "2026-01-24",
+          "endDate": "2026-02-07"
+        },
+        {
+          "id": "visual-ux-4",
+          "featureRef": "f-detector-threshold-color-fix",
+          "archived": true,
+          "startDate": "2026-02-08",
+          "endDate": "2026-02-08"
+        },
+        {
+          "id": "visual-ux-1",
+          "featureRef": "f-aura-walls",
+          "archived": true,
+          "startDate": "2026-02-14",
+          "endDate": "2026-02-14"
+        },
+        {
+          "id": "visual-ux-5",
+          "featureRef": "f-sonar-detector",
+          "archived": true,
+          "startDate": "2026-02-14",
+          "endDate": "2026-02-14"
+        },
+        {
+          "id": "visual-ux-x2",
+          "featureRef": "f-sonar-charge-particle-fix",
+          "archived": true,
+          "startDate": "2026-02-15",
+          "endDate": "2026-02-15"
+        },
+        {
+          "id": "visual-ux-x1",
+          "featureRef": "f-combat-panic-vfx",
+          "archived": true,
+          "startDate": "2026-02-22",
+          "endDate": "2026-02-25"
+        },
+        {
+          "id": "visual-ux-2",
+          "featureRef": "f-bell-lodestone-sonar",
+          "archived": false,
+          "startDate": "2026-03-01",
+          "endDate": "2026-03-03"
+        },
+        {
+          "id": "visual-ux-x3",
+          "featureRef": "f-sonar-config-reorg",
+          "archived": false,
+          "startDate": "2026-03-01",
+          "endDate": "2026-03-03"
+        },
+        {
+          "id": "visual-ux-x4",
+          "featureRef": "f-bell-sonar-tuning",
+          "archived": false,
+          "startDate": "2026-03-01",
+          "endDate": "2026-03-03"
+        }
+      ]
+    },
+    {
+      "id": "track-platform-storage",
+      "name": "Platform, Storage, and Operations",
+      "description": "Compatibility, persistence, rebuild tooling, and world-safety paths.",
+      "status": "In Progress",
+      "startDate": "2026-01-24",
+      "endDate": "2026-03-14",
+      "children": [
+        {
+          "id": "platform-storage-9",
+          "featureRef": "f-scalable-architecture",
+          "archived": true,
+          "startDate": "2026-01-24",
+          "endDate": "2026-02-07"
+        },
+        {
+          "id": "platform-storage-11",
+          "featureRef": "f-teleport-stability",
+          "archived": true,
+          "startDate": "2026-02-08",
+          "endDate": "2026-02-08"
+        },
+        {
+          "id": "platform-storage-4",
+          "featureRef": "f-mc121-compat",
+          "archived": true,
+          "startDate": "2026-02-09",
+          "endDate": "2026-02-09"
+        },
+        {
+          "id": "platform-storage-1",
+          "featureRef": "f-architectury-porting",
+          "archived": true,
+          "startDate": "2026-02-22",
+          "endDate": "2026-02-25"
+        },
+        {
+          "id": "platform-storage-x1",
+          "featureRef": "f-detector-crafting-fix",
+          "archived": true,
+          "startDate": "2026-02-26",
+          "endDate": "2026-02-28"
+        },
+        {
+          "id": "platform-storage-x2",
+          "featureRef": "f-mapping-remap-stability-fix",
+          "archived": true,
+          "startDate": "2026-02-26",
+          "endDate": "2026-02-28"
+        },
+        {
+          "id": "platform-storage-3",
+          "featureRef": "f-h2-compat-fix",
+          "archived": false,
+          "startDate": "2026-03-04",
+          "endDate": "2026-03-07"
+        },
+        {
+          "id": "platform-storage-5",
+          "featureRef": "f-payload-world-switch-safety",
+          "archived": false,
+          "startDate": "2026-03-08",
+          "endDate": "2026-03-11"
+        },
+        {
+          "id": "platform-storage-7",
+          "featureRef": "f-podium-undying",
+          "archived": false,
+          "startDate": "2026-03-08",
+          "endDate": "2026-03-11"
+        },
+        {
+          "id": "platform-storage-10",
+          "featureRef": "f-storage-nbt-refactor",
+          "archived": false,
+          "startDate": "2026-03-08",
+          "endDate": "2026-03-11"
+        },
+        {
+          "id": "platform-storage-12",
+          "featureRef": "f-world-switch-cache-isolation",
+          "archived": false,
+          "startDate": "2026-03-08",
+          "endDate": "2026-03-11"
+        },
+        {
+          "id": "platform-storage-14",
+          "featureRef": "f-undying-config-screen-update",
+          "archived": false,
+          "startDate": "2026-03-08",
+          "endDate": "2026-03-11"
+        },
+        {
+          "id": "platform-storage-2",
+          "featureRef": "f-block-tag-weight-fix",
+          "archived": false,
+          "startDate": "2026-03-12",
+          "endDate": "2026-03-14"
+        },
+        {
+          "id": "platform-storage-6",
+          "featureRef": "f-podium-shared-gold-fix",
+          "archived": false,
+          "startDate": "2026-03-12",
+          "endDate": "2026-03-14"
+        },
+        {
+          "id": "platform-storage-8",
+          "featureRef": "f-rebuild-command",
+          "archived": false,
+          "startDate": "2026-03-12",
+          "endDate": "2026-03-14"
+        },
+        {
+          "id": "platform-storage-13",
+          "featureRef": "f-podium-drain-stability-fix",
+          "archived": false,
+          "startDate": "2026-03-12",
+          "endDate": "2026-03-14"
+        }
+      ]
+    },
+    {
+      "id": "track-data-ecosystem",
+      "name": "Data and Content Ecosystem",
+      "description": "Datapack registries, scoring catalog, documentation, and roadmap communication.",
+      "status": "In Progress",
+      "startDate": "2026-02-16",
+      "endDate": "2026-03-16",
+      "children": [
+        {
+          "id": "data-ecosystem-1",
+          "featureRef": "f-block-scoring-rebalance",
+          "archived": true,
+          "startDate": "2026-02-16",
+          "endDate": "2026-02-17"
+        },
+        {
+          "id": "data-ecosystem-2",
+          "featureRef": "f-head-datapack-system",
+          "archived": true,
+          "startDate": "2026-02-16",
+          "endDate": "2026-02-17"
+        },
+        {
+          "id": "data-ecosystem-3",
+          "featureRef": "f-mod-compat-scored-blocks",
+          "archived": true,
+          "startDate": "2026-02-16",
+          "endDate": "2026-02-17"
+        },
+        {
+          "id": "data-ecosystem-5",
+          "featureRef": "f-wiki-docs",
+          "archived": true,
+          "startDate": "2026-02-18",
+          "endDate": "2026-02-18"
+        },
+        {
+          "id": "data-ecosystem-4",
+          "featureRef": "f-roadmap-site",
+          "archived": false,
+          "startDate": "2026-03-14",
+          "endDate": "2026-03-16"
+        }
+      ]
+    },
+    {
+      "id": "track-prefetch-presence-refactor",
+      "name": "Prefetch and Presence Refactor",
+      "description": "Improve decay accuracy from startup while keeping prefetch/storage cost under control.",
+      "status": "In Progress",
+      "startDate": "2026-03-13",
+      "endDate": "2026-03-18",
+      "children": [
+        {
+          "id": "prefetch-refactor-1",
+          "featureRef": "f-prefetch-result-centric-queue",
+          "archived": false,
+          "startDate": "2026-03-13",
+          "endDate": "2026-03-18"
+        },
+        {
+          "id": "prefetch-refactor-2",
+          "featureRef": "f-presence-raw-epsilon-gating",
+          "archived": false,
+          "startDate": "2026-03-13",
+          "endDate": "2026-03-18"
+        }
+      ]
+    },
+    {
+      "id": "track-civilization-map",
+      "name": "Civilization Surface Map",
+      "description": "Deliver a player-friendly civilization map that overlays clearly on vanilla terrain context.",
+      "status": "Tentative",
+      "startDate": "2026-03-20",
+      "endDate": "2026-03-26",
+      "children": [
+        {
+          "id": "civil-map-1",
+          "featureRef": "f-civil-map-vanilla-overlay",
+          "archived": false,
+          "startDate": "2026-03-20",
+          "endDate": "2026-03-26"
+        }
+      ]
+    }
+  ]
+}
