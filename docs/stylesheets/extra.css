@@ -1,0 +1,96 @@
+/* Roadmap-style midnight blue tone */
+:root {
+  --civ-bg-1: #0d1016;
+  --civ-bg-2: #151a23;
+  --civ-bg-3: #1a2130;
+  --civ-blue-1: #1a2f59;
+  --civ-blue-2: #24457f;
+  --civ-blue-3: #3764b0;
+  --md-text-font: "Sitka Text", "Sitka", "Sitka Small", -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --md-code-font: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: var(--civ-bg-1);
+  --md-default-bg-color--light: var(--civ-bg-2);
+  --md-default-bg-color--lighter: var(--civ-bg-3);
+  --md-primary-fg-color: #24457f;
+  --md-primary-fg-color--light: #3764b0;
+  --md-accent-fg-color: #7ea2ff;
+}
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #2a4f94;
+  --md-primary-fg-color--light: #3b66b3;
+  --md-accent-fg-color: #7ea2ff;
+}
+
+/* Page base gradient */
+body {
+  background:
+    radial-gradient(1200px 760px at 84% -10%, rgba(126, 162, 255, 0.14), rgba(126, 162, 255, 0.02) 52%, transparent 72%),
+    radial-gradient(900px 620px at -10% 18%, rgba(55, 100, 176, 0.16), transparent 68%),
+    linear-gradient(165deg, #121a28 0%, #101722 44%, #0d131d 100%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-size: cover;
+}
+
+/* Header gradient */
+.md-header {
+  background: linear-gradient(108deg, #1a2f59 0%, #24457f 50%, #3764b0 100%);
+}
+
+/* Subtle depth so top area feels layered */
+.md-header,
+.md-tabs {
+  box-shadow: 0 6px 18px rgba(6, 10, 18, 0.28);
+}
+
+/* Remove dark "chip/dot" feeling on title bars */
+.md-header__title,
+.md-header__topic,
+.md-header__ellipsis {
+  background: transparent !important;
+}
+
+.md-sidebar .md-nav__title {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #d7e5ff;
+}
+
+.md-sidebar .md-nav__title::before {
+  color: #9fb9ef !important;
+  opacity: 0.9;
+}
+
+/* Keep page containers transparent to avoid visible color breaks */
+.md-container,
+.md-main,
+.md-main__inner,
+.md-content,
+.md-content__inner {
+  background: transparent;
+}
+
+/* Divider strategy: keep single divider (no double-line) */
+.md-typeset hr {
+  border: 0;
+  height: 1px;
+  margin: 1.35rem 0 1.05rem;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--md-primary-fg-color) 30%, transparent), transparent);
+}
+
+/* Auto-add divider only when section is not already preceded by an HR */
+.md-typeset :not(hr) + h2 {
+  margin-top: 2rem;
+  padding-top: 0.82rem;
+  border-top: 1px solid color-mix(in srgb, var(--md-primary-fg-color) 26%, transparent);
+}
+
+.md-typeset hr + h2 {
+  margin-top: 1.1rem;
+  padding-top: 0;
+  border-top: 0;
+}

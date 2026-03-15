@@ -6,6 +6,8 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
+      - 'roadmap/**'
+      - '.github/workflows/deploy-wiki.yml'
 
 permissions:
   contents: write
@@ -16,9 +18,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: roadmap/package-lock.json
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Build roadmap app
+        working-directory: roadmap
+        run: |
+          npm ci
+          npm run build
+
+      - name: Copy roadmap build into docs
+        run: |
+          rm -rf docs/roadmap
+          mkdir -p docs/roadmap
+          cp -a roadmap/dist/. docs/roadmap/
 
       - run: pip install mkdocs-material
 
