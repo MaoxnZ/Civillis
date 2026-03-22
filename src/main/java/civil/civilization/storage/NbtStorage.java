@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * NBT-based storage implementation. Replaces H2.
+ * NBT-based storage implementation for {@link CivilStorage}.
  *
  * <p>Phase 0: Stub — structure load returns empty, L1 returns null/empty.
  * Phase 1: meta, mob_heads, undying_anchors load/flush.

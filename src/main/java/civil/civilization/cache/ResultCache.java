@@ -22,7 +22,7 @@ import civil.civilization.storage.CivilStorage;
  * within the detection range. Entries are lazily computed on first access and incrementally
  * updated via delta propagation when blocks change.
  *
- * <p>Not persisted to H2 — result shards are pure derived data from L1 shards and can be
+ * <p>Not persisted to disk — result shards are pure derived data from L1 shards and can be
  * recomputed in ~34μs from cached L1 scores.
  *
  * @see ResultEntry
@@ -41,12 +41,13 @@ public final class ResultCache {
      *
      * <p>When {@link #visitAround} advances a ResultEntry's presenceTime,
      * the new value is staged here. Every 30 seconds (and on shutdown),
-     * {@link #flushPresence} drains this buffer into H2 via batch UPDATE.
+     * {@link #flushPresence} forwards staged values into {@link CivilStorage} on flush ticks.
      *
      * <p><b>This is NOT related to cache invalidation or delta propagation.</b>
-     * It is purely an I/O batching mechanism to avoid per-second H2 writes.
+     * It is purely an I/O batching mechanism to avoid per-tick disk writes.
      */
     private final ConcurrentHashMap<String, CivilStorage.PresenceSaveRequest> pendingPresenceWrites = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Boolean> pendingPresenceDeleteKeys = new ConcurrentHashMap<>();
 
     public ResultCache() {
         this(CivilConfig.resultTtlMs);
@@ -124,10 +125,15 @@ public final class ResultCache {
         cache.put(k, new TimestampedEntry<>(entry));
         partialBackoffCache.remove(k);
 
-        // Stage initial presenceTime for persistence.
-        pendingPresenceWrites.putIfAbsent(k, new CivilStorage.PresenceSaveRequest(
-                world.dimension().identifier().toString(), centerVC,
-                entry.presenceTime, entry.lastRecoveryTime));
+        if (entry.getRawScore(ServerClock.now()) > CivilConfig.presenceRawEpsilon) {
+            pendingPresenceDeleteKeys.remove(k);
+            pendingPresenceWrites.put(k, new CivilStorage.PresenceSaveRequest(
+                    world.dimension().identifier().toString(), centerVC,
+                    entry.presenceTime, entry.lastRecoveryTime));
+        } else {
+            pendingPresenceWrites.remove(k);
+            pendingPresenceDeleteKeys.put(k, Boolean.TRUE);
+        }
 
         return entry;
     }
@@ -215,32 +221,45 @@ public final class ResultCache {
     // ========== Player presence ==========
 
     /**
+     * Visit one result shard: refresh TTL and advance presenceTime if cached.
+     * Used by {@link PlayerAwarePrefetcher} round-robin consumption (CFR 1.2.2).
+     */
+    public void visitAt(ServerLevel world, VoxelChunkKey vc, long serverNow) {
+        String dim = world.dimension().identifier().toString();
+        String k = key(world, vc);
+        TimestampedEntry<ResultEntry> cached = cache.get(k);
+        if (cached == null || cached.isExpired(ttlMillis)) {
+            return;
+        }
+        cached.touch();
+        ResultEntry re = cached.getValue();
+        if (re.getRawScore(serverNow) <= CivilConfig.presenceRawEpsilon) {
+            pendingPresenceWrites.remove(k);
+            pendingPresenceDeleteKeys.put(k, Boolean.TRUE);
+            return;
+        }
+        long oldPt = re.presenceTime;
+        re.onPlayerNearby(serverNow);
+        if (re.presenceTime != oldPt) {
+            pendingPresenceDeleteKeys.remove(k);
+            pendingPresenceWrites.put(k, new CivilStorage.PresenceSaveRequest(
+                    dim, vc, re.presenceTime, re.lastRecoveryTime));
+        }
+    }
+
+    /**
      * Visit result shards near a player: advance presenceTime AND refresh TTL.
      *
      * <p>This is the primary mechanism that prevents TTL eviction near online players.
-     * Called once per second from PlayerAwarePrefetcher. Without the touch(),
+     * Called from PlayerAwarePrefetcher bulk paths. Without the touch(),
      * entries would silently expire after 60min even with a player standing on them.
      */
     public void visitAround(ServerLevel world, VoxelChunkKey center, int radiusX, int radiusZ, int radiusY) {
         long serverNow = ServerClock.now();
-        String dim = world.dimension().identifier().toString();
         for (int dx = -radiusX; dx <= radiusX; dx++) {
             for (int dz = -radiusZ; dz <= radiusZ; dz++) {
                 for (int dy = -radiusY; dy <= radiusY; dy++) {
-                    VoxelChunkKey vc = center.offset(dx, dz, dy);
-                    String k = key(world, vc);
-                    TimestampedEntry<ResultEntry> cached = cache.get(k);
-                    if (cached != null && !cached.isExpired(ttlMillis)) {
-                        cached.touch();                       // refresh TTL timer
-                        ResultEntry re = cached.getValue();
-                        long oldPt = re.presenceTime;
-                        re.onPlayerNearby(serverNow);         // advance presenceTime
-                        if (re.presenceTime != oldPt) {
-                            // presenceTime changed → stage for next H2 flush
-                            pendingPresenceWrites.put(k, new CivilStorage.PresenceSaveRequest(
-                                    dim, vc, re.presenceTime, re.lastRecoveryTime));
-                        }
-                    }
+                    visitAt(world, center.offset(dx, dz, dy), serverNow);
                 }
             }
         }
@@ -249,22 +268,22 @@ public final class ResultCache {
     // ========== Presence persistence ==========
 
     /**
-     * Flush dirty presenceTime entries to H2.
-     * Called every 30 seconds from TtlCacheService + on shutdown.
-     *
-     * @return number of entries flushed
-     */
-    /**
-     * Drain pending presence writes for unified flush. NBT path merges into L1 regions.
+     * Drain pending presence writes for unified flush (merged into L1 region files on NBT path).
      */
     public List<CivilStorage.PresenceSaveRequest> drainPendingPresenceWrites() {
-        var snapshot = new ArrayList<>(pendingPresenceWrites.values());
+        ArrayList<CivilStorage.PresenceSaveRequest> snapshot = new ArrayList<>(pendingPresenceWrites.values());
         pendingPresenceWrites.clear();
         return snapshot;
     }
 
+    public List<String> drainPendingPresenceDeleteKeys() {
+        ArrayList<String> snapshot = new ArrayList<>(pendingPresenceDeleteKeys.keySet());
+        pendingPresenceDeleteKeys.clear();
+        return snapshot;
+    }
+
     /**
-     * Flush presence (legacy H2 path). NBT uses unified flush instead.
+     * Forward drained presence writes to storage (async batch).
      */
     public int flushPresence(CivilStorage storage) {
         var snapshot = drainPendingPresenceWrites();
@@ -312,5 +331,6 @@ public final class ResultCache {
         cache.clear();
         partialBackoffCache.clear();
         pendingPresenceWrites.clear();
+        pendingPresenceDeleteKeys.clear();
     }
 }

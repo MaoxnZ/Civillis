@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,11 +27,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.UUID;
 
 /**
  * Fusion Architecture: civilization cache service.
  *
- * <p>Manages L1 info shard cache lifecycle (TTL, H2 persistence, ServerClock).
+ * <p>Manages L1 info shard cache lifecycle (TTL, NBT persistence, ServerClock).
  * L2/L3 layers have been retired; result shards are managed by {@link ResultCache}
  * via {@link civil.civilization.scoring.ScalableCivilizationService}.
  */
@@ -60,7 +62,7 @@ public final class TtlCacheService implements CivilizationCache {
         this.cache = new TtlVoxelCache(l1TtlMillis);
         this.storage = new NbtStorage();
         this.loadingTracker = cache.getLoadingTracker();
-        this.prefetcher = new PlayerAwarePrefetcher(cache, storage);
+        this.prefetcher = new PlayerAwarePrefetcher();
 
         cache.setStorage(storage);
     }
@@ -78,7 +80,7 @@ public final class TtlCacheService implements CivilizationCache {
             long savedClock = storage.loadServerClockMillis();
             ServerClock.load(savedClock);
 
-            // Fusion Architecture: bulk restore L1 from H2
+            // Fusion Architecture: bulk restore L1 from storage (NBT may return empty)
             var allL1 = storage.loadAllL1();
             for (var entry : allL1) {
                 cache.restoreL1(world, entry.key(), entry.cScore(), entry.createTime());
@@ -105,16 +107,14 @@ public final class TtlCacheService implements CivilizationCache {
         // Advance ServerClock every tick (+50ms)
         ServerClock.tick();
 
-        // Player-aware result shard visits (for decay recovery)
-        if (tickCounter % 20 == 0) {
-            prefetcher.prefetchTick(server);
+        // CFR 1.2.2: prefetch queue + round-robin budget + epoch receipts (each logical tick)
+        prefetcher.onServerTick(server);
 
-            if (CivilMod.DEBUG) {
-                var resultCache = civil.CivilServices.getResultCache();
-                int resultSize = resultCache != null ? resultCache.size() : 0;
-                LOGGER.info("[civil-ttl-stats] L1={} results={} serverClock={}",
-                        cache.l1Size(), resultSize, ServerClock.now());
-            }
+        if (CivilMod.DEBUG && tickCounter % 20 == 0) {
+            var resultCache = civil.CivilServices.getResultCache();
+            int resultSize = resultCache != null ? resultCache.size() : 0;
+            LOGGER.info("[civil-ttl-stats] L1={} results={} prefetchQ={} serverClock={}",
+                    cache.l1Size(), resultSize, prefetcher.getPendingQueueSize(), ServerClock.now());
         }
 
         // TTL cleanup every 5 seconds
@@ -170,14 +170,17 @@ public final class TtlCacheService implements CivilizationCache {
     }
 
     /**
-     * Run unified flush: meta + structure + L1 regions. Non-blocking unless shutdown.
+     * Run unified flush: meta + structure + L1 regions (CFR: score/presence upserts + deletes, prune empty rows).
      */
     private CompletableFuture<Void> runUnifiedFlush(boolean shutdown) {
         final long serverClockMillis = civil.civilization.ServerClock.now();
         final Map<String, CScore> pendingScores = cache.drainPendingScoreWrites();
-        final List<PresenceSaveRequest> pendingPresence;
+        final List<String> pendingScoreDeletes = cache.drainPendingScoreDeleteKeys();
         var resultCache = civil.CivilServices.getResultCache();
-        pendingPresence = resultCache != null ? resultCache.drainPendingPresenceWrites() : List.of();
+        final List<PresenceSaveRequest> pendingPresence =
+                resultCache != null ? resultCache.drainPendingPresenceWrites() : List.of();
+        final List<String> pendingPresenceDeletes =
+                resultCache != null ? resultCache.drainPendingPresenceDeleteKeys() : List.of();
         final boolean mobHeadsDirty;
         final List<CivilStorage.StoredMobHead> mobHeadsSnapshot;
         final var headTracker = civil.CivilServices.getHeadTracker();
@@ -210,61 +213,139 @@ public final class TtlCacheService implements CivilizationCache {
                 storage.writeUndyingAnchors(anchorsSnapshot);
                 if (anchorTracker != null) anchorTracker.clearAnchorsDirty();
             }
-            // Collect region keys from both pendingScores and pendingPresence
-            Map<String, int[]> regionKeys = new HashMap<>();
-            for (String k : pendingScores.keySet()) {
-                String[] p = k.split("\\|", 4);
-                if (p.length != 4) continue;
+
+            Map<String, CScore> resolvedScoreUpserts = new HashMap<>(pendingScores);
+            Set<String> resolvedScoreDeletes = new HashSet<>(pendingScoreDeletes);
+            for (String key : resolvedScoreDeletes) {
+                resolvedScoreUpserts.remove(key);
+            }
+
+            Map<String, PresenceSaveRequest> resolvedPresenceUpserts = new HashMap<>();
+            for (PresenceSaveRequest req : pendingPresence) {
+                resolvedPresenceUpserts.put(shardKey(req.dim(), req.key()), req);
+            }
+            Set<String> resolvedPresenceDeletes = new HashSet<>(pendingPresenceDeletes);
+            for (String key : resolvedPresenceDeletes) {
+                resolvedPresenceUpserts.remove(key);
+            }
+
+            Set<String> regionKeys = new HashSet<>();
+            Map<String, Map<VoxelChunkKey, CScore>> scoreUpsertsByRegion = new HashMap<>();
+            Map<String, Set<VoxelChunkKey>> scoreDeletesByRegion = new HashMap<>();
+            Map<String, Map<VoxelChunkKey, PresenceSaveRequest>> presenceUpsertsByRegion = new HashMap<>();
+            Map<String, Set<VoxelChunkKey>> presenceDeletesByRegion = new HashMap<>();
+
+            for (Map.Entry<String, CScore> e : resolvedScoreUpserts.entrySet()) {
+                ParsedShardKey p = parseShardKey(e.getKey());
+                if (p == null) continue;
+                int rrx = Math.floorDiv(p.cx(), 32);
+                int rrz = Math.floorDiv(p.cz(), 32);
+                String rk = regionKey(p.dim(), rrx, rrz);
+                regionKeys.add(rk);
+                scoreUpsertsByRegion.computeIfAbsent(rk, x -> new HashMap<>())
+                        .put(new VoxelChunkKey(p.cx(), p.cz(), p.sy()), e.getValue());
+            }
+            for (String key : resolvedScoreDeletes) {
+                ParsedShardKey p = parseShardKey(key);
+                if (p == null) continue;
+                int rrx = Math.floorDiv(p.cx(), 32);
+                int rrz = Math.floorDiv(p.cz(), 32);
+                String rk = regionKey(p.dim(), rrx, rrz);
+                regionKeys.add(rk);
+                scoreDeletesByRegion.computeIfAbsent(rk, x -> new HashSet<>())
+                        .add(new VoxelChunkKey(p.cx(), p.cz(), p.sy()));
+            }
+            for (PresenceSaveRequest req : resolvedPresenceUpserts.values()) {
+                int rrx = Math.floorDiv(req.key().getCx(), 32);
+                int rrz = Math.floorDiv(req.key().getCz(), 32);
+                String rk = regionKey(req.dim(), rrx, rrz);
+                regionKeys.add(rk);
+                presenceUpsertsByRegion.computeIfAbsent(rk, x -> new HashMap<>()).put(req.key(), req);
+            }
+            for (String key : resolvedPresenceDeletes) {
+                ParsedShardKey p2 = parseShardKey(key);
+                if (p2 == null) continue;
+                int rrx = Math.floorDiv(p2.cx(), 32);
+                int rrz = Math.floorDiv(p2.cz(), 32);
+                String rk = regionKey(p2.dim(), rrx, rrz);
+                regionKeys.add(rk);
+                presenceDeletesByRegion.computeIfAbsent(rk, x -> new HashSet<>())
+                        .add(new VoxelChunkKey(p2.cx(), p2.cz(), p2.sy()));
+            }
+
+            for (String rk3 : regionKeys) {
+                String[] parts = rk3.split("\\|", 3);
+                if (parts.length != 3) continue;
+                String dim = parts[0];
+                int rx;
+                int rz;
                 try {
-                    int cx = Integer.parseInt(p[1]), cz = Integer.parseInt(p[2]);
-                    String rk = p[0] + "|" + Math.floorDiv(cx, 32) + "|" + Math.floorDiv(cz, 32);
-                    regionKeys.put(rk, new int[] { Math.floorDiv(cx, 32), Math.floorDiv(cz, 32) });
-                } catch (NumberFormatException ignored) {}
-            }
-            for (PresenceSaveRequest r : pendingPresence) {
-                int rx = Math.floorDiv(r.key().getCx(), 32);
-                int rz = Math.floorDiv(r.key().getCz(), 32);
-                String rk = r.dim() + "|" + rx + "|" + rz;
-                regionKeys.put(rk, new int[] { rx, rz });
-            }
-            for (Map.Entry<String, int[]> re : regionKeys.entrySet()) {
-                String[] p = re.getKey().split("\\|", -1);
-                if (p.length < 3) continue;
-                String dim = p[0];
-                int rx = re.getValue()[0], rz = re.getValue()[1];
+                    rx = Integer.parseInt(parts[1]);
+                    rz = Integer.parseInt(parts[2]);
+                } catch (NumberFormatException ignored) {
+                    continue;
+                }
                 Map<VoxelChunkKey, L1Entry> data = new HashMap<>(storage.loadL1RegionSync(dim, rx, rz));
-                for (Map.Entry<String, CScore> e : pendingScores.entrySet()) {
-                    String k = e.getKey();
-                    String[] parts = k.split("\\|", 4);
-                    if (parts.length != 4) continue;
-                    try {
-                        if (!parts[0].equals(dim)) continue;
-                        int cx = Integer.parseInt(parts[1]);
-                        int cz = Integer.parseInt(parts[2]);
-                        int sy = Integer.parseInt(parts[3]);
-                        if (Math.floorDiv(cx, 32) != rx || Math.floorDiv(cz, 32) != rz) continue;
-                        VoxelChunkKey vk = new VoxelChunkKey(cx, cz, sy);
-                        L1Entry prev = data.getOrDefault(vk, new L1Entry(0, 0, 0));
-                        data.put(vk, new L1Entry(e.getValue().score(), prev.presenceTime(), prev.lastRecoveryTime()));
-                    } catch (NumberFormatException ignored) {}
+
+                Map<VoxelChunkKey, CScore> scoreUpserts = scoreUpsertsByRegion.getOrDefault(rk3, Map.of());
+                for (Map.Entry<VoxelChunkKey, CScore> e : scoreUpserts.entrySet()) {
+                    VoxelChunkKey vk = e.getKey();
+                    L1Entry l1Entry = data.getOrDefault(vk, new L1Entry(0.0, 0L, 0L));
+                    data.put(vk, new L1Entry(e.getValue().score(), l1Entry.presenceTime(), l1Entry.lastRecoveryTime()));
                 }
-                for (PresenceSaveRequest r : pendingPresence) {
-                    if (!r.dim().equals(dim)) continue;
-                    if (Math.floorDiv(r.key().getCx(), 32) != rx || Math.floorDiv(r.key().getCz(), 32) != rz) continue;
-                    VoxelChunkKey vk = r.key();
-                    L1Entry prev = data.getOrDefault(vk, new L1Entry(0, 0, 0));
-                    data.put(vk, new L1Entry(prev.score(), r.presenceTime(), r.lastRecoveryTime()));
+                Set<VoxelChunkKey> scoreDeletes = scoreDeletesByRegion.getOrDefault(rk3, Set.of());
+                for (VoxelChunkKey vk : scoreDeletes) {
+                    L1Entry l1Entry = data.getOrDefault(vk, new L1Entry(0.0, 0L, 0L));
+                    data.put(vk, new L1Entry(0.0, l1Entry.presenceTime(), l1Entry.lastRecoveryTime()));
                 }
+                Map<VoxelChunkKey, PresenceSaveRequest> presUps = presenceUpsertsByRegion.getOrDefault(rk3, Map.of());
+                for (Map.Entry<VoxelChunkKey, PresenceSaveRequest> e : presUps.entrySet()) {
+                    VoxelChunkKey vk = e.getKey();
+                    PresenceSaveRequest req = e.getValue();
+                    L1Entry prev = data.getOrDefault(vk, new L1Entry(0.0, 0L, 0L));
+                    data.put(vk, new L1Entry(prev.score(), req.presenceTime(), req.lastRecoveryTime()));
+                }
+                Set<VoxelChunkKey> presDeletes = presenceDeletesByRegion.getOrDefault(rk3, Set.of());
+                for (VoxelChunkKey vk : presDeletes) {
+                    L1Entry prev = data.getOrDefault(vk, new L1Entry(0.0, 0L, 0L));
+                    data.put(vk, new L1Entry(prev.score(), 0L, 0L));
+                }
+                data.entrySet().removeIf(e -> {
+                    L1Entry v = e.getValue();
+                    return v.score() == 0.0 && v.presenceTime() == 0L && v.lastRecoveryTime() == 0L;
+                });
                 storage.writeL1Region(dim, rx, rz, data);
                 deactivateRegion(dim, rx, rz);
             }
+
             if (CivilMod.DEBUG) {
                 long elapsedMs = System.currentTimeMillis() - flushStartMs;
-                LOGGER.info("[civil-storage-flush] regions={} scores={} presence={} heads={} anchors={} elapsed_ms={}",
-                        regionKeys.size(), pendingScores.size(), pendingPresence.size(),
+                LOGGER.info("[civil-storage-flush] regions={} scoreUps={} scoreDel={} presUps={} presDel={} heads={} anchors={} elapsed_ms={}",
+                        regionKeys.size(), resolvedScoreUpserts.size(), resolvedScoreDeletes.size(),
+                        resolvedPresenceUpserts.size(), resolvedPresenceDeletes.size(),
                         mobHeadsDirty ? 1 : 0, anchorsDirty ? 1 : 0, elapsedMs);
             }
         });
+    }
+
+    private record ParsedShardKey(String dim, int cx, int cz, int sy) {}
+
+    private static ParsedShardKey parseShardKey(String key) {
+        String[] parts = key.split("\\|", 4);
+        if (parts.length != 4) return null;
+        try {
+            return new ParsedShardKey(parts[0], Integer.parseInt(parts[1]), Integer.parseInt(parts[2]), Integer.parseInt(parts[3]));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static String shardKey(String dim, VoxelChunkKey key) {
+        return dim + "|" + key.getCx() + "|" + key.getCz() + "|" + key.getSy();
+    }
+
+    private static String regionKey(String dim, int rx, int rz) {
+        return dim + "|" + rx + "|" + rz;
     }
 
     // ========== CivilizationCache interface ==========
@@ -372,6 +453,11 @@ public final class TtlCacheService implements CivilizationCache {
     public boolean isInitialized() { return initialized; }
     public TtlVoxelCache getCache() { return cache; }
     public CivilStorage getStorage() { return storage; }
+
+    /** CFR: clear prefetcher state when a player disconnects. */
+    public void onPlayerLeave(UUID playerId) {
+        prefetcher.removePlayer(playerId);
+    }
 
     /**
      * Get presence for compute. Checks preload first (from bulk load), then storage.

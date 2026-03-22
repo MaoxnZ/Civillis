@@ -200,6 +200,18 @@ public final class CivilConfig {
     public static int patrolRadiusZ = 4;
     public static int patrolRadiusY = 1;
 
+    // -- Result prefetch queue (CFR 1.2.2: round-robin + epoch receipts) --
+    /** Samples required before zone HUD treats center as civilized for enter transition. */
+    public static int requiredCountEnter = 10;
+    /** Samples required before zone HUD treats leaving civilized (hysteresis). */
+    public static int requiredCountLeave = 10;
+    /** Max result shards visited per server tick (global budget, split across active queue owners). */
+    public static int resultBudgetPerTick = 1000;
+    /** Drop queued prefetch tasks older than this many seconds (epoch TTL). */
+    public static int resultEpochTtlSec = 2;
+    /** Result raw score threshold for staging presence writes vs deletes (CFR prefetch). */
+    public static double presenceRawEpsilon = 0.01;
+
     // -- Head Attraction (totem suppression of distant spawns) --
     public static boolean headAttractEnabled = true;
     /** Deprecated: retained for backward compatibility in config parsing only. */
@@ -245,6 +257,8 @@ public final class CivilConfig {
     public static int sonarStaticCooldownTicks = 40;
 
     // -- UI / Items --
+    /** Zone semantic transition HUD (structure caution / civilized overlay). */
+    public static boolean zoneTransitionHudEnabled = true;
     public static int detectorAnimationTicks = 40;
     public static int detectorCooldownTicks = 10;
 
@@ -460,6 +474,16 @@ public final class CivilConfig {
         resultTtlMs        = parseLong(p.getProperty("cache.resultTtlMs"), resultTtlMs);
         clockPersistTicks  = parseInt(p.getProperty("cache.clockPersistTicks"), clockPersistTicks);
 
+        requiredCountEnter   = Math.max(1, Math.min(256, parseInt(p.getProperty("prefetch.requiredCountEnter"), requiredCountEnter)));
+        requiredCountLeave   = Math.max(1, Math.min(256, parseInt(p.getProperty("prefetch.requiredCountLeave"), requiredCountLeave)));
+        resultBudgetPerTick  = Math.max(0, Math.min(200000, parseInt(p.getProperty("prefetch.resultBudgetPerTick"), resultBudgetPerTick)));
+        resultEpochTtlSec    = Math.max(0, Math.min(60, parseInt(p.getProperty("prefetch.resultEpochTtlSec"), resultEpochTtlSec)));
+        presenceRawEpsilon   = Math.max(0.0, Math.min(1_000_000.0,
+                parseDouble(p.getProperty("prefetch.presenceRawEpsilon"), presenceRawEpsilon)));
+
+        zoneTransitionHudEnabled = parseBoolean(
+                p.getProperty("ui.zoneTransitionHudEnabled", p.getProperty("ui.zoneTransitionMessageEnabled")),
+                zoneTransitionHudEnabled);
         detectorAnimationTicks = parseInt(p.getProperty("ui.detectorAnimationTicks"), detectorAnimationTicks);
         detectorCooldownTicks  = parseInt(p.getProperty("ui.detectorCooldownTicks"), detectorCooldownTicks);
 
@@ -603,6 +627,14 @@ public final class CivilConfig {
             sb.append("#cache.clockPersistTicks=").append(clockPersistTicks).append('\n');
             sb.append('\n');
 
+            sb.append("# ── Advanced: Result prefetch (zone HUD epoch pipeline) ──\n");
+            sb.append("#prefetch.requiredCountEnter=").append(requiredCountEnter).append('\n');
+            sb.append("#prefetch.requiredCountLeave=").append(requiredCountLeave).append('\n');
+            sb.append("#prefetch.resultBudgetPerTick=").append(resultBudgetPerTick).append('\n');
+            sb.append("#prefetch.resultEpochTtlSec=").append(resultEpochTtlSec).append('\n');
+            sb.append("#prefetch.presenceRawEpsilon=").append(presenceRawEpsilon).append('\n');
+            sb.append('\n');
+
             sb.append("# ── Mob Flee AI ──\n");
             sb.append("mobFlee.enabled=").append(mobFleeEnabled).append('\n');
             sb.append("#mobFlee.combatFleeRatio=").append(mobFleeCombatFleeRatio).append('\n');
@@ -615,6 +647,7 @@ public final class CivilConfig {
             sb.append('\n');
 
             sb.append("# ── Advanced: UI ──\n");
+            sb.append("ui.zoneTransitionHudEnabled=").append(zoneTransitionHudEnabled).append('\n');
             sb.append("#ui.detectorAnimationTicks=").append(detectorAnimationTicks).append('\n');
             sb.append("#ui.detectorCooldownTicks=").append(detectorCooldownTicks).append('\n');
 

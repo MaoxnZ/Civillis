@@ -69,6 +69,28 @@ public final class UndyingAnchorSaveHandler {
         });
     }
 
+    private static void clearPlayerTransientState(ServerPlayer player) {
+        removeImmobilizeModifier(player);
+        player.setInvulnerable(false);
+    }
+
+    /** CFR: drop pending anchor state when the player leaves the server. */
+    public static void clearForPlayer(ServerPlayer player) {
+        UUID id = player.getUUID();
+        PENDING_TELEPORTS.remove(id);
+        IMMOBILIZED_UNTIL.remove(id);
+        clearPlayerTransientState(player);
+    }
+
+    /** CFR: world load — clear all undying teleports / immobilize for every online player. */
+    public static void clearAllTransientStates(MinecraftServer server) {
+        PENDING_TELEPORTS.clear();
+        IMMOBILIZED_UNTIL.clear();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            clearPlayerTransientState(player);
+        }
+    }
+
     /**
      * Called each server tick. Processes pending teleports and removes immobilization when cinematic ends.
      */

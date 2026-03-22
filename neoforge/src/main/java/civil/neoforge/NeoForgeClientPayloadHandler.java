@@ -9,6 +9,8 @@ import civil.respawn.UndyingAnchorCinematicEffect;
 import civil.respawn.UndyingAnchorParticleEffect;
 import civil.respawn.UndyingAnchorParticlePayload;
 import civil.respawn.UndyingAnchorPreTeleportPayload;
+import civil.civilization.ZoneTransitionHud;
+import civil.civilization.ZoneTransitionPayload;
 import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -64,6 +66,10 @@ final class NeoForgeClientPayloadHandler {
 
     static void handleUndyingAnchorParticles(UndyingAnchorParticlePayload payload, IPayloadContext context) {
         UndyingAnchorParticleEffect.updateFromPayload(payload);
+    }
+
+    static void handleZoneTransition(ZoneTransitionPayload payload, IPayloadContext context) {
+        ZoneTransitionHud.onPayload(payload);
     }
 
     private static Map<Long, float[]> buildHeadZoneYMap(long[] keys, float[] minY, float[] maxY) {

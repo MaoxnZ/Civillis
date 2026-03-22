@@ -2,6 +2,7 @@ package civil;
 
 import civil.civilization.HeadTracker;
 import civil.civilization.UndyingAnchorTracker;
+import civil.civilization.ZonePolicyService;
 import civil.civilization.cache.CivilizationCache;
 import civil.civilization.cache.ResultCache;
 import civil.civilization.scoring.CivilizationService;
@@ -19,6 +20,7 @@ public final class CivilServices {
     private static CivilizationCache civilizationCache;
     private static HeadTracker headTracker;
     private static UndyingAnchorTracker undyingAnchorTracker;
+    private static ZonePolicyService zonePolicyService;
 
     private CivilServices() {
     }
@@ -39,6 +41,10 @@ public final class CivilServices {
         undyingAnchorTracker = tracker;
     }
 
+    public static void initZonePolicyService(ZonePolicyService service) {
+        zonePolicyService = service;
+    }
+
     public static CivilizationService getCivilizationService() {
         return civilizationService;
     }
@@ -56,6 +62,11 @@ public final class CivilServices {
     /** Undying anchor tracker for civil save system. null if not initialized. */
     public static UndyingAnchorTracker getUndyingAnchorTracker() {
         return undyingAnchorTracker;
+    }
+
+    /** Zone policy (structure-based spawn bypass + caution semantics). null if not initialized. */
+    public static ZonePolicyService getZonePolicyService() {
+        return zonePolicyService;
     }
 
     /**

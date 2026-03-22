@@ -18,8 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * Spatial tracker for all monster head (skull totem) positions in the world.
  *
  * <p>Provides O(1) position lookup and bucketed nearest-head queries where cost
- * is proportional to candidates inside scanned XZ buckets. All data is persisted
- * to the H2 {@code mob_heads} table and loaded at server startup.
+ * is proportional to candidates inside scanned XZ buckets. Mob heads are persisted
+ * via {@link CivilStorage} (NBT) and loaded at server startup.
  *
  * <p>Type resolution (skull type string → entity type) is delegated to
  * {@link HeadTypeRegistry}, which is populated from datapack JSON.
@@ -29,14 +29,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * <ol>
  *   <li>Block change mixin — real-time, incremental add/remove</li>
  *   <li>Chunk load event — discovers pre-existing heads (world upgrade path)</li>
- *   <li>H2 cold storage — restores state across server restarts</li>
+ *   <li>Disk snapshot — restores state across server restarts</li>
  * </ol>
  *
  * <p><b>Thread safety:</b> ConcurrentHashMap for reads/writes. Block change
  * and chunk load events fire on the server thread; spawn queries also run on
- * the server thread. Async H2 writes run on the storage IO executor.
- *
- * <p>Replaces the former {@code MobHeadRegistry} class.
+ * the server thread. Dirty snapshots flush on the storage I/O executor.
  */
 public final class HeadTracker {
 
@@ -129,7 +127,8 @@ public final class HeadTracker {
     }
 
     /**
-     * Shutdown: clear in-memory data. H2 is already up to date.
+     * Shutdown: clear in-memory state (persistence is handled by
+     * {@link civil.civilization.cache.TtlCacheService#shutdown()}).
      */
     public void shutdown() {
         initialized = false;
@@ -327,7 +326,7 @@ public final class HeadTracker {
 
     /**
      * Called when a monster head block is placed or discovered (chunk load).
-     * Adds to in-memory map (if absent) and persists to H2 asynchronously.
+     * Adds to in-memory map (if absent); marks mob heads dirty for the next unified flush.
      *
      * @return true if this was a new head (not already known)
      */

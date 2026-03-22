@@ -3,6 +3,7 @@ package civil.mob;
 import civil.CivilMod;
 import civil.CivilServices;
 import civil.civilization.HeadTracker;
+import civil.civilization.ZonePolicyService;
 import civil.civilization.HeadTracker.HeadEntry;
 import civil.config.CivilConfig;
 import civil.registry.HeadTypeRegistry;
@@ -108,6 +109,11 @@ public final class FleeCivilizationGoal extends Goal {
                     world.dimension().identifier().toString(), mob.blockPosition(),
                     CivilConfig.headRangeX, CivilConfig.headRangeZ, CivilConfig.headRangeY);
             if (hq.hasNearbyHeads()) return false;
+        }
+
+        ZonePolicyService zonePolicyService = CivilServices.getZonePolicyService();
+        if (zonePolicyService != null && zonePolicyService.allowsHostileSpawn(world, mob.blockPosition(), mob.getType())) {
+            return false;
         }
 
         double score = civService.getScoreAt(world, mob.blockPosition());

@@ -4,6 +4,7 @@ import civil.civilization.ServerClock;
 import civil.civilization.BlockScanner;
 import civil.civilization.HeadTracker;
 import civil.civilization.UndyingAnchorTracker;
+import civil.civilization.ZonePolicyService;
 import civil.aura.SonarScanManager;
 import civil.civilization.cache.TtlCacheService;
 import civil.civilization.scoring.ScalableCivilizationService;
@@ -15,6 +16,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelResource;
@@ -52,7 +54,7 @@ public class CivilMod {
     public static final ThreadLocal<Boolean> NATURAL_SPAWN_CONTEXT =
             ThreadLocal.withInitial(() -> Boolean.FALSE);
 
-    /** Cache service (TTL cache + H2 async persistence + gradual decay). */
+    /** Cache service (TTL cache + NBT disk persistence + gradual decay). */
     private static TtlCacheService cacheService;
 
     /** Head tracker (persistent head position tracking for attraction system). */
@@ -60,6 +62,9 @@ public class CivilMod {
 
     /** Undying anchor tracker (civil save system). */
     private static UndyingAnchorTracker undyingAnchorTracker;
+
+    /** Structure-based zone policy (spawn bypass, caution, HUD). */
+    private static ZonePolicyService zonePolicyService;
 
     /**
      * Common initialization — creates services and registers items/sounds.
@@ -75,10 +80,12 @@ public class CivilMod {
         ScalableCivilizationService civilizationService =
                 new ScalableCivilizationService(cacheService);
         headTracker = new HeadTracker();
+        zonePolicyService = new ZonePolicyService();
         undyingAnchorTracker = new UndyingAnchorTracker();
         CivilServices.initCivilizationService(civilizationService);
         CivilServices.initCivilizationCache(cacheService);
         CivilServices.initHeadTracker(headTracker);
+        CivilServices.initZonePolicyService(zonePolicyService);
         CivilServices.initUndyingAnchorTracker(undyingAnchorTracker);
 
         // Registry calls (ModComponents, ModSounds, ModItems) are handled by
@@ -99,9 +106,10 @@ public class CivilMod {
     //  Event handlers — called by platform-specific event registration
     // ══════════════════════════════════════════════════════════
 
-    /** Called when a server world loads. Initializes H2, ServerClock, and HeadTracker for overworld. */
+    /** Called when a server world loads. Initializes storage, ServerClock, and trackers for overworld. */
     public static void onWorldLoad(MinecraftServer server, ServerLevel world) {
         if (world.dimension() == Level.OVERWORLD) {
+            UndyingAnchorSaveHandler.clearAllTransientStates(server);
             if (DEBUG) {
                 LOGGER.info("[civil] Cache service initializing...");
             }
@@ -112,6 +120,9 @@ public class CivilMod {
             }
             if (undyingAnchorTracker != null) {
                 undyingAnchorTracker.initialize(cacheService.getStorage());
+            }
+            if (zonePolicyService != null) {
+                zonePolicyService.clear();
             }
         }
     }
@@ -135,13 +146,27 @@ public class CivilMod {
             if (undyingAnchorTracker != null) {
                 undyingAnchorTracker.shutdown();
             }
+            if (zonePolicyService != null) {
+                zonePolicyService.clear();
+            }
         }
     }
 
     /** Called at end of each server tick. Drives cache maintenance (ServerClock, prefetch, TTL cleanup). */
     public static void onServerTick(MinecraftServer server) {
+        if (zonePolicyService != null) {
+            zonePolicyService.onServerTick(server.getTickCount());
+        }
         if (cacheService != null && cacheService.isInitialized()) {
             cacheService.onServerTick(server);
+        }
+    }
+
+    /** CFR: player disconnect — undying-anchor transient state + prefetcher eviction. */
+    public static void onPlayerLogout(ServerPlayer player) {
+        UndyingAnchorSaveHandler.clearForPlayer(player);
+        if (cacheService != null && cacheService.isInitialized()) {
+            cacheService.onPlayerLeave(player.getUUID());
         }
     }
 

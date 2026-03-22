@@ -57,7 +57,7 @@ public final class ResultEntry {
 
     /**
      * Create a result entry with explicit presenceTime and lastRecoveryTime.
-     * Used when restoring from H2-persisted decay state.
+     * Used when restoring persisted decay state from storage.
      */
     public ResultEntry(double coreSum, double outerSum, long presenceTime, long lastRecoveryTime) {
         this.coreSum = coreSum;

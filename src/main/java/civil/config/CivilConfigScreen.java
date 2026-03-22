@@ -341,6 +341,15 @@ public final class CivilConfigScreen {
                 .setSaveConsumer(v -> CivilConfig.mobFleeEnabled = v)
                 .build());
 
+        // CFR: zone transition HUD lives under Miscellaneous (not Sonar).
+        misc.add(eb.startBooleanToggle(
+                        Component.translatable("civil.config.ui.zoneTransitionHudEnabled"),
+                        CivilConfig.zoneTransitionHudEnabled)
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("civil.config.ui.zoneTransitionHudEnabled.tooltip"))
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionHudEnabled = v)
+                .build());
+
         cat.addEntry(misc.build());
 
         return builder.build();

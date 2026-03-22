@@ -11,7 +11,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Abstract storage layer for Civil mod persistence.
  *
- * <p>NBT implementation replaces H2. Structure data (mob heads, undying anchors) use
+ * <p>Implemented by {@link NbtStorage}. Structure data (mob heads, undying anchors) use
  * load-on-init + periodic flush (write full snapshot). L1 and presence use bulk region IO.
  */
 public interface CivilStorage {

@@ -53,6 +53,9 @@
   "civil.config.sonar.detectorEnabled.tooltip.2": "启用声纳可视化效果。",
   "civil.config.sonar.detectorEnabled.tooltip.3": "\u00a77不影响钟声纳。",
 
+  "civil.config.ui.zoneTransitionHudEnabled": "区域切换 HUD",
+  "civil.config.ui.zoneTransitionHudEnabled.tooltip": "区域语义变化时在屏幕上显示简短标签（文明/荒野/结构内谨慎等）。",
+
   "civil.config.sonar.detectorRadius": "探测器声纳范围",
   "civil.config.sonar.staticRadius": "钟声纳范围",
   "civil.config.slider.sonarRadius": "%1$d 格",

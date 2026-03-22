@@ -17,6 +17,8 @@ import civil.item.CivilDetectorAnimationReset;
 import civil.perf.TpsLogger;
 import civil.registry.BlockWeightLoader;
 import civil.registry.HeadTypeLoader;
+import civil.registry.ZonePolicyLoader;
+import civil.civilization.ZoneTransitionPayload;
 import civil.command.CivilAdminCommands;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -60,6 +62,7 @@ public class CivilModFabric implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(SonarBoundaryPayload.ID, SonarBoundaryPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(UndyingAnchorPreTeleportPayload.ID, UndyingAnchorPreTeleportPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(UndyingAnchorParticlePayload.ID, UndyingAnchorParticlePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ZoneTransitionPayload.ID, ZoneTransitionPayload.CODEC);
     }
 
     private void registerEvents() {
@@ -68,12 +71,14 @@ public class CivilModFabric implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             BlockWeightLoader.reload(server.getResourceManager());
             HeadTypeLoader.reload(server.getResourceManager());
+            ZonePolicyLoader.reload(server.getResourceManager());
         });
         ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resourceManager, success) -> {
             if (!success) return;
             // Resource manager is up-to-date at END_DATA_PACK_RELOAD; resolve tags here.
             BlockWeightLoader.reload(server.getResourceManager());
             HeadTypeLoader.reload(server.getResourceManager());
+            ZonePolicyLoader.reload(server.getResourceManager());
         });
 
         ServerTickEvents.START_SERVER_TICK.register(TpsLogger::onStartTick);
@@ -98,6 +103,9 @@ public class CivilModFabric implements ModInitializer {
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 CivilDetectorAnimationReset.onPlayerJoin(handler.player));
+
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
+                CivilMod.onPlayerLogout(handler.player));
 
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
             if (world.isClientSide()) return InteractionResult.PASS;

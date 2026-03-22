@@ -4,6 +4,7 @@ import civil.CivilMod;
 import civil.CivilServices;
 import civil.civilization.CScore;
 import civil.civilization.HeadTracker;
+import civil.civilization.ZonePolicyService;
 import civil.config.CivilConfig;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.server.level.ServerLevel;
@@ -60,7 +61,13 @@ public final class SpawnPolicy {
             }
         }
 
-        // ===== Stage 2: Civilization Score (Result Shard O(1), only if no nearby heads) =====
+        // ===== Stage 2: Zone policy (structure rules — bypass civilization suppression) =====
+        ZonePolicyService zonePolicyService = CivilServices.getZonePolicyService();
+        if (zonePolicyService != null && zonePolicyService.allowsHostileSpawn(world, pos, entityType)) {
+            return new SpawnDecision(false, 0, SpawnDecision.BRANCH_ZONE_POLICY);
+        }
+
+        // ===== Stage 3: Civilization Score (Result Shard O(1), only if no nearby heads) =====
         CScore cScore = CivilServices.getCivilizationService().getCScoreAt(world, pos);
         double score = cScore.score();
         double thresholdLow = CivilConfig.spawnThresholdLow;

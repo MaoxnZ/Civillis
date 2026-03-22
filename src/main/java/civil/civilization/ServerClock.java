@@ -8,7 +8,7 @@ package civil.civilization;
  *
  * <p>Lifecycle:
  * <ol>
- *   <li>{@link #load(long)} — called once on world load with the value persisted in H2 {@code civil_meta}</li>
+ *   <li>{@link #load(long)} — called once on world load with the value persisted in {@code civil_meta}</li>
  *   <li>{@link #tick()} — called every server tick (+50 ms)</li>
  *   <li>{@link #now()} — read current server time from any thread</li>
  * </ol>

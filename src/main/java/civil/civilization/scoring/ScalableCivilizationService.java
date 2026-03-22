@@ -25,7 +25,7 @@ import java.util.*;
  *
  * <p>Two-layer cache system:
  * <ul>
- *   <li><b>L1 Info Shards</b>: per-VC raw score, palette-accelerated, H2-persisted</li>
+ *   <li><b>L1 Info Shards</b>: per-VC raw score, palette-accelerated, NBT-persisted</li>
  *   <li><b>Result Shards</b>: pre-aggregated coreSum/outerSum, O(1) spawn-check query</li>
  * </ul>
  *
@@ -221,8 +221,8 @@ public final class ScalableCivilizationService implements CivilizationService {
             return Optional.of(new CScore(0.0));
         }
         // Guard: if the chunk isn't loaded, return 0.0 instead of force-loading it.
-        // Any previously computed non-zero L1 would already be in H2 (caught by
-        // getL1Score's cold-storage check), so reaching here means the chunk is
+        // Any previously computed non-zero L1 would already be on disk (cold path),
+        // so reaching here means the chunk is
         // either brand-new or was empty — returning 0.0 is safe.
         if (!world.hasChunk(key.getCx(), key.getCz())) {
             return Optional.empty();
@@ -321,7 +321,7 @@ public final class ScalableCivilizationService implements CivilizationService {
         CScore newCScore = computeCScoreForChunk(world, shardKey);
         double newScore = newCScore.score();
 
-        // 3. Update L1 cache + H2
+        // 3. Update L1 cache + staged persistence
         cacheService.putChunkCScore(world, shardKey, newCScore);
 
         // 4. Calculate delta and propagate

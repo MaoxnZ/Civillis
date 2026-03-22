@@ -18,6 +18,8 @@ import civil.item.CivilDetectorAnimationReset;
 import civil.perf.TpsLogger;
 import civil.registry.BlockWeightLoader;
 import civil.registry.HeadTypeLoader;
+import civil.registry.ZonePolicyLoader;
+import civil.civilization.ZoneTransitionPayload;
 import civil.config.CivilConfig;
 import civil.command.CivilAdminCommands;
 import net.minecraft.core.component.DataComponentType;
@@ -126,6 +128,7 @@ public class CivilModNeoForge {
         NeoForge.EVENT_BUS.addListener(this::onServerTickPost);
         NeoForge.EVENT_BUS.addListener(this::onChunkLoad);
         NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedIn);
+        NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedOut);
         NeoForge.EVENT_BUS.addListener(this::onRightClickBlock);
         NeoForge.EVENT_BUS.addListener(this::onLivingDeath);
 
@@ -158,6 +161,8 @@ public class CivilModNeoForge {
                 NeoForgeClientPayloadHandler::handleUndyingAnchorPreTeleport);
         registrar.playToClient(UndyingAnchorParticlePayload.ID, UndyingAnchorParticlePayload.CODEC,
                 NeoForgeClientPayloadHandler::handleUndyingAnchorParticles);
+        registrar.playToClient(ZoneTransitionPayload.ID, ZoneTransitionPayload.CODEC,
+                NeoForgeClientPayloadHandler::handleZoneTransition);
     }
 
     private void onBuildCreativeTab(BuildCreativeModeTabContentsEvent event) {
@@ -171,6 +176,7 @@ public class CivilModNeoForge {
         ResourceManager manager = server.getResourceManager();
         BlockWeightLoader.reload(manager);
         HeadTypeLoader.reload(manager);
+        ZonePolicyLoader.reload(manager);
     }
 
     private void onDatapackSync(OnDatapackSyncEvent event) {
@@ -178,6 +184,7 @@ public class CivilModNeoForge {
         ResourceManager manager = server.getResourceManager();
         BlockWeightLoader.reload(manager);
         HeadTypeLoader.reload(manager);
+        ZonePolicyLoader.reload(manager);
     }
 
     private void onRegisterCommands(RegisterCommandsEvent event) {
@@ -219,6 +226,12 @@ public class CivilModNeoForge {
     private void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             CivilDetectorAnimationReset.onPlayerJoin(player);
+        }
+    }
+
+    private void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            CivilMod.onPlayerLogout(player);
         }
     }
 

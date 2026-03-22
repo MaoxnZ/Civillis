@@ -12,7 +12,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
  * is defined globally per payload ({@code wallMinY/wallMaxY}) rather than per face,
  * because the BFS operates in 2D (XZ plane only) and the wall is projected vertically.
  *
- * @param axis         0 = X, 2 = Z (maps to {@link net.minecraft.util.math.Direction.Axis} ordinal)
+ * @param axis         0 = X, 2 = Z (maps to {@link net.minecraft.core.Direction.Axis} ordinal)
  * @param planeCoord   world coordinate of the boundary plane (block edge)
  * @param minU         face rectangle min U (16-wide; Z for X-axis, X for Z-axis)
  * @param positiveDir  true if the LOW side is in the positive axis direction

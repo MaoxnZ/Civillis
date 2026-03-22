@@ -1,0 +1,168 @@
+package civil.civilization;
+
+import civil.CivilMod;
+import civil.config.CivilConfig;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
+
+import java.util.Objects;
+
+/**
+ * Client HUD for zone semantic transitions.
+ */
+@SuppressWarnings("null")
+public final class ZoneTransitionHud {
+    private static final int FADE_IN_TICKS = 16;
+    private static final int HOLD_TICKS = 28;
+    private static final int FADE_OUT_TICKS = 16;
+    private static final int CIV_RGB = 0xEAF4FF;
+    private static final int WILD_RGB = 0x8ECFFF;
+    private static final int CAUTION_RGB = 0xFFB78F;
+    private static final int BAR_WIDTH = 2;
+    private static final int BAR_HEIGHT = 12;
+    private static final int BAR_GAP = 8;
+    private static final int BAR_TRAVEL = 16;
+    private static final float BAR_CENTER_Y_BIAS_RATIO = -0.15f;
+
+    private static long latestEpoch = Long.MIN_VALUE;
+    private static Component currentText = Component.empty();
+    private static ZoneSemanticState currentState = ZoneSemanticState.WILDERNESS;
+    private static int ticksRemaining = 0;
+
+    private ZoneTransitionHud() {}
+
+    /**
+     * Clears monotonic epoch ordering and visible HUD state when the client leaves a world or joins
+     * another (same JVM session). Call from connection lifecycle so a new world's smaller
+     * {@link ZoneTransitionPayload#epoch()} is not dropped as "stale".
+     */
+    public static void resetForWorldSession() {
+        latestEpoch = Long.MIN_VALUE;
+        currentText = Component.empty();
+        currentState = ZoneSemanticState.WILDERNESS;
+        ticksRemaining = 0;
+    }
+
+    public static void onPayload(ZoneTransitionPayload payload) {
+        if (!CivilConfig.zoneTransitionHudEnabled) {
+            if (CivilMod.DEBUG) {
+                CivilMod.LOGGER.info("[zone][client] ignore payload: HUD disabled in config (epoch={} stateId={})",
+                        payload.epoch(), payload.stateId());
+            }
+            return;
+        }
+        if (payload.epoch() < latestEpoch) {
+            if (CivilMod.DEBUG) {
+                CivilMod.LOGGER.info("[zone][client] drop stale: payloadEpoch={} latestEpoch={} stateId={} (receipt vs fast ordering)",
+                        payload.epoch(), latestEpoch, payload.stateId());
+            }
+            return;
+        }
+        if (CivilMod.DEBUG) {
+            CivilMod.LOGGER.info("[zone][client] apply HUD: epoch={} state={} (id={})",
+                    payload.epoch(), payload.state(), payload.stateId());
+        }
+        latestEpoch = payload.epoch();
+        currentState = payload.state();
+        currentText = Component.literal(Objects.requireNonNull(currentState.displayText()));
+        ticksRemaining = FADE_IN_TICKS + HOLD_TICKS + FADE_OUT_TICKS;
+    }
+
+    public static void tick() {
+        if (ticksRemaining > 0) {
+            ticksRemaining--;
+        }
+    }
+
+    public static void render(GuiGraphics guiGraphics, float partialTick) {
+        if (!CivilConfig.zoneTransitionHudEnabled) return;
+        if (ticksRemaining <= 0 || currentText.getString().isEmpty()) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.font == null) return;
+
+        int total = FADE_IN_TICKS + HOLD_TICKS + FADE_OUT_TICKS;
+        float clampedPartial = clamp01(partialTick);
+        float elapsed = (total - ticksRemaining) + clampedPartial;
+        float inPhase = clamp01(elapsed / FADE_IN_TICKS);
+        float outPhase = clamp01((elapsed - FADE_IN_TICKS - HOLD_TICKS) / FADE_OUT_TICKS);
+        float alpha;
+        if (elapsed < FADE_IN_TICKS) {
+            alpha = easeOutCubic(inPhase);
+        } else if (elapsed < (FADE_IN_TICKS + HOLD_TICKS)) {
+            alpha = 1.0f;
+        } else {
+            alpha = 1.0f - easeInCubic(outPhase);
+        }
+        if (alpha <= 0.01f) return;
+
+        int width = guiGraphics.guiWidth();
+        int y = (int) (guiGraphics.guiHeight() * 0.20f);
+        Component textComponent = currentText;
+        int textWidth = mc.font.width(textComponent);
+        int textHeight = mc.font.lineHeight;
+        int x = (width - textWidth) / 2;
+
+        int rgb = switch (currentState) {
+            case CIVILIZED -> CIV_RGB;
+            case WILDERNESS -> WILD_RGB;
+            case CAUTION -> CAUTION_RGB;
+        };
+        int color = ((int) (alpha * 255.0f) << 24) | rgb;
+        guiGraphics.drawString(mc.font, textComponent, x, y, color, true);
+
+        float inEased = easeOutCubic(inPhase);
+        float outEased = easeInCubic(outPhase);
+        float leftOffset;
+        float rightOffset;
+        if (elapsed < FADE_IN_TICKS) {
+            leftOffset = -BAR_TRAVEL * (1.0f - inEased);
+            rightOffset = BAR_TRAVEL * (1.0f - inEased);
+        } else if (elapsed < (FADE_IN_TICKS + HOLD_TICKS)) {
+            leftOffset = 0.0f;
+            rightOffset = 0.0f;
+        } else {
+            leftOffset = BAR_TRAVEL * outEased;
+            rightOffset = -BAR_TRAVEL * outEased;
+        }
+
+        int barColor = ((int) (alpha * 220.0f) << 24) | rgb;
+        int barShadowRgb = switch (currentState) {
+            case CIVILIZED -> 0x0C1526;
+            case WILDERNESS -> 0x0D1A2A;
+            case CAUTION -> 0x2A160D;
+        };
+        int barShadowColor = ((int) (alpha * 120.0f) << 24) | barShadowRgb;
+        int barCenterBias = Math.round(textHeight * BAR_CENTER_Y_BIAS_RATIO);
+        barCenterBias = clampInt(barCenterBias, -4, -1);
+        int baseBarY = y + (textHeight - BAR_HEIGHT) / 2 + barCenterBias;
+        int leftX = x - BAR_GAP - BAR_WIDTH;
+        int rightX = x + textWidth + BAR_GAP;
+        int leftY1 = Math.round(baseBarY + leftOffset);
+        int rightY1 = Math.round(baseBarY + rightOffset);
+        guiGraphics.fill(leftX + 1, leftY1 + 1, leftX + BAR_WIDTH + 1, leftY1 + BAR_HEIGHT + 1, barShadowColor);
+        guiGraphics.fill(rightX + 1, rightY1 + 1, rightX + BAR_WIDTH + 1, rightY1 + BAR_HEIGHT + 1, barShadowColor);
+        guiGraphics.fill(leftX, leftY1, leftX + BAR_WIDTH, leftY1 + BAR_HEIGHT, barColor);
+        guiGraphics.fill(rightX, rightY1, rightX + BAR_WIDTH, rightY1 + BAR_HEIGHT, barColor);
+    }
+
+    private static float clamp01(float value) {
+        if (value < 0.0f) return 0.0f;
+        return Math.min(value, 1.0f);
+    }
+
+    private static float easeOutCubic(float t) {
+        float x = clamp01(t);
+        float oneMinus = 1.0f - x;
+        return 1.0f - oneMinus * oneMinus * oneMinus;
+    }
+
+    private static float easeInCubic(float t) {
+        float x = clamp01(t);
+        return x * x * x;
+    }
+
+    private static int clampInt(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+}

@@ -7,7 +7,7 @@ package civil.item;
  * have been replaced by the sonar shockwave effect ({@link civil.aura.SonarShockwaveEffect}),
  * which provides much clearer zone-aware visual feedback.
  *
- * <p>Kept as a stub to avoid breaking the registration call in {@code CivilModClient}.
+ * <p>Kept as a stub to avoid breaking the registration call in {@code civil.fabric.CivilModClientFabric}.
  */
 public final class CivilDetectorClientParticles {
 

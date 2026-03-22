@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>Anchors are activated by right-clicking the center emerald with a totem.
  * Valid for rescue when: activated, global cooldown passed, full civilization (1.0), clearance above.
  *
- * <p>All data is persisted to the H2 {@code undying_anchors} table and loaded at server startup.
+ * <p>Anchor snapshots are persisted via {@link CivilStorage} and loaded at server startup.
  */
 public final class UndyingAnchorTracker {
 

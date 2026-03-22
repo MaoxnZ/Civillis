@@ -53,6 +53,9 @@
   "civil.config.sonar.detectorEnabled.tooltip.2": "using the Civil Detector item.",
   "civil.config.sonar.detectorEnabled.tooltip.3": "\u00a77Does not affect bell sonar.",
 
+  "civil.config.ui.zoneTransitionHudEnabled": "Zone Transition HUD",
+  "civil.config.ui.zoneTransitionHudEnabled.tooltip": "Show a short on-screen label when zone semantics change (civilized / wilderness / caution near structures).",
+
   "civil.config.sonar.detectorRadius": "Detector Sonar Range",
   "civil.config.sonar.staticRadius": "Bell Sonar Range",
   "civil.config.slider.sonarRadius": "%1$d blocks",

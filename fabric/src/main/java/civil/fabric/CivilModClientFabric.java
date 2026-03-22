@@ -1,6 +1,8 @@
 package civil.fabric;
 
 import civil.CivilMod;
+import civil.civilization.ZoneTransitionHud;
+import civil.civilization.ZoneTransitionPayload;
 import civil.aura.AuraWallRenderer;
 import civil.aura.SonarBoundaryPayload;
 import civil.aura.SonarChargePayload;
@@ -14,13 +16,15 @@ import civil.item.CivilDetectorClientParticles;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.Environment;
 import net.fabricmc.api.EnvType;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.Entity;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,6 +40,10 @@ public class CivilModClientFabric implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         CivilDetectorClientParticles.register();
+
+        // Zone HUD: same-JVM world switch — reset epoch gate + overlay state (common + integrated server).
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> ZoneTransitionHud.resetForWorldSession());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> ZoneTransitionHud.resetForWorldSession());
 
         ClientPlayNetworking.registerGlobalReceiver(SonarChargePayload.ID,
                 (payload, context) -> {
@@ -70,17 +78,34 @@ public class CivilModClientFabric implements ClientModInitializer {
                     }
                 });
 
-        WorldRenderEvents.BEFORE_TRANSLUCENT.register(context -> {
+        ClientPlayNetworking.registerGlobalReceiver(ZoneTransitionPayload.ID,
+                (payload, context) -> ZoneTransitionHud.onPayload(payload));
+
+        ClientTickEvents.END_CLIENT_TICK.register(client -> ZoneTransitionHud.tick());
+
+        // v1.world API has no AFTER_TRANSLUCENT; END_MAIN runs after translucent terrain (Fabric javadoc).
+        WorldRenderEvents.END_MAIN.register(context -> {
             UndyingAnchorCinematicEffect.tickAndApplyShake(null);
             UndyingAnchorParticleEffect.tick();
-            Vec3 cam = context.worldState().cameraRenderState.pos;
-            AuraWallRenderer.onRender(cam);
+            // MC 1.21.11+: Camera no longer exposes getPosition(); match NeoForge (eye + partial tick).
+            Minecraft mc = Minecraft.getInstance();
+            float pt = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
+            Entity entity = mc.gameRenderer.getMainCamera().entity();
+            if (entity != null) {
+                AuraWallRenderer.onRender(entity.getEyePosition(pt));
+            }
         });
 
         HudElementRegistry.attachElementBefore(
                 VanillaHudElements.MISC_OVERLAYS,
                 Identifier.fromNamespaceAndPath(CivilMod.MOD_ID, "undying_anchor_overlay"),
                 (guiGraphics, tickCounter) -> UndyingAnchorCinematicEffect.renderOverlay(
+                        guiGraphics, tickCounter.getGameTimeDeltaPartialTick(true)));
+
+        HudElementRegistry.attachElementBefore(
+                VanillaHudElements.MISC_OVERLAYS,
+                Identifier.fromNamespaceAndPath(CivilMod.MOD_ID, "zone_transition_overlay"),
+                (guiGraphics, tickCounter) -> ZoneTransitionHud.render(
                         guiGraphics, tickCounter.getGameTimeDeltaPartialTick(true)));
     }
 

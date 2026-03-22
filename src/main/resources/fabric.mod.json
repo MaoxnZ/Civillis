@@ -15,13 +15,13 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "civil.CivilMod"
+      "civil.fabric.CivilModFabric"
     ],
     "client": [
-      "civil.CivilModClient"
+      "civil.fabric.CivilModClientFabric"
     ],
     "modmenu": [
-      "civil.config.CivilModMenuIntegration"
+      "civil.fabric.CivilModMenuIntegration"
     ]
   },
   "mixins": [

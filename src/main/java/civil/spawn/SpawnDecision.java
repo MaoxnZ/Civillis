@@ -26,6 +26,7 @@ public record SpawnDecision(boolean block, double score, String branch,
     public static final String BRANCH_HIGH = "HIGH";
     public static final String BRANCH_HEAD_NEARBY = "HEAD_NEARBY";
     public static final String BRANCH_HEAD_SUPPRESS = "HEAD_SUPPRESS";
+    public static final String BRANCH_ZONE_POLICY = "ZONE_POLICY";
 
     /** Convenience constructor for non-head branches (no head info). */
     public SpawnDecision(boolean block, double score, String branch) {

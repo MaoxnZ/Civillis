@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.2.2-release]
+
+### Added
+
+- **Zone transition HUD**: Short on-screen hints with smooth fade animations.
+  **Civilized** and **Wilderness** show when you **enter or leave** a large span of
+  civilized chunks; **Caution** marks structure-tinted areas (for example **ocean
+  monuments**). You can turn this off under **Miscellaneous** in the in-game settings
+  GUI.
+- **Hostile spawns bypass Civillis in specific structures**: For example, **ocean
+  monuments** now behave as you’d expect — **Guardians** are no longer suppressed by
+  civilization. Modpack authors can tweak or extend this with a **datapack**
+  (`data/<namespace>/civil_zone_policies/`).
+- **Round-robin prefetch engine**: Reworked how decay is driven so it **tracks patrol
+  behavior more faithfully**, and **wilderness no longer burns server time on decay**
+  in the background.
+
+### Changed
+
+- **Civil Detector look**: Big texture refresh — more of a **magic crystal-ball** vibe.
+  Tell us whether you like the new art.
+
+### Fixed
+
+- **NeoForge — sonar aura wall**: No longer **jitters back and forth** as you move.
+- **Fabric — sonar aura wall**: **Scrolling texture** works again on builds where it
+  stalled; the wall no longer **sinks too deep underwater** on some versions.
+- **Detector sonar**: **Head-zone sounds** were wrong on some versions — fixed.
+
+### Note
+
+- Thanks to **Stick Boy** for the new Civil Detector artwork.
+- Feedback, bug reports, ideas — join our Discord: [Civillis Official](https://discord.gg/dA7QCPx7zd)
+
 ## [1.2.1-release]
 
 ### Fixed

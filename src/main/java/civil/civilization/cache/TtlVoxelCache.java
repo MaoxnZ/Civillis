@@ -11,7 +11,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,8 +24,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>L2/L3 layers have been retired. This cache stores only L1 info shards
  * (per-VC raw scores). Result shards are managed by {@link ResultCache}.
  *
- * <p>L1 entries are persisted to H2 on write and restored from H2 on chunk load
- * or server startup.
+ * <p>L1 entries are staged for unified NBT flush on write and restored from storage
+ * on chunk load or server startup.
  */
 public final class TtlVoxelCache implements CivilizationCache {
 
@@ -36,6 +38,8 @@ public final class TtlVoxelCache implements CivilizationCache {
 
     /** Pending L1 writes for unified flush. Key: dim|cx|cz|sy, value: CScore. */
     private final ConcurrentHashMap<String, CScore> pendingScoreWrites = new ConcurrentHashMap<>();
+    /** Keys to clear (score written as 0) on flush when L1 score is ≤ 0. */
+    private final ConcurrentHashMap<String, Boolean> pendingScoreDeleteKeys = new ConcurrentHashMap<>();
 
     // Persistent storage
     private CivilStorage storage;
@@ -92,8 +96,13 @@ public final class TtlVoxelCache implements CivilizationCache {
     public void putChunkCScore(ServerLevel level, VoxelChunkKey key, CScore cScore) {
         String k = l1Key(level, key);
         l1Cache.put(k, new TimestampedEntry<>(cScore));
-        // NBT: add to pendingScoreWrites; unified flush writes to Cold
-        pendingScoreWrites.put(k, cScore);
+        if (cScore.score() <= 0.0) {
+            pendingScoreWrites.remove(k);
+            pendingScoreDeleteKeys.put(k, Boolean.TRUE);
+        } else {
+            pendingScoreDeleteKeys.remove(k);
+            pendingScoreWrites.put(k, cScore);
+        }
 
         if (CivilMod.DEBUG) {
             CACHE_LOG.info("[civil-cache] L1 PUT dim={} cx={} cz={} sy={} score={}",
@@ -132,7 +141,7 @@ public final class TtlVoxelCache implements CivilizationCache {
     }
 
     /**
-     * Restore L1 entry (from H2 cold storage or chunk load palette scan).
+     * Restore L1 entry (from disk snapshot or chunk load palette scan).
      */
     public void restoreL1(ServerLevel level, VoxelChunkKey key, CScore cScore, long createTime) {
         String k = l1Key(level, key);
@@ -178,6 +187,12 @@ public final class TtlVoxelCache implements CivilizationCache {
         return snapshot;
     }
 
+    public List<String> drainPendingScoreDeleteKeys() {
+        List<String> snapshot = new ArrayList<>(pendingScoreDeleteKeys.keySet());
+        pendingScoreDeleteKeys.clear();
+        return snapshot;
+    }
+
     /**
      * Clear all L1 entries. Called on world shutdown to prevent cross-world cache contamination.
      * Cache keys (dim|cx|cz|sy) do not include world identifier, so switching worlds would
@@ -186,5 +201,6 @@ public final class TtlVoxelCache implements CivilizationCache {
     public void clearAll() {
         l1Cache.clear();
         pendingScoreWrites.clear();
+        pendingScoreDeleteKeys.clear();
     }
 }
