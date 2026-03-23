@@ -37,6 +37,13 @@ venv/
 tests/output/*
 !tests/output/.gitkeep
 
+# Civillis roadmap (Vite / npm)
+# — node_modules: third-party deps; reinstall via `npm ci` in roadmap/ (lockfile is source of truth).
+# — dist: production build output; CI builds fresh and copies into docs/roadmap.
+roadmap/node_modules/
+roadmap/dist/
+roadmap/.vite/
+
 # MkDocs build output
 site/
 

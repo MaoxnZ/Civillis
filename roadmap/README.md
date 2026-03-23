@@ -1,25 +1,7 @@
-# Civillis Roadmap (Interactive)
+# Civillis roadmap
 
-This is a static React app for the public roadmap view.
+This folder builds the **interactive public roadmap** for Civillis: release cards, feature details, and a development timeline.
 
-## Local development
+**View it live** (after the site is deployed): open the project’s GitHub Pages site and go to **`/roadmap/`**, or follow the “Roadmap” link from the main documentation if one is provided there.
 
-```bash
-cd roadmap
-npm install
-npm run dev
-```
-
-Default local URL: `http://localhost:5173`
-
-## Production build
-
-```bash
-cd roadmap
-npm run build
-npm run preview
-```
-
-For GitHub Pages deployment in this repository, CI builds this app and publishes it under:
-
-- `/roadmap/`
+If you want to **edit data or run the app locally**, see [`DEVELOPERS.md`](./DEVELOPERS.md).

@@ -311,14 +311,16 @@
         "id": "r122-release",
         "version": "1.2.2",
         "phase": "release",
-        "status": "In Progress",
+        "status": "Released",
         "theme": "Better Prefetch & Roadmap",
         "summary": "The public roadmap is being rolled out. Prefetch is being optimized for better patrolling accuracy and fewer meaningless updates in non-civilized areas, together with entering/leaving civilized area messaging.",
         "image": "__PLACEHOLDER__",
         "featureRefs": [
           "f-entering-leaving-civilized-area",
+          "f-structure-hostile-spawn-bypass",
           "f-prefetch-result-centric-queue",
           "f-presence-raw-epsilon-gating",
+          "f-civil-detector-visual-refresh",
           "f-roadmap-site"
         ]
       }

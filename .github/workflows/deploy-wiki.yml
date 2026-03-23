@@ -6,7 +6,6 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
-      - 'roadmap/**'
       - '.github/workflows/deploy-wiki.yml'
 
 permissions:

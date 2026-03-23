@@ -36,36 +36,21 @@ export function ReleaseView({
   cardsScrollProgress,
   setCardsScrollProgress,
 }) {
-  const allGroups = [...pastGroups, ...activeGroups];
-  const latestReleasedGroupIndex = allGroups.reduce((acc, group, idx) => {
-    const hasReleased = group.items.some((item) => String(item.status || "").toLowerCase() === "released");
-    return hasReleased ? idx : acc;
-  }, -1);
-
-  function isPureTentativeGroup(group) {
-    return group.items.length > 0 && group.items.every((item) => String(item.status || "").toLowerCase() === "tentative");
-  }
-
+  /** Hat “ears” color: only from cards inside this release group (not neighbors or global order). */
   function earStateForGroup(group) {
-    const idx = allGroups.findIndex((g) => g.key === group.key);
-    const statuses = group.items.map((item) => String(item.status || "").toLowerCase());
-    const hasReleased = statuses.includes("released");
-    const hasInProgressLike = statuses.includes("in progress") || statuses.includes("under review");
-    const hasNonReleased = statuses.some((status) => status !== "released");
+    const items = group.items || [];
+    if (items.length === 0) return "gray";
 
-    if (isPureTentativeGroup(group)) return "gray";
+    const statuses = items.map((item) => String(item.status || "").toLowerCase());
+
+    if (statuses.every((s) => s === "tentative")) return "gray";
+
+    const hasInProgressLike = statuses.some((s) => s === "in progress" || s === "under review");
     if (hasInProgressLike) return "yellow";
-    if (!hasReleased) return "gray";
-    if (hasNonReleased) return "yellow";
 
-    if (idx >= 0 && latestReleasedGroupIndex >= 0) {
-      if (idx < latestReleasedGroupIndex) return "green";
-      if (idx === latestReleasedGroupIndex) {
-        const nextGroup = allGroups[idx + 1];
-        if (nextGroup && isPureTentativeGroup(nextGroup)) return "yellow";
-      }
-    }
-    return "green";
+    if (statuses.every((s) => s === "released")) return "green";
+
+    return "yellow";
   }
 
   return (

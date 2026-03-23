@@ -735,14 +735,29 @@
   },
   {
     "id": "f-entering-leaving-civilized-area",
-    "name": "Messaging upon entering/leaving civilized area",
-    "status": "Developing",
-    "progress": 20,
-    "details": "The game is adding clear entering/leaving area messages so players can immediately tell when they are back in safe settlement territory.",
+    "name": "Zone transition HUD",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Zone transition messaging is now a three-state HUD with smooth transitions and clearer context for settlements versus danger zones.",
     "items": [
-      "A subtle entering message appears when you return to a civilized area.",
-      "A leaving message appears when you move out into uncivilized territory.",
-      "Message timing is smoothed to avoid flicker during fast movement."
+      "Civilized and Wilderness labels appear when entering or leaving large civilized chunk areas.",
+      "Caution appears for structure-tinted zones such as ocean monuments.",
+      "Transition timing and fades are smoothed to avoid flicker during movement."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-structure-hostile-spawn-bypass",
+    "name": "Allow hostile spawns in specific structures",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Specific vanilla structures can now bypass civilization suppression so hostile mobs behave as expected in high-risk content.",
+    "items": [
+      "Ocean monuments can spawn guardians again under default policy.",
+      "Bypass behavior is data-driven and can be tuned through datapack zone policies.",
+      "Structure gameplay remains dangerous without weakening settlement protection elsewhere."
     ],
     "images": [
       "__PLACEHOLDER__"
@@ -751,13 +766,13 @@
   {
     "id": "f-prefetch-result-centric-queue",
     "name": "Prefetch-driven decay accuracy refactor",
-    "status": "Developing",
-    "progress": 20,
-    "details": "Prefetch is being rebuilt so civilization decay and recovery timing stays accurate from the start while runtime cost stays controlled.",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Round-robin result prefetch now drives decay/recovery behavior more consistently for patrol-style movement patterns.",
     "items": [
-      "Patrol-range checks are moving from partial lazy loading to full-area prefetch around active players.",
-      "This prevents missed decay updates in edge areas where decay sometimes failed to trigger under the old model.",
-      "Background work and storage cleanup are still controlled so long sessions stay smooth and save data stays cleaner."
+      "Decay calculation responds more completely to real patrol movement.",
+      "Queue scheduling is stabilized for predictable per-tick prefetch work.",
+      "Result prefetch and zone transition updates stay aligned during active movement."
     ],
     "images": [
       "__PLACEHOLDER__"
@@ -766,13 +781,27 @@
   {
     "id": "f-presence-raw-epsilon-gating",
     "name": "Decay applies only in civilized areas",
-    "status": "Developing",
-    "progress": 20,
+    "status": "Committed",
+    "progress": 100,
     "details": "Civilization decay now applies only in genuinely civilized areas, avoiding pointless updates in non-civilized space.",
     "items": [
       "Low-importance areas no longer trigger pointless decay/presence updates.",
       "Settlement behavior stays focused on places players actively care about.",
       "The reduced background update churn helps server performance and keeps save data growth under better control."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-civil-detector-visual-refresh",
+    "name": "Civil Detector visual refresh",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Civil Detector textures were updated to a cleaner magic crystal-ball style.",
+    "items": [
+      "Detector icon and item visuals now have a stronger crystal-ball identity.",
+      "Look and feel is aligned across release assets and announcement materials."
     ],
     "images": [
       "__PLACEHOLDER__"
@@ -802,6 +831,63 @@
       "Surface-aware sampling is intended to keep map output aligned with real ground-level gameplay.",
       "Civilization tint is intended to highlight safe and weak zones without hiding familiar landmarks.",
       "Refresh cadence is planned to be throttled and batched to keep the item practical on live worlds."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-town-center",
+    "name": "Town Center structure",
+    "status": "Planned",
+    "progress": 0,
+    "details": "A dedicated structure that activates when placed and oriented correctly; an interactable hub designed for future management layers and upgrade systems.",
+    "items": [
+      "Placement puzzle unlocks activation.",
+      "Interaction surface is built for extensibility.",
+      "Future: administration, upgrades, and other town-scale systems."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-civillis-advancements",
+    "name": "Civillis advancements",
+    "status": "Planned",
+    "progress": 0,
+    "details": "Advancement-style goals that guide players through Civillis, in the same spirit as vanilla Minecraft advancements: discover systems, complete milestones, and unlock clarity without hard gating everything.",
+    "items": [
+      "Structured goals introduce core mechanics in order.",
+      "Optional branches for explorers and builders."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-bell-sonar-revamp",
+    "name": "Bell sonar revamp",
+    "status": "Planned",
+    "progress": 0,
+    "details": "Rework stationary bell sonar into a stronger structure with more activation options and operating costs such as emerald charging, beyond the current lodestone-bell profile.",
+    "items": [
+      "Clearer structure role and better layout affordances.",
+      "Multiple activation methods and balance hooks (e.g. emeralds)."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-multiblocks-custom-blocks",
+    "name": "Multiblocks & custom blocks",
+    "status": "Planned",
+    "progress": 0,
+    "details": "Functional multiblock assemblies for Civillis features, with a registration pattern so large mods can integrate or showcase custom block implementations consistently.",
+    "items": [
+      "Server-registered multiblock identities for gameplay systems.",
+      "Interop story for modded multiblock showcases."
     ],
     "images": [
       "__PLACEHOLDER__"
