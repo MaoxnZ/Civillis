@@ -1,0 +1,16 @@
+{
+  "_comment": [
+    "Civil mod compatibility: Iron Chests (ironchest).",
+    "Block IDs verified against Iron Chests namespace entries 1.20.1.",
+    "If the mod is not installed, these entries are safely ignored."
+  ],
+  "replace": false,
+  "entries": [
+    { "block": "ironchest:iron_chest",                "weight": 0.3 },
+    { "block": "ironchest:gold_chest",                "weight": 0.3 },
+    { "block": "ironchest:diamond_chest",             "weight": 0.3 },
+    { "block": "ironchest:copper_chest",              "weight": 0.3 },
+    { "block": "ironchest:crystal_chest",             "weight": 0.3 },
+    { "block": "ironchest:obsidian_chest",            "weight": 0.3 }
+  ]
+}
