@@ -1,11 +1,13 @@
 # Data-Driven Registries
 
-Civillis uses two data-driven registries that can be fully customized via datapacks:
+Civillis loads several JSON registries from datapacks:
 
 - **Block Weights** (`civil_blocks`) — which blocks count as civilization and how much they contribute
 - **Head Types** (`civil_heads`) — which skull types are recognized and what mobs they map to
+- **Zone Policies** (`civil_zone_policies`) — structure-tagged rules (e.g. allow hostile spawns inside monuments)
+- **Dimension Policies** (`civil_dimension_policies`) — per-dimension toggles for civilization scoring and head mechanics
 
-Both follow the same pattern: JSON files placed under `data/<namespace>/<registry>/` are loaded at server startup and on `/reload`. No mod code changes needed — just drop JSON into your datapack.
+Files live under `data/<namespace>/<registry>/` and load at server startup and on `/reload`. No mod code changes needed — drop JSON into your datapack.
 
 ---
 
@@ -215,6 +217,67 @@ Mods that add new skull types via custom `AbstractSkullBlock` subclasses (with c
 ```
 
 Only skeleton and zombie skulls remain active. All other vanilla skulls become decorative.
+
+---
+
+## Zone Policies (`civil_zone_policies`)
+
+Controls how **natural** hostile spawns behave **inside matched vanilla structures**, independent of nearby civilization score. Also feeds **structure-tint** style hints for the [zone HUD](../play/zone-transition-hud.md).
+
+### File location
+
+```text
+data/<namespace>/civil_zone_policies/<any_name>.json
+```
+
+### Shape (conceptual)
+
+Each file contains `replace` (optional) and `entries`. Each entry has:
+
+- **`id`** — stable string label for the rule set
+- **`structures`** — list of structure IDs (e.g. `minecraft:monument`)
+- **`rules`** — at minimum `allow_hostile_spawn` (boolean). When `true`, hostiles can spawn as usual inside those structures. Optional `allow_mobs` can refine which mobs are affected when `allow_hostile_spawn` is false
+
+Defaults ship with the mod (monuments, fortresses, bastions, mansions, ancient cities, end cities, trial chambers, strongholds, etc.). Use additional files in your namespace to add or override behavior; `"replace": true` wipes policies loaded earlier in lexicographic order from **previous** files (use with care).
+
+See also: [Structure spawn rules](../play/structure-spawn-rules.md), [Built-in Compatibility](compatibility.md) (default zone JSON).
+
+---
+
+## Dimension Policies (`civil_dimension_policies`)
+
+Per-dimension switches so Civillis can stay out of dimensions where civilization scoring or head logic does not make sense (dungeon dimensions, instanced rooms, etc.).
+
+### File location
+
+```text
+data/<namespace>/civil_dimension_policies/<any_name>.json
+```
+
+### JSON format
+
+```json
+{
+  "replace": false,
+  "entries": [
+    {
+      "dimension": "mymod:custom_dimension",
+      "civilization": false,
+      "head_mechanics": true
+    }
+  ]
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `dimension` | Yes | Dimension ID (e.g. `minecraft:the_nether`) |
+| `civilization` | No | Default `true`. If `false`, civilization zones and scoring short-circuit (score reads as uncivilized for spawn logic) |
+| `head_mechanics` | No | Default `true`. If `false`, head proximity / suppression stages are skipped for that dimension |
+
+Later entries for the **same dimension** override earlier ones. The mod ships defaults for several known modded dimensions (Minecells, DimDungeons); replace or extend with your own datapack.
+
+See also: [Dimension rules](../play/dimension-rules.md), [Built-in Compatibility](compatibility.md) (default dimension table).
 
 ---
 

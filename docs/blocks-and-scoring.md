@@ -46,20 +46,11 @@ Blocks that emit light or have magical properties receive additional weight with
 
 Entries marked "all types" use block tags — all variants (e.g., oak bed, spruce bed) share the same weight.
 
-## Mod Compatibility
+## Mod compatibility (built-in weights)
 
-Civillis ships with built-in scoring for blocks from popular mods:
+Civillis ships **`civil_blocks`** JSON for **Create**, **Farmer's Delight**, **Supplementaries**, **Quark**, **Applied Energistics 2**, **Storage Drawers**, **Iron Chests**, **Sophisticated Storage**, **Functional Storage**, plus vanilla **`defaults.json`**. If a mod is not installed, its rows are skipped — no errors, no runtime cost.
 
-### Farmer's Delight
-Stoves (0.5), cooking pots (0.5), cutting boards (0.3), baskets (0.3), and all cabinet variants (0.4).
-
-### Supplementaries
-Netherite doors (0.8), safes (0.5), globes (0.5), hourglasses (0.5), sconces, jars, and various decorative blocks (0.2–0.4).
-
-### Create
-Steam engines (1.0), mechanical crafters (0.9), blaze burners (0.8), deployers (0.8), mechanical arms (0.8), and various mechanical blocks (0.3–0.7).
-
-If a mod is not installed, its block entries are silently ignored — no errors, no performance cost.
+Full ID → weight tables, zone/dimension/head defaults, and file paths: **[Built-in Compatibility](modpack/compatibility.md)** (expandable sections per source). Regenerate block tables after JSON changes with `python tools/gen_wiki_compatibility.py`.
 
 ## Data-Driven
 

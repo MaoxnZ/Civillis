@@ -1,6 +1,6 @@
 # Performance
 
-Civillis evaluates millions of blocks per spawn attempt while keeping each check at near-constant time. This page explains the optimization strategy and its real-world cost profile.
+A naive spawn check would scan a huge block volume every time; Civillis keeps the **hot path** at near-constant time via caching. This page is the optimization story and a practical cost sketch.
 
 ---
 
@@ -12,13 +12,13 @@ The solution is a **shard-based caching engine** built on three pillars:
 
 1. **Pre-aggregated results** — The 675-chunk aggregation is computed once and cached. Subsequent spawn checks are a single map lookup: **O(1), ~50 ns**.
 2. **Delta propagation** — When blocks change, only the affected shard is recomputed and the difference is applied to cached results. No full re-aggregation ever runs after the initial computation.
-3. **Palette pre-filtering** — Before scanning 4,096 blocks in a chunk section, the engine checks Minecraft's internal block palette for recognized civilization blocks. Sections with no targets are skipped in ~1 μs instead of a ~100 μs full scan — in wilderness this eliminates virtually 100% of scanning work.
+3. **Palette pre-filtering** — Before scanning 4,096 blocks in a chunk section, the engine checks the section palette for recognized civilization blocks. Sections with no targets skip the full scan (~1 μs vs ~100 μs); empty wilderness sections drop out early.
 
 ---
 
 ## Civilization Scoring Engine
 
-The following diagram shows the full data flow through the scoring engine — the component responsible for the O(1) spawn checks. All key paths (spawn checks, block changes, cold loading, prefetching, TTL eviction) are shown with their typical costs.
+The following diagram shows the full data flow through the scoring engine — the component responsible for the O(1) spawn checks. It includes **batched persistence** (staged writes + periodic unified flush), **bulk region load** with **activation** (avoid repeating the same cold NBT read until after a flush), **player-aware prefetch** (round-robin consumption with a per-tick budget), and in-memory **TTL** cleanup on L1 / Result caches.
 
 ```mermaid
 flowchart TD
@@ -40,17 +40,27 @@ flowchart TD
 
     L1 -->|"distance-weighted aggregate"| Result
 
-    Prefetch{{"prefetch nearby<br/>~0.9 ms/s"}}
+    NbtStore[("NBT storage<br/>async I/O queue")]
+    Bulk{{"bulk region load<br/>~0.1 ms"}}
+    Activated[("activated region<br/>skip repeat bulk read")]
+
+    NbtStore --> Bulk --> L1
+    Bulk --> Activated
+
+    Staged[("staged writes<br/>scores · presence · heads · anchors")]
+    UnifiedFlush{{"unified flush<br/>~every 30 s"}}
+
+    L1 --> Staged
+    Result --> Staged
+    Staged --> UnifiedFlush --> NbtStore
+    UnifiedFlush -->|"deactivate after write"| Activated
+
+    Prefetch{{"round-robin prefetch<br/>~0.9 ms/s moved"}}
     Presence{{"decay recovery<br/>~10 μs/s"}}
-    ColdLoad{{"cold read<br/>~0.1 ms"}}
-    H2[("H2 Cold Store<br/>async I/O")]
     PlayerMove(["Player Move (1/s)"])
 
     PlayerMove --> Prefetch --> L1
     PlayerMove --> Presence --> Result
-    H2 --> ColdLoad --> L1
-    L1 -->|"TTL 5 min evict"| H2
-    Result -->|"TTL 60 min evict"| H2
 ```
 
 ### Cost Summary
@@ -62,11 +72,17 @@ flowchart TD
 | L1 compute (palette skip) | ~1 μs | Most chunk sections |
 | L1 compute (full scan) | ~100 μs | Sections with civilization blocks |
 | Block change + delta | ~13 μs | Every block placement/removal |
-| Database cold read | ~0.1 ms | L1 evicted from memory |
-| Prefetch per player (moved) | ~0.9 ms/s | Once per second when player moves |
-| Prefetch per player (stationary) | ~0.01 ms/s | Once per second (presence only) |
+| Bulk region load (disk) | ~0.1 ms | First cold touch per **region** while not activated |
+| Unified flush to disk | amortized | About every **30 s**; batches L1/presence plus dirty heads, anchors, meta |
+| In-memory TTL cleanup | small | Every **5 s** on L1 / Result caches (not a per-evict disk write) |
+| Prefetch per player (moved) | ~0.9 ms/s | Once per second when player moves (round-robin queue + per-tick budget) |
+| Prefetch per player (stationary) | ~0.01 ms/s | Once per second (presence-oriented work) |
 
 The scoring engine alone scales comfortably to hundreds of players. The real cost story, however, depends on what happens *around* it.
+
+### Decay prefetch (round-robin)
+
+Decay-related work is driven by a **round-robin prefetch engine** tied to player movement and patrol semantics: **wilderness** does not burn server time on background decay the way dense civilized areas do. The engine maintains **per-player prefetch queues** and consumes them with a configurable **per-tick result budget** (epoch-style receipts avoid stale work after world changes). That keeps idle-world cost down while keeping outer-zone decay responsive where players actually matter.
 
 ---
 
@@ -100,17 +116,17 @@ This means Civillis has no obvious performance hotspot in normal deployments. Th
 
 ### Multiplayer Server Budget
 
-The table below gives a compact planning view for common server sizes.
+The table below gives a compact planning view for common server sizes. **Prefetch** = prefetch + presence work; **Spawn** = spawn pipeline; sums are **total Civillis** time per tick. The **%** is that total as a share of a nominal **20 ms** tick budget.
 
-| Server stage | Typical active pattern | Prefetch + presence | Spawn pipeline | Total Civillis cost | Tick budget used |
-|--------------|------------------------|---------------------|----------------|---------------------|------------------|
-| Small (~10 players) | 3 explorers + 7 builders in lit bases | ~0.14 ms/tick | ~0.12 ms/tick | ~0.26 ms/tick | ~0.5% |
-| Medium (~50 players) | 10 explorers + 40 builders across multiple bases | ~0.49 ms/tick | ~0.75 ms/tick | ~1.24 ms/tick | ~2.5% |
-| Large (~100 players) | 20 explorers + 80 builders, mixed lighting quality | ~0.98 ms/tick | ~2.60 ms/tick | ~3.58 ms/tick | ~7.2% |
+| Server stage | Typical active pattern | Prefetch + Spawn ≈ total (≈ % of tick) |
+|--------------|------------------------|--------------------------------------|
+| Small (~10 players) | 3 explorers + 7 builders in lit bases | **0.14** + **0.12** ≈ **0.26** ms/tick (~**0.5%**) |
+| Medium (~50 players) | 10 explorers + 40 builders across multiple bases | **0.49** + **0.75** ≈ **1.24** ms/tick (~**2.5%**) |
+| Large (~100 players) | 20 explorers + 80 builders, mixed lighting quality | **0.98** + **2.60** ≈ **3.58** ms/tick (~**7.2%**) |
 
-All values are rounded estimates under the stated assumptions; total cost is the sum of the two component columns in each row.
+All values are rounded estimates under the stated assumptions.
 
-!!! note "Observed upside in very large modpacks"
+!!! tip "Observed upside in very large modpacks"
     In some heavy modpack environments, Civillis can improve overall server performance instead of only adding overhead.
     Real user feedback confirms this in **Minecraft 1.20.1 Forge** with **300+ mods**: by reducing hostile mob pressure near established bases, total active-entity load and nearby AI churn can drop, which improves practical TPS stability.
     Treat this as an observed field result under specific pack conditions, not as a universal guarantee.

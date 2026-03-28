@@ -47,6 +47,22 @@ flowchart TD
 
 Non-natural spawns (spawn eggs, spawners, `/summon`, reinforcements) bypass the pipeline entirely and always succeed.
 
+**Datapack hooks:** Before civilization scoring runs, **dimension policies** (`civil_dimension_policies`) can disable civilization logic (and optionally head stages) per dimension. **Zone policies** (`civil_zone_policies`) can allow hostile spawns inside matched vanilla structures regardless of nearby score. See [Structure spawn rules](../play/structure-spawn-rules.md), [Dimension rules](../play/dimension-rules.md), and [Data-Driven Registries](../modpack/data-driven.md).
+
+---
+
+## Persistence (NBT storage)
+
+Civillis **does not use an embedded SQL database**. Since the 1.2.0 storage rewrite, civilization **L1 shard** scores, **ServerClock**, decay **presence** data, **mob head** positions, and **Podium of Undying** anchors are persisted through a dedicated **NBT-based storage layer** with **asynchronous I/O**. Dirty data is **staged in memory** and written in a **unified flush** about every **30 seconds** (600 ticks), not as a synchronous follow-up to every cache mutation. On cold paths, **bulk region load** pulls an entire on-disk region into L1 once; that region is then marked **activated** so repeated work does not re-read the same NBT bulk until the next flush **deactivates** it after persisting. Result shards remain **derived cache** in memory and are rebuilt from L1 when needed.
+
+World switches keep each world's data isolated; see the changelog for storage-related upgrade notes.
+
+---
+
+## Decay scheduling and prefetch
+
+Outer-zone decay is advanced by a **player-aware prefetch / round-robin** system so work tracks where players actually patrol. **Wilderness** is cheap: the engine avoids spending decay budget on areas that are not meaningfully tied to player presence, while civilized frontiers stay consistent with the decay model described below.
+
 ---
 
 ## Civilization Score
@@ -165,7 +181,7 @@ Mob Flee AI runs as a post-spawn behavior layer for existing hostile mobs. It do
 - Spawn gating decides whether a new hostile mob is allowed to appear
 - Mob Flee AI decides whether an already-existing hostile mob should retreat from civilization pressure
 
-In dense city cores, flee logic may escalate to panic-like retreat behavior (including possible combat disengagement), while outer civilized zones usually produce softer outward drift.
+High-pressure cores get panic-like retreat (including possible combat disengagement); lighter pressure produces outward drift.
 
 ```mermaid
 flowchart TD
@@ -226,27 +242,38 @@ flowchart TD
 
 ## Registry Loading & Injection
 
-The mod's behavior is entirely data-driven. Two JSON registries are loaded at startup (and on `/reload`) and injected into the runtime systems:
+The mod's rules are largely data-driven. JSON registries under `data/<namespace>/…` load at startup and on `/reload`:
 
 ```mermaid
 flowchart TD
     subgraph Load [Datapack Loading]
-        BW["civil_blocks/*.json"]
-        HT["civil_heads/*.json"]
-        Merge["Merge & resolve overrides<br/>(later-loaded datapacks override earlier ones)"]
+        BW["civil_blocks"]
+        HT["civil_heads"]
+        ZP["civil_zone_policies"]
+        DP["civil_dimension_policies"]
+        Merge["Merge and resolve overrides"]
 
         BW --> Merge
         HT --> Merge
+        ZP --> Merge
+        DP --> Merge
     end
 
     Merge -->|block weights| ScoreEngine["Civilization Score Engine"]
-    Merge -->|head type definitions| HeadTracker["Head Tracker"]
+    Merge -->|head types| HeadTracker["Head Tracker"]
+    Merge -->|structure rules| ZonePolicies["Zone policy eval"]
+    Merge -->|per dimension| DimPolicies["Dimension policy eval"]
 
-    ScoreEngine -->|"O(1) score lookup"| SpawnDecision["Spawn Decision"]
+    DimPolicies --> ScoreEngine
+    ZonePolicies --> SpawnDecision["Spawn Decision"]
+    ScoreEngine -->|"O(1) score lookup"| SpawnDecision
     HeadTracker -->|"proximity + conversion"| SpawnDecision
     SpawnDecision --> Outcome["allow / block / convert"]
 ```
 
-- Block weight registry determines which blocks are recognized and how much each contributes to civilization score
-- Head type registry determines which skull types are active, their dimension restrictions, and whether they participate in conversion
-- Both registries support full datapack override: modpacks can add, modify, or replace entries without touching mod code
+- **civil_blocks** — recognized blocks and weights for scoring
+- **civil_heads** — skull types, dimensions, conversion flags
+- **civil_zone_policies** — structure-tagged spawn exceptions (e.g. monuments)
+- **civil_dimension_policies** — per-dimension toggles for civilization and head mechanics
+
+Modpacks can add, modify, or replace entries without touching mod code. Details: [Data-Driven Registries](../modpack/data-driven.md).

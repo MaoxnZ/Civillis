@@ -10,7 +10,7 @@ Every time a hostile mob attempts to spawn naturally, Civillis evaluates the are
 2. **Score** — Each recognized block contributes a weighted value to its local 16³ voxel chunk; all chunks in range are then aggregated into a final score between 0 and 1
 3. **Decide** — The score determines the spawn outcome
 
-*This means millions of blocks evaluated per spawn attempt, across every spawn attempt in the world. See [Architecture](technical/architecture.md) to learn how the shard-based civilization engine keeps this at constant time.*
+*Naively that would touch a huge volume every time; see [Architecture](technical/architecture.md) for how caching keeps spawn checks fast.*
 
 ## Spawn Decisions
 
@@ -42,13 +42,13 @@ Blocks that reflect human presence contribute to the score. The more complex or 
 Light-emitting and magical blocks receive a bonus multiplier. See [Blocks & Scoring](blocks-and-scoring.md) for the full weight table.
 
 !!! note "Voxel Chunk Score Cap"
-    Each 16×16×16 voxel chunk has a maximum civilization score. Stacking more blocks into a single chunk beyond the cap doesn't help — spread your builds outward instead. A wider settlement actually provides bonus protection beyond what the individual blocks alone would suggest.
+    Each 16×16×16 voxel chunk has a maximum civilization score. Past the cap, more blocks in that same chunk do not add score — spread builds across chunks for more coverage.
 
 ## Practical Scale
 
 - **A small cabin** with a crafting table, furnace, bed, and chest provides modest protection — mobs are less likely to spawn nearby, but not fully suppressed.
 - **A well-developed village** with workstations, campfires, and lanterns pushes monsters back ~40 blocks from its borders.
-- **A sprawling industrial megacity** — every chunk saturated with high-value blocks — can reach up to ~90 blocks of spawn-free perimeter. This requires serious dedication.
+- **A sprawling industrial megacity** — many chunks at cap — can reach on the order of ~90 blocks of spawn-free perimeter.
 
 ## Beyond Scoring
 
@@ -57,4 +57,19 @@ Civilization scoring is the foundation, but the mod doesn't stop there:
 - **[Civilization Decay](civilization-decay.md)** — Protection fades from the edges inward when you leave. Return and stay, and it recovers.
 - **[Monster Heads](monster-heads.md)** — Skulls punch through civilization protection and redirect distant hostiles toward themselves.
 - **[Mob Flee AI](mob-flee-ai.md)** — Existing hostiles can retreat from civilization pressure, especially in dense city cores.
-- **[Civilization Detector](detector.md)** — Scan and visualize your civilization boundaries in real time.
+- **[Civilization Sonar](sonar/index.md)** — Portable detector and static bell scans; visualize boundaries in real time (overview + tabbed detail).
+- **[Zone transition HUD](play/zone-transition-hud.md)**, **[Structure spawn rules](play/structure-spawn-rules.md)**, **[Dimension rules](play/dimension-rules.md)**, **[Podium of Undying](play/podium-of-undying.md)**, **[Commands](play/commands.md)** — feedback, structure/dimension exceptions, late-game rescue, `/civil rebuild`.
+
+## In-game configuration
+
+The two knobs that most change the feel of the spawn loop are on the **main** row of **Civillis Settings** → **Civilization**:
+
+| Setting | Range | Default | What it does |
+|---------|-------|---------|--------------|
+| **Civilization Strength** | 1–10 | 5 | Moves both spawn thresholds — higher = easier full protection. |
+| **Max. Civilization Radius** | 112–496 blocks (step 32) | 240 blocks | How far around each spawn attempt the mod looks for civilization blocks. |
+
+Sonar, decay, heads, podium, flee AI, and HUD live in **collapsible subcategories** on the same screen. Full table in [Configuration](configuration.md).
+
+!!! warning "Advanced: civil.properties"
+    Raw keys override the GUI for matching parameters. If tuning goes wrong, delete `config/civil.properties` and restart.
