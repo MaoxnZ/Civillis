@@ -9,10 +9,13 @@ import civil.civilization.cache.ResultEntry;
 import civil.civilization.cache.TtlCacheService;
 import civil.civilization.VoxelChunkKey;
 import civil.civilization.BlockScanner;
+import civil.registry.DimensionPolicyRegistry;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +48,14 @@ public final class ScalableCivilizationService implements CivilizationService {
 
     private final TtlCacheService cacheService;
     private final ResultCache resultCache;
+    private static long debugL1WindowSec = -1L;
+    private static int debugL1LookupCalls = 0;
+    private static int debugL1CachedHit = 0;
+    private static int debugL1ComputeAttempt = 0;
+    private static int debugL1ComputeKnown = 0;
+    private static int debugL1ComputeEmpty = 0;
+    private static int debugL1EmptyInvalid = 0;
+    private static int debugL1EmptyNoChunkNow = 0;
 
     public ScalableCivilizationService(TtlCacheService cacheService) {
         this.cacheService = Objects.requireNonNull(cacheService, "cacheService");
@@ -80,10 +91,14 @@ public final class ScalableCivilizationService implements CivilizationService {
     public CScore getCScoreAt(ServerLevel world, BlockPos pos) {
         long startTimeUs = CivilMod.DEBUG ? System.nanoTime() / 1000 : 0;
 
+        if (!DimensionPolicyRegistry.policyFor(world).civilization()) {
+            return new CScore(0.0);
+        }
+
         VoxelChunkKey centerVC = VoxelChunkKey.from(pos);
 
-        // Center chunk not loaded: return conservative 0 and do not cache.
-        if (!world.hasChunk(centerVC.getCx(), centerVC.getCz())) {
+        // Center chunk not available now: return conservative 0 and do not cache.
+        if (getChunkNow(world, centerVC.getCx(), centerVC.getCz()) == null) {
             if (CivilMod.DEBUG) {
                 long elapsedUs = System.nanoTime() / 1000 - startTimeUs;
                 String dimName = world.dimension().identifier().toString();
@@ -201,7 +216,13 @@ public final class ScalableCivilizationService implements CivilizationService {
     private L1Lookup getL1Lookup(ServerLevel world, VoxelChunkKey key) {
         Optional<CScore> cached = cacheService.getChunkCScore(world, key);
         if (cached.isPresent()) {
+            if (CivilMod.DEBUG) {
+                debugRecordL1Lookup(true);
+            }
             return new L1Lookup(true, cached.get().score());
+        }
+        if (CivilMod.DEBUG) {
+            debugRecordL1Lookup(false);
         }
         Optional<CScore> computed = computeAndCacheL1(world, key);
         if (computed.isPresent()) {
@@ -218,18 +239,35 @@ public final class ScalableCivilizationService implements CivilizationService {
      */
     Optional<CScore> computeAndCacheL1(ServerLevel world, VoxelChunkKey key) {
         if (!key.isValidIn(world)) {
-            return Optional.of(new CScore(0.0));
+            if (CivilMod.DEBUG) {
+                debugRecordL1Availability("invalid");
+            }
+            return Optional.empty();
         }
-        // Guard: if the chunk isn't loaded, return 0.0 instead of force-loading it.
-        // Any previously computed non-zero L1 would already be on disk (cold path),
-        // so reaching here means the chunk is
-        // either brand-new or was empty — returning 0.0 is safe.
-        if (!world.hasChunk(key.getCx(), key.getCz())) {
+        // Guard: if the chunk isn't available immediately, treat as unknown.
+        if (getChunkNow(world, key.getCx(), key.getCz()) == null) {
+            if (CivilMod.DEBUG) {
+                debugL1ComputeAttempt++;
+                debugRecordL1Availability("no_chunk_now");
+            }
             return Optional.empty();
         }
         long startUs = CivilMod.DEBUG ? System.nanoTime() / 1000 : 0;
-        CScore cScore = computeCScoreForChunk(world, key);
+        if (CivilMod.DEBUG) {
+            debugL1ComputeAttempt++;
+        }
+        Optional<CScore> computed = computeCScoreForChunk(world, key);
+        if (computed.isEmpty()) {
+            if (CivilMod.DEBUG) {
+                debugRecordL1Availability("no_chunk_now");
+            }
+            return Optional.empty();
+        }
+        CScore cScore = computed.get();
         cacheService.putChunkCScore(world, key, cScore);
+        if (CivilMod.DEBUG) {
+            debugRecordL1Availability("known");
+        }
 
         if (CivilMod.DEBUG) {
             long elapsedUs = System.nanoTime() / 1000 - startUs;
@@ -239,7 +277,7 @@ public final class ScalableCivilizationService implements CivilizationService {
                     String.format("%.4f", cScore.score()), elapsedUs);
         }
 
-        return Optional.of(cScore);
+        return computed;
     }
 
     /**
@@ -254,19 +292,19 @@ public final class ScalableCivilizationService implements CivilizationService {
      *
      * <p>This replaces the old two-pass pipeline (VoxelRegion fill + operator scan).
      */
-    private CScore computeCScoreForChunk(ServerLevel world, VoxelChunkKey key) {
-        // Palette pre-filter: check if the section contains any target blocks
-        try {
-            ChunkAccess chunk = world.getChunk(key.getCx(), key.getCz());
-            int sectionIdx = chunk.getSectionIndex(key.getSy() * 16);
-            if (sectionIdx >= 0 && sectionIdx < chunk.getSections().length) {
-                LevelChunkSection section = chunk.getSection(sectionIdx);
-                if (!section.maybeHas(BlockScanner::isTargetBlock)) {
-                    return new CScore(0.0);
-                }
+    private Optional<CScore> computeCScoreForChunk(ServerLevel world, VoxelChunkKey key) {
+        ChunkAccess chunk = getChunkNow(world, key.getCx(), key.getCz());
+        if (chunk == null) {
+            return Optional.empty();
+        }
+
+        // Palette pre-filter: check if the section contains any target blocks.
+        int sectionIdx = chunk.getSectionIndex(key.getSy() * 16);
+        if (sectionIdx >= 0 && sectionIdx < chunk.getSections().length) {
+            LevelChunkSection section = chunk.getSection(sectionIdx);
+            if (!section.maybeHas(BlockScanner::isTargetBlock)) {
+                return Optional.of(new CScore(0.0));
             }
-        } catch (Exception e) {
-            // Fallback: if palette check fails, proceed with full scan
         }
 
         // Single-pass: iterate world blocks directly, accumulate weight
@@ -274,7 +312,7 @@ public final class ScalableCivilizationService implements CivilizationService {
         BlockPos min = bounds.min();
         BlockPos max = bounds.max();
         if (min.getY() > max.getY()) {
-            return new CScore(0.0);
+            return Optional.of(new CScore(0.0));
         }
 
         double totalWeight = 0.0;
@@ -290,10 +328,10 @@ public final class ScalableCivilizationService implements CivilizationService {
         }
 
         if (totalWeight <= 0.0) {
-            return new CScore(0.0);
+            return Optional.of(new CScore(0.0));
         }
         double score = Math.min(1.0, totalWeight / CivilConfig.normalizationFactor);
-        return new CScore(score);
+        return Optional.of(new CScore(score));
     }
 
     // ========== Delta propagation (called from block change mixin) ==========
@@ -317,14 +355,22 @@ public final class ScalableCivilizationService implements CivilizationService {
                 .map(CScore::score)
                 .orElse(0.0);
 
-        // 2. Palette recompute new L1 score
-        CScore newCScore = computeCScoreForChunk(world, shardKey);
-        double newScore = newCScore.score();
+        // 2. Recompute L1 via unified path (single write point in computeAndCacheL1)
+        Optional<CScore> recomputed = computeAndCacheL1(world, shardKey);
+        if (recomputed.isEmpty()) {
+            if (CivilMod.DEBUG) {
+                long elapsedUs = (System.nanoTime() - startNs) / 1000;
+                String dimLog = world.dimension().identifier().toString();
+                LOGGER.info("[civil-block-change] dim={} x={} y={} z={} cx={} cz={} sy={} status=SKIP_UNAVAILABLE elapsed_us={}",
+                        dimLog, safePos.getX(), safePos.getY(), safePos.getZ(),
+                        shardKey.getCx(), shardKey.getCz(), shardKey.getSy(),
+                        elapsedUs);
+            }
+            return;
+        }
+        double newScore = recomputed.get().score();
 
-        // 3. Update L1 cache + staged persistence
-        cacheService.putChunkCScore(world, shardKey, newCScore);
-
-        // 4. Calculate delta and propagate
+        // 3. Calculate delta and propagate
         double delta = newScore - oldScore;
         if (Math.abs(delta) > 1e-10) {
             resultCache.propagateDelta(dim, shardKey, delta);
@@ -350,5 +396,81 @@ public final class ScalableCivilizationService implements CivilizationService {
      */
     static double weightForDistSq(double distSq) {
         return 1.0 / (1.0 + CivilConfig.distanceAlphaSq * distSq);
+    }
+
+    private static LevelChunk getChunkNow(ServerLevel world, int cx, int cz) {
+        ServerChunkCache source = world.getChunkSource();
+        return source.getChunkNow(cx, cz);
+    }
+
+    /**
+     * DEBUG-only lightweight L1 availability counters.
+     *
+     * <p>All counting and logging are guarded by {@link CivilMod#DEBUG}, so release builds
+     * with DEBUG=false do not execute this path.
+     */
+    private static void debugRecordL1Availability(String status) {
+        if (!CivilMod.DEBUG) return;
+        debugEnsureWindow();
+        if ("known".equals(status)) {
+            debugL1ComputeKnown++;
+            return;
+        }
+        debugL1ComputeEmpty++;
+        if ("invalid".equals(status)) {
+            debugL1EmptyInvalid++;
+        } else if ("no_chunk_now".equals(status)) {
+            debugL1EmptyNoChunkNow++;
+        }
+    }
+
+    private static void debugRecordL1Lookup(boolean cachedHit) {
+        if (!CivilMod.DEBUG) return;
+        debugEnsureWindow();
+        debugL1LookupCalls++;
+        if (cachedHit) {
+            debugL1CachedHit++;
+        }
+    }
+
+    private static void debugEnsureWindow() {
+        long nowSec = ServerClock.now() / 1000L;
+        if (debugL1WindowSec == -1L) {
+            debugL1WindowSec = nowSec;
+            return;
+        }
+        if (nowSec == debugL1WindowSec) {
+            return;
+        }
+        debugFlushWindow();
+        debugL1WindowSec = nowSec;
+    }
+
+    private static void debugFlushWindow() {
+        double computeEmptyRatio = debugL1ComputeAttempt <= 0 ? 0.0
+                : (double) debugL1ComputeEmpty / (double) debugL1ComputeAttempt;
+        int effectiveDenominator = debugL1CachedHit + debugL1ComputeAttempt;
+        double effectiveEmptyRatio = effectiveDenominator <= 0 ? 0.0
+                : (double) debugL1ComputeEmpty / (double) effectiveDenominator;
+        LOGGER.info(
+                "[civil-l1-availability] sec={} lookup_calls={} cached_hit={} compute_attempt={} compute_known={} compute_empty={} empty_invalid={} empty_no_chunk_now={} compute_empty_ratio={} effective_empty_ratio={}",
+                debugL1WindowSec,
+                debugL1LookupCalls,
+                debugL1CachedHit,
+                debugL1ComputeAttempt,
+                debugL1ComputeKnown,
+                debugL1ComputeEmpty,
+                debugL1EmptyInvalid,
+                debugL1EmptyNoChunkNow,
+                String.format("%.4f", computeEmptyRatio),
+                String.format("%.4f", effectiveEmptyRatio)
+        );
+        debugL1LookupCalls = 0;
+        debugL1CachedHit = 0;
+        debugL1ComputeAttempt = 0;
+        debugL1ComputeKnown = 0;
+        debugL1ComputeEmpty = 0;
+        debugL1EmptyInvalid = 0;
+        debugL1EmptyNoChunkNow = 0;
     }
 }

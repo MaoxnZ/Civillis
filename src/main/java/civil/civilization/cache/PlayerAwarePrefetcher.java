@@ -31,6 +31,8 @@ import java.util.UUID;
 public final class PlayerAwarePrefetcher {
 
     private static final long MOVING_ENQUEUE_SEC = 1L;
+    private static final long WARM_IDLE_SECONDS = 10L;
+    private static final long WARM_IDLE_ENQUEUE_SEC = 1L;
     private static final long STATIC_ENQUEUE_SEC = 30L;
 
     private final Map<UUID, PlayerState> playerStates = new HashMap<>();
@@ -70,12 +72,33 @@ public final class PlayerAwarePrefetcher {
                 PlayerState state = this.playerStates.computeIfAbsent(playerId, id -> new PlayerState());
                 boolean dimChanged = state.lastDim == null || !state.lastDim.equals(dim);
                 boolean moved = dimChanged || state.lastSeenVC == null || !state.lastSeenVC.equals(center);
-                long intervalSec = moved ? MOVING_ENQUEUE_SEC : STATIC_ENQUEUE_SEC;
-                if (state.lastResultEnqueueSec == 0L || nowSec - state.lastResultEnqueueSec >= intervalSec) {
-                    this.enqueueArea(currentEpoch, dim, center, playerId,
+                if (moved) {
+                    state.lastMovementSec = nowSec;
+                }
+                long idleSec = state.lastMovementSec == 0L ? Long.MAX_VALUE : nowSec - state.lastMovementSec;
+                boolean warmIdle = !moved && idleSec <= WARM_IDLE_SECONDS;
+                long intervalSec = moved ? MOVING_ENQUEUE_SEC
+                        : warmIdle ? WARM_IDLE_ENQUEUE_SEC : STATIC_ENQUEUE_SEC;
+                boolean shouldEnqueue = state.lastResultEnqueueSec == 0L
+                        || nowSec - state.lastResultEnqueueSec >= intervalSec;
+                if (shouldEnqueue) {
+                    boolean firstSeen = state.lastResultEnqueueSec == 0L;
+                    EnqueueStats enqueueStats = this.enqueueArea(currentEpoch, dim, center, playerId,
                             resultRadiusX, resultRadiusZ, resultRadiusY, this.resultDedupe);
                     state.lastResultEnqueueSec = nowSec;
                     this.activePlayersThisEpoch.add(playerId);
+                    if (CivilMod.DEBUG) {
+                        String reason = firstSeen ? "firstSeen"
+                                : moved ? "movingInterval"
+                                : warmIdle ? "warmIdleInterval"
+                                : "staticInterval";
+                        ArrayDeque<PrefetchTask> q = this.resultQueuesByPlayer.get(playerId);
+                        int queueSize = q != null ? q.size() : 0;
+                        CivilMod.LOGGER.info(
+                                "[zone][enqueue] epoch={} player={} dim={} vc={} reason={} produced={} trimmed={} queueSize={} moved={} warmIdle={} idleSec={} intervalSec={}",
+                                currentEpoch, playerId, dim, center, reason, enqueueStats.produced, enqueueStats.trimmed, queueSize,
+                                moved, warmIdle, idleSec, intervalSec);
+                    }
                 }
                 this.applyFastCautionTransition(server, currentEpoch, world, dim, center, state, playerId, dimChanged);
                 state.lastSeenVC = center;
@@ -108,10 +131,10 @@ public final class PlayerAwarePrefetcher {
             }
             return 0;
         }
-        ZoneSemanticState oldState = state.zoneState != null ? state.zoneState : ZoneSemanticState.WILDERNESS;
-        ZoneSemanticState baseState = state.baseState != null ? state.baseState : ZoneSemanticState.WILDERNESS;
+        ZoneSemanticState oldState = state.zoneState;
+        ZoneSemanticState baseState = state.baseState;
         state.zoneState = newState = cautionNow ? ZoneSemanticState.CAUTION : baseState;
-        if (newState == oldState) {
+        if (newState == null || newState == oldState) {
             if (CivilMod.DEBUG) {
                 CivilMod.LOGGER.info("[zone][fast] no state change player={} epoch={} state={} cautionNow={} base={}",
                         playerId, epoch, newState, cautionNow, baseState);
@@ -328,19 +351,30 @@ public final class PlayerAwarePrefetcher {
             return;
         }
         double score = entry.getEffectiveScore(serverNow);
-        boolean civilized = score >= CivilConfig.spawnThresholdMid;
+        double strongMin = CivilConfig.spawnThresholdMid
+                + (1.0 - CivilConfig.spawnThresholdMid) * CivilConfig.zoneReceiptStrongCivilizedRatio;
+        boolean strongCivilized = score >= strongMin;
+        boolean centerBand = score >= CivilConfig.spawnThresholdMid;
         UUID playerId = Objects.requireNonNull(task.playerId());
         PlayerEpochKey key = new PlayerEpochKey(playerId, task.epoch());
         ResultReceiptAgg agg = this.resultReceipts.computeIfAbsent(key, unused -> new ResultReceiptAgg());
         agg.sampleCount++;
-        if (civilized) {
+        if (strongCivilized) {
             agg.civilizedCount++;
         }
         if (task.centerSample()) {
             agg.centerSeen = true;
-            agg.centerCivilized = civilized;
+            agg.centerCivilized = centerBand;
             agg.centerDim = task.dim();
             agg.centerVc = task.vc();
+            if (CivilMod.DEBUG) {
+                CivilMod.LOGGER.info(
+                        "[zone][receipt-center] epoch={} player={} dim={} vc={} score={} centerCiv={} strongMin={} mid={}",
+                        task.epoch(), playerId, task.dim(), task.vc(),
+                        String.format("%.4f", score), centerBand,
+                        String.format("%.4f", strongMin),
+                        String.format("%.4f", CivilConfig.spawnThresholdMid));
+            }
         }
     }
 
@@ -376,41 +410,37 @@ public final class PlayerAwarePrefetcher {
                         && (centerWorld = worldByDim.get(agg.centerDim)) != null) {
                     inCautionByZonePolicy = zonePolicyService.treatAsNonCivilized(centerWorld, agg.centerVc);
                 }
-                ZoneSemanticState oldState = state.zoneState != null ? state.zoneState : ZoneSemanticState.WILDERNESS;
-                ZoneSemanticState oldBase = state.baseState != null ? state.baseState : ZoneSemanticState.WILDERNESS;
-                boolean wasCivilized = oldBase == ZoneSemanticState.CIVILIZED;
-                ZoneSemanticState candidateBase = !wasCivilized && enter ? ZoneSemanticState.CIVILIZED
-                        : wasCivilized && leave ? ZoneSemanticState.WILDERNESS : oldBase;
+                ZoneSemanticState oldState = state.zoneState;
+                ZoneSemanticState oldBase = state.baseState;
+                ZoneSemanticState candidateBase = enter ? ZoneSemanticState.CIVILIZED
+                        : leave ? ZoneSemanticState.WILDERNESS : oldBase;
                 state.baseState = candidateBase;
                 boolean cautionForCompose = state.zoneInitialized ? state.fastCaution : inCautionByZonePolicy;
                 ZoneSemanticState newState = cautionForCompose ? ZoneSemanticState.CAUTION : candidateBase;
                 if (CivilMod.DEBUG) {
                     CivilMod.LOGGER.info(
-                            "[zone][receipt] keyEpoch={} currentEpoch={} player={} samples={} civCount={} centerCiv={} enter={} leave={} enterTh={} leaveTh={} wasCivBase={} candidateBase={} cautionCompose={} newState={} oldState={} zoneInit={}",
+                            "[zone][receipt] keyEpoch={} currentEpoch={} player={} samples={} civCount={} centerCiv={} enter={} leave={} enterTh={} leaveTh={} oldBase={} candidateBase={} cautionCompose={} newState={} oldState={} zoneInit={}",
                             key.epoch(), currentEpoch, playerId, agg.sampleCount, agg.civilizedCount, agg.centerCivilized,
-                            enter, leave, enterThreshold, leaveThreshold, wasCivilized, candidateBase, cautionForCompose,
+                            enter, leave, enterThreshold, leaveThreshold, oldBase, candidateBase, cautionForCompose,
                             newState, oldState, state.zoneInitialized);
                 }
                 if (!state.zoneInitialized) {
-                    state.zoneState = newState;
                     state.fastCaution = inCautionByZonePolicy;
                     state.zoneInitialized = true;
                     if (CivilMod.DEBUG) {
-                        CivilMod.LOGGER.info("[zone][receipt] first init (no HUD send) newState={} inCautionPolicy={} player={}",
+                        CivilMod.LOGGER.info("[zone][receipt] first init newState={} inCautionPolicy={} player={}",
                                 newState, inCautionByZonePolicy, playerId);
                     }
-                    it.remove();
-                    continue;
                 }
                 state.zoneState = newState;
-                if (newState != oldState) {
+                if (newState != null && newState != oldState) {
                     ServerPlayer player = server.getPlayerList().getPlayer(playerId);
                     if (player != null) {
                         if (CivilMod.DEBUG) {
                             CivilMod.LOGGER.info("[zone][receipt] SEND receiptEpoch={} currentEpoch={} {} -> {} player={}",
                                     key.epoch(), currentEpoch, oldState, newState, playerId);
                         }
-                        // Window id (receipt epoch), not wall-clock second — matches CFR / design.
+                        // Window id = completed receipt bucket second (prior wall second); not same as fast's current-epoch send.
                         CivilPlatform.sendToPlayer(player, new ZoneTransitionPayload(key.epoch(), newState.id()));
                         stats.transitions++;
                     }
@@ -418,8 +448,8 @@ public final class PlayerAwarePrefetcher {
                     CivilMod.LOGGER.info("[zone][receipt] no send: newState==oldState ({}) player={}", newState, playerId);
                 }
             } else if (CivilMod.DEBUG && agg.sampleCount > 0 && !agg.centerSeen && debugNoCenterLogsLeft-- > 0) {
-                CivilMod.LOGGER.info("[zone][receipt] waiting center sample: keyEpoch={} samples={} civCount={}",
-                        key.epoch(), agg.sampleCount, agg.civilizedCount);
+                CivilMod.LOGGER.info("[zone][receipt] waiting center sample: keyEpoch={} currentEpoch={} player={} samples={} civCount={}",
+                        key.epoch(), currentEpoch, key.playerId(), agg.sampleCount, agg.civilizedCount);
             }
             it.remove();
         }
@@ -475,6 +505,7 @@ public final class PlayerAwarePrefetcher {
         VoxelChunkKey lastSeenVC;
         VoxelChunkKey lastHudVc;
         long lastResultEnqueueSec;
+        long lastMovementSec;
         String lastDim;
         ZoneSemanticState zoneState;
         ZoneSemanticState baseState;
@@ -518,6 +549,7 @@ public final class PlayerAwarePrefetcher {
 
     private static final class ResultReceiptAgg {
         int sampleCount;
+        /** Samples with score &gt;= mid + (1-mid)*ratio; see {@link CivilConfig#zoneReceiptStrongCivilizedRatio}. */
         int civilizedCount;
         boolean centerSeen;
         boolean centerCivilized;

@@ -1,5 +1,42 @@
 # Changelog
 
+## [1.2.3-release]
+
+### Fixed
+
+- **Deadlock**: Rare **deadlock** could freeze the server mid-tick. That bug dates back
+  to the **first public release**; **zone recognition** (extra chunk work on top) made
+  it show up far more often in normal play. Fixed.
+- **Civilization score in fast exploration**: Sprinting through **brand-new chunks**
+  could leave **local score** wrong for a bit — a few timing holes. Closed those.
+- **Civil Detector (Forge & NeoForge)**: Used to land at the **bottom** of **Tools &
+  Utilities** via the default add hook, unlike **Fabric**. Now it sits **right after the
+  compass**, creative **search** included.
+
+### Added
+
+- **Block weights for more mods**: More **`civil_blocks`** datapack entries (storage,
+  decoration, tech, …). Civilization scoring should **feel more consistent** when you run
+  **lots of popular mods** together. Modpacks can add or override under
+  `data/<namespace>/civil_blocks/`.
+- **Dimension policies (datapack)**: **`civil_dimension_policies`** — **per-dimension**
+  overrides. **Civilization** (zones + scoring) and **mob-head spawn handling** can be
+  turned **off independently** per dimension. **Ships with defaults** for **Minecells**;
+  replace or extend via your own datapack if needed.
+
+### Changed
+
+- **Zone transition HUD**: **Civilized / Wilderness** text fires **less often**; fewer
+  stray **Civilized** flashes where nothing really changed. Toggle under **Miscellaneous**
+  in the **in-game settings** GUI.
+- **In-game settings GUI**: New **icon**. **Tooltips** on a few rows — line breaks and
+  wording only.
+
+### Note
+
+- Thanks to **Mitemi** for **block scoring** data on popular mods.
+- Feedback, bug reports, ideas — join our Discord: [Civillis Official](https://discord.gg/dA7QCPx7zd)
+
 ## [1.2.2-release]
 
 ### Added

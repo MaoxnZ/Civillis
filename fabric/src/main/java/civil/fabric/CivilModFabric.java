@@ -17,6 +17,7 @@ import civil.item.CivilDetectorAnimationReset;
 import civil.perf.TpsLogger;
 import civil.registry.BlockWeightLoader;
 import civil.registry.HeadTypeLoader;
+import civil.registry.DimensionPolicyLoader;
 import civil.registry.ZonePolicyLoader;
 import civil.civilization.ZoneTransitionPayload;
 import civil.command.CivilAdminCommands;
@@ -72,6 +73,7 @@ public class CivilModFabric implements ModInitializer {
             BlockWeightLoader.reload(server.getResourceManager());
             HeadTypeLoader.reload(server.getResourceManager());
             ZonePolicyLoader.reload(server.getResourceManager());
+            DimensionPolicyLoader.reload(server.getResourceManager());
         });
         ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resourceManager, success) -> {
             if (!success) return;
@@ -79,6 +81,7 @@ public class CivilModFabric implements ModInitializer {
             BlockWeightLoader.reload(server.getResourceManager());
             HeadTypeLoader.reload(server.getResourceManager());
             ZonePolicyLoader.reload(server.getResourceManager());
+            DimensionPolicyLoader.reload(server.getResourceManager());
         });
 
         ServerTickEvents.START_SERVER_TICK.register(TpsLogger::onStartTick);

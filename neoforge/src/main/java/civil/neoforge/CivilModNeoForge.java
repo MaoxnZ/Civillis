@@ -18,6 +18,7 @@ import civil.item.CivilDetectorAnimationReset;
 import civil.perf.TpsLogger;
 import civil.registry.BlockWeightLoader;
 import civil.registry.HeadTypeLoader;
+import civil.registry.DimensionPolicyLoader;
 import civil.registry.ZonePolicyLoader;
 import civil.civilization.ZoneTransitionPayload;
 import civil.config.CivilConfig;
@@ -28,8 +29,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -165,10 +169,18 @@ public class CivilModNeoForge {
                 NeoForgeClientPayloadHandler::handleZoneTransition);
     }
 
+    /**
+     * Align with Fabric / Forge: detector immediately after {@link Items#COMPASS} in the tools tab
+     * (stable position and search indexing), not appended at the end via {@code accept}.
+     * NeoForge uses {@link BuildCreativeModeTabContentsEvent#insertAfter} (no {@code getEntries()}).
+     */
     private void onBuildCreativeTab(BuildCreativeModeTabContentsEvent event) {
-        if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
-            event.accept(CIVIL_DETECTOR.get());
+        if (event.getTabKey() != CreativeModeTabs.TOOLS_AND_UTILITIES) {
+            return;
         }
+        ItemStack compass = new ItemStack(Items.COMPASS);
+        ItemStack detector = new ItemStack(ModItems.getCivilDetector());
+        event.insertAfter(compass, detector, CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS);
     }
 
     private void onServerAboutToStart(ServerAboutToStartEvent event) {
@@ -177,6 +189,7 @@ public class CivilModNeoForge {
         BlockWeightLoader.reload(manager);
         HeadTypeLoader.reload(manager);
         ZonePolicyLoader.reload(manager);
+        DimensionPolicyLoader.reload(manager);
     }
 
     private void onDatapackSync(OnDatapackSyncEvent event) {
@@ -185,6 +198,7 @@ public class CivilModNeoForge {
         BlockWeightLoader.reload(manager);
         HeadTypeLoader.reload(manager);
         ZonePolicyLoader.reload(manager);
+        DimensionPolicyLoader.reload(manager);
     }
 
     private void onRegisterCommands(RegisterCommandsEvent event) {

@@ -1,0 +1,25 @@
+{
+  "_comment": [
+    "Per-dimension overrides for Civillis civilization + head spawn stages.",
+    "Add files under data/<namespace>/civil_dimension_policies/*.json.",
+    "",
+    "Field per entry:",
+    "  dimension — required (e.g. minecells:prison, dimdungeons:dungeon_dimension)",
+    "  civilization — optional, default true. false skips zone + score spawn logic",
+    "    (getCScoreAt returns 0 without computing); head stages still run unless head_mechanics is false.",
+    "  head_mechanics — optional, default true. false skips HEAD_NEARBY / HEAD_SUPPRESS.",
+    "",
+    "replace: true clears all policies loaded so far from earlier files (lexicographic by resource id).",
+    "Later entries for the same dimension override earlier ones."
+  ],
+  "replace": false,
+  "entries": [
+    { "dimension": "minecells:prison", "civilization": false },
+    { "dimension": "minecells:promenade", "civilization": false },
+    { "dimension": "minecells:insufferable_crypt", "civilization": false },
+    { "dimension": "minecells:black_bridge", "civilization": false },
+    { "dimension": "minecells:ramparts", "civilization": false },
+    { "dimension": "dimdungeons:dungeon_dimension", "civilization": false },
+    { "dimension": "dimdungeons:build_dimension", "civilization": false }
+  ]
+}

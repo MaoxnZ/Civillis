@@ -43,21 +43,22 @@
   "civil.config.slider.headAttractStrength": "%1$d (\u03bb%2$s)",
   "civil.config.slider.headAttractRange": "%1$d \u683c",
 
-  "civil.config.subcategory.sonar": "声纳可视化",
-  "civil.config.subcategory.sonar.tooltip.1": "声纳扫描的边界光墙、",
+  "civil.config.subcategory.sonar": "声呐可视化",
+  "civil.config.subcategory.sonar.tooltip.1": "声呐扫描的边界光墙、",
   "civil.config.subcategory.sonar.tooltip.2": "激波粒子和音效设置。",
-  "civil.config.subcategory.sonar.tooltip.3": "\u00a77探测器声纳与钟声纳互相独立。",
+  "civil.config.subcategory.sonar.tooltip.3": "\u00a77探测器声呐与钟声呐互相独立。",
 
-  "civil.config.sonar.detectorEnabled": "探测器声纳",
+  "civil.config.sonar.detectorEnabled": "探测器声呐",
   "civil.config.sonar.detectorEnabled.tooltip.1": "使用文明检测器时",
-  "civil.config.sonar.detectorEnabled.tooltip.2": "启用声纳可视化效果。",
-  "civil.config.sonar.detectorEnabled.tooltip.3": "\u00a77不影响钟声纳。",
+  "civil.config.sonar.detectorEnabled.tooltip.2": "启用声呐可视化效果。",
+  "civil.config.sonar.detectorEnabled.tooltip.3": "\u00a77不影响钟声呐。",
 
   "civil.config.ui.zoneTransitionHudEnabled": "区域切换 HUD",
-  "civil.config.ui.zoneTransitionHudEnabled.tooltip": "区域语义变化时在屏幕上显示简短标签（文明/荒野/结构内谨慎等）。",
+  "civil.config.ui.zoneTransitionHudEnabled.tooltip.1": "区域语义变化时，在屏幕上显示简短标签。",
+  "civil.config.ui.zoneTransitionHudEnabled.tooltip.2": "包括文明区域、荒野与靠近结构时的谨慎状态。",
 
-  "civil.config.sonar.detectorRadius": "探测器声纳范围",
-  "civil.config.sonar.staticRadius": "钟声纳范围",
+  "civil.config.sonar.detectorRadius": "探测器声呐范围",
+  "civil.config.sonar.staticRadius": "钟声呐范围",
   "civil.config.slider.sonarRadius": "%1$d 格",
 
   "civil.config.override.warning": "\u00a7e\u26a0 检测到 civil.properties 中存在手动自定义值。修改此滑块将覆盖您的自定义配置。",

@@ -346,7 +346,9 @@ public final class CivilConfigScreen {
                         Component.translatable("civil.config.ui.zoneTransitionHudEnabled"),
                         CivilConfig.zoneTransitionHudEnabled)
                 .setDefaultValue(true)
-                .setTooltip(Component.translatable("civil.config.ui.zoneTransitionHudEnabled.tooltip"))
+                .setTooltip(
+                        Component.translatable("civil.config.ui.zoneTransitionHudEnabled.tooltip.1"),
+                        Component.translatable("civil.config.ui.zoneTransitionHudEnabled.tooltip.2"))
                 .setSaveConsumer(v -> CivilConfig.zoneTransitionHudEnabled = v)
                 .build());
 

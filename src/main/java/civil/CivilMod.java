@@ -42,7 +42,7 @@ public class CivilMod {
      * TPS logging, and other debug logs. Set to false before release builds;
      * set to true locally to enable all debug output at once.
      */
-    public static final boolean DEBUG = false;
+    public static final boolean DEBUG = true;
 
     /**
      * Thread-local flag indicating the current spawn is from the natural mob

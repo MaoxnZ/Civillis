@@ -205,6 +205,13 @@ public final class CivilConfig {
     public static int requiredCountEnter = 10;
     /** Samples required before zone HUD treats leaving civilized (hysteresis). */
     public static int requiredCountLeave = 10;
+    /**
+     * Zone HUD receipt strictness ratio in [0, 1].
+     * A prefetch sample increments {@code civilizedCount} only if:
+     * strict = spawnThresholdMid + (1 - spawnThresholdMid) * ratio.
+     * Center sample {@code centerCivilized} still uses {@link #spawnThresholdMid}.
+     */
+    public static double zoneReceiptStrongCivilizedRatio = 0.9999;
     /** Max result shards visited per server tick (global budget, split across active queue owners). */
     public static int resultBudgetPerTick = 1000;
     /** Drop queued prefetch tasks older than this many seconds (epoch TTL). */
@@ -480,6 +487,23 @@ public final class CivilConfig {
         resultEpochTtlSec    = Math.max(0, Math.min(60, parseInt(p.getProperty("prefetch.resultEpochTtlSec"), resultEpochTtlSec)));
         presenceRawEpsilon   = Math.max(0.0, Math.min(1_000_000.0,
                 parseDouble(p.getProperty("prefetch.presenceRawEpsilon"), presenceRawEpsilon)));
+        String zoneRatioRaw = p.getProperty("prefetch.zoneReceiptStrongCivilizedRatio");
+        if (zoneRatioRaw != null) {
+            zoneReceiptStrongCivilizedRatio = Math.max(0.0, Math.min(1.0,
+                    parseDouble(zoneRatioRaw, zoneReceiptStrongCivilizedRatio)));
+        } else {
+            // Backward compatibility: legacy epsilon key -> ratio.
+            double legacyEpsilon = Math.max(0.0, Math.min(1.0,
+                    parseDouble(p.getProperty("prefetch.zoneReceiptStrongCivilizedEpsilon"), 1.0 - zoneReceiptStrongCivilizedRatio)));
+            double denom = 1.0 - spawnThresholdMid;
+            if (denom <= 1e-9) {
+                zoneReceiptStrongCivilizedRatio = 1.0;
+            } else {
+                double strict = 1.0 - legacyEpsilon;
+                zoneReceiptStrongCivilizedRatio = Math.max(0.0, Math.min(1.0,
+                        (strict - spawnThresholdMid) / denom));
+            }
+        }
 
         zoneTransitionHudEnabled = parseBoolean(
                 p.getProperty("ui.zoneTransitionHudEnabled", p.getProperty("ui.zoneTransitionMessageEnabled")),
@@ -633,6 +657,8 @@ public final class CivilConfig {
             sb.append("#prefetch.resultBudgetPerTick=").append(resultBudgetPerTick).append('\n');
             sb.append("#prefetch.resultEpochTtlSec=").append(resultEpochTtlSec).append('\n');
             sb.append("#prefetch.presenceRawEpsilon=").append(presenceRawEpsilon).append('\n');
+            sb.append("#prefetch.zoneReceiptStrongCivilizedRatio=").append(zoneReceiptStrongCivilizedRatio)
+                    .append("   # strict = mid + (1-mid)*ratio; civilizedCount uses strict; center uses spawn.thresholdMid\n");
             sb.append('\n');
 
             sb.append("# ── Mob Flee AI ──\n");
