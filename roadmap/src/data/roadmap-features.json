@@ -822,6 +822,105 @@
     ]
   },
   {
+    "id": "f-server-deadlock-fix",
+    "name": "Fast new-chunk flight deadlock fix",
+    "status": "Committed",
+    "progress": 100,
+    "details": "If you crossed brand-new chunks extremely quickly—think elytra or creative flight at high speed—the server had a small chance to deadlock and stop ticking entirely. That rare failure mode is removed.",
+    "items": [
+      "Very fast flight-style exploration of unloaded areas no longer risks freezing the whole server.",
+      "Normal walking, building, and everyday play were never the main trigger; the fix targets that high-speed new-chunk edge case."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-chunk-score-exploration-timing-fix",
+    "name": "New-chunk zero-cache fix",
+    "status": "Committed",
+    "progress": 100,
+    "details": "For chunks that are so new world loading has not quite caught up, the engine could occasionally treat civilization as zero and store that in the cache—polluting the right answer once the chunk finished loading. There was also avoidable scoring work on that path. Both the bad cached zeros and the unnecessary cost are fixed.",
+    "items": [
+      "Slow-to-finish loads no longer leave a stray “zero civilization” sitting in cache from a too-early read.",
+      "The same edge case does less pointless work on the server after the fix."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-detector-creative-tab-order-fix",
+    "name": "Detector creative tab + search",
+    "status": "Committed",
+    "progress": 100,
+    "details": "On Forge and NeoForge, huge creative tabs mean dozens of mods shove items into the same list—the Civil Detector often got pushed to the bottom and effectively lost in the clutter. It is now anchored right after the compass, and searching by item name in creative behaves correctly again.",
+    "items": [
+      "No more drowning at the end of a mod-heavy Tools tab: the detector sits immediately after the compass.",
+      "Creative inventory search by name works the way players expect."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-block-weights-community-expansion",
+    "name": "Default block weights for six mods",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Adds default civilization scoring for blocks from these six mods.",
+    "items": [
+      "Applied Energistics 2, Storage Drawers, Functional Storage",
+      "Iron Chests, Quark, Sophisticated Storage"
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-dimension-policies-datapack",
+    "name": "Dimension policies (scoring + heads)",
+    "status": "Committed",
+    "progress": 100,
+    "details": "New datapack-driven dimension policies: you can turn off civilization scoring (zones + scoring) and mob-head spawn handling per dimension, independently of each other and of other dimensions.",
+    "items": [
+      "Each dimension can disable scoring only, heads only, or both—two separate switches.",
+      "Minecells already has supported defaults bundled; change them through datapack if your pack needs something else."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-zone-hud-denoise-123",
+    "name": "Lazier zone-transition HUD",
+    "status": "Committed",
+    "progress": 100,
+    "details": "The HUD that announces entering or leaving civilized versus wilderness ground now uses lazier thresholds, so it waits for a real transition instead of flipping on every small border wobble. That cuts spam when you skirt lightly civilized or weak-edge areas.",
+    "items": [
+      "Entering/leaving prompts need a clearer swing before they show again—not every marginal cross of the boundary.",
+      "Low or fringe civilization strips no longer spam banners when you move along their edges.",
+      "You can still turn the whole zone HUD off under Miscellaneous in Civillis settings."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-settings-gui-polish-123",
+    "name": "Civillis settings icon and tooltips",
+    "status": "Committed",
+    "progress": 100,
+    "details": "In-game Civillis settings: updated icon; a handful of row tooltips tightened (wording and line breaks only). Slider values and gameplay behavior are unchanged.",
+    "items": [
+      "New icon for the Civillis entry in the mod config list.",
+      "Some tooltips on individual rows got a light pass—clearer text, no rule changes."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
     "id": "f-civil-map-vanilla-overlay",
     "name": "Civilization map overlay system",
     "status": "Planned",

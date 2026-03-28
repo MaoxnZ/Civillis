@@ -323,6 +323,24 @@
           "f-civil-detector-visual-refresh",
           "f-roadmap-site"
         ]
+      },
+      {
+        "id": "r123-release",
+        "version": "1.2.3",
+        "phase": "release",
+        "status": "Released",
+        "theme": "Stability & Datapacks",
+        "summary": "Stability: fast-flight deadlock + new-chunk bogus-zero cache fixed. Datapacks/UI: Forge/NeoForge detector tab + creative search; default weights for six mods; per-dimension scoring & heads (Minecells defaults); lazier zone-transition HUD; settings icon + tooltip tweaks.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-server-deadlock-fix",
+          "f-chunk-score-exploration-timing-fix",
+          "f-detector-creative-tab-order-fix",
+          "f-block-weights-community-expansion",
+          "f-dimension-policies-datapack",
+          "f-zone-hud-denoise-123",
+          "f-settings-gui-polish-123"
+        ]
       }
     ]
   },
