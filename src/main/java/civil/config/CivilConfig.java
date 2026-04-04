@@ -269,6 +269,21 @@ public final class CivilConfig {
     public static int detectorAnimationTicks = 40;
     public static int detectorCooldownTicks = 10;
 
+    // -- Civil map tint (baked into map palette on server) --
+    /** HIGH area fill: lerp strength from terrain toward white [0,255]. */
+    public static int mapTintHighFillAlpha = 65;
+    /**
+     * HIGH region border: uniform parchment→white blend strength [0,255]. Borders ignore underlying
+     * map color so palette quantization stays consistent along edges.
+     */
+    public static int mapTintHighEdgeAlpha = 150;
+    /** MONSTER area fill: lerp strength from terrain toward purple [0,255]. */
+    public static int mapTintMonsterFillAlpha = 60;
+    /**
+     * MONSTER region border: uniform neutral→purple blend strength [0,255] (same rationale as HIGH edges).
+     */
+    public static int mapTintMonsterEdgeAlpha = 145;
+
     // ══════════════════════════════════════════════════════════
     //  Construction
     // ══════════════════════════════════════════════════════════
@@ -510,6 +525,14 @@ public final class CivilConfig {
                 zoneTransitionHudEnabled);
         detectorAnimationTicks = parseInt(p.getProperty("ui.detectorAnimationTicks"), detectorAnimationTicks);
         detectorCooldownTicks  = parseInt(p.getProperty("ui.detectorCooldownTicks"), detectorCooldownTicks);
+        mapTintHighFillAlpha = Math.max(0, Math.min(255,
+                parseInt(p.getProperty("mapTint.highFillAlpha"), mapTintHighFillAlpha)));
+        mapTintHighEdgeAlpha = Math.max(0, Math.min(255,
+                parseInt(p.getProperty("mapTint.highEdgeAlpha"), mapTintHighEdgeAlpha)));
+        mapTintMonsterFillAlpha = Math.max(0, Math.min(255,
+                parseInt(p.getProperty("mapTint.monsterFillAlpha"), mapTintMonsterFillAlpha)));
+        mapTintMonsterEdgeAlpha = Math.max(0, Math.min(255,
+                parseInt(p.getProperty("mapTint.monsterEdgeAlpha"), mapTintMonsterEdgeAlpha)));
 
         mobFleeEnabled            = parseBoolean(p.getProperty("mobFlee.enabled"), mobFleeEnabled);
         mobFleeCombatFleeRatio    = parseDouble(p.getProperty("mobFlee.combatFleeRatio"), mobFleeCombatFleeRatio);
@@ -676,6 +699,12 @@ public final class CivilConfig {
             sb.append("ui.zoneTransitionHudEnabled=").append(zoneTransitionHudEnabled).append('\n');
             sb.append("#ui.detectorAnimationTicks=").append(detectorAnimationTicks).append('\n');
             sb.append("#ui.detectorCooldownTicks=").append(detectorCooldownTicks).append('\n');
+            sb.append('\n');
+            sb.append("# ── Advanced: Civil map tint (0-255; baked server-side) ──\n");
+            sb.append("#mapTint.highFillAlpha=").append(mapTintHighFillAlpha).append('\n');
+            sb.append("#mapTint.highEdgeAlpha=").append(mapTintHighEdgeAlpha).append("  # border: uniform white mix, not terrain-based\n");
+            sb.append("#mapTint.monsterFillAlpha=").append(mapTintMonsterFillAlpha).append('\n');
+            sb.append("#mapTint.monsterEdgeAlpha=").append(mapTintMonsterEdgeAlpha).append("  # border: uniform purple mix\n");
 
             Files.writeString(file, sb.toString());
         } catch (IOException ignored) {

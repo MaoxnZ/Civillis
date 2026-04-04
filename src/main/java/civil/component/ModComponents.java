@@ -23,6 +23,9 @@ public final class ModComponents {
     /** Animation end game tick (level.getTime() + 40), for restoring default after 2 seconds and client particle judgment. */
     public static DataComponentType<Long> DETECTOR_ANIMATION_END;
 
+    /** True when the stack is a civil map (empty or filled); used for tint data and client blending. */
+    public static DataComponentType<Boolean> CIVIL_MAP;
+
     private ModComponents() {
     }
 
@@ -37,6 +40,9 @@ public final class ModComponents {
         DETECTOR_ANIMATION_END = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE,
                 Identifier.fromNamespaceAndPath(CivilMod.MOD_ID, "detector_animation_end"),
                 DataComponentType.<Long>builder().persistent(Codec.LONG).build());
+        CIVIL_MAP = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE,
+                Identifier.fromNamespaceAndPath(CivilMod.MOD_ID, "civil_map"),
+                DataComponentType.<Boolean>builder().persistent(Codec.BOOL).build());
         CivilMod.LOGGER.debug("Mod data components registered (direct)");
     }
 
@@ -47,5 +53,9 @@ public final class ModComponents {
 
     public static DataComponentType<Long> buildDetectorAnimationEnd() {
         return DataComponentType.<Long>builder().persistent(Codec.LONG).build();
+    }
+
+    public static DataComponentType<Boolean> buildCivilMap() {
+        return DataComponentType.<Boolean>builder().persistent(Codec.BOOL).build();
     }
 }

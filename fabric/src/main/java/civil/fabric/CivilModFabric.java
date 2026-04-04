@@ -2,6 +2,7 @@ package civil.fabric;
 
 import civil.CivilMod;
 import civil.ModItems;
+import civil.ModRecipeSerializers;
 import civil.ModSounds;
 import civil.component.ModComponents;
 import civil.aura.SonarBoundaryPayload;
@@ -51,6 +52,7 @@ public class CivilModFabric implements ModInitializer {
         ModComponents.registerDirect();
         ModSounds.registerDirect();
         ModItems.registerDirect();
+        ModRecipeSerializers.registerDirect();
         CivilMod.init();
 
         registerPayloadTypes();

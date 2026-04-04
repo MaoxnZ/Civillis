@@ -1,13 +1,18 @@
 {
   "required": true,
+  "minVersion": "0.8",
   "package": "civil.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "CivilGameRendererFovMixin",
+    "CivilMapItemUpdateTintMixin",
+    "CivilCartographyTableMenuMixin",
     "CivilLevelBlockChangeMixin",
     "CivilMobGoalMixin",
     "CivilServerLevelSpawnGateMixin",
     "CivilSpawnHelperMixin"
+  ],
+  "client": [
+    "CivilGameRendererFovMixin"
   ],
   "injectors": {
     "defaultRequire": 1

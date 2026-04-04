@@ -89,7 +89,7 @@ public final class ScalableCivilizationService implements CivilizationService {
      */
     @Override
     public CScore getCScoreAt(ServerLevel world, BlockPos pos) {
-        long startTimeUs = CivilMod.DEBUG ? System.nanoTime() / 1000 : 0;
+        // long startTimeUs = CivilMod.DEBUG ? System.nanoTime() / 1000 : 0;
 
         if (!DimensionPolicyRegistry.policyFor(world).civilization()) {
             return new CScore(0.0);
@@ -99,12 +99,13 @@ public final class ScalableCivilizationService implements CivilizationService {
 
         // Center chunk not available now: return conservative 0 and do not cache.
         if (getChunkNow(world, centerVC.getCx(), centerVC.getCz()) == null) {
-            if (CivilMod.DEBUG) {
-                long elapsedUs = System.nanoTime() / 1000 - startTimeUs;
-                String dimName = world.dimension().identifier().toString();
-                LOGGER.info("[civil-fusion-score] dim={} cx={} cz={} sy={} score=0.0000 raw=0.0000 freshness=1.0000 elapsed_us={} status=UNAVAILABLE",
-                        dimName, centerVC.getCx(), centerVC.getCz(), centerVC.getSy(), elapsedUs);
-            }
+            // if (CivilMod.DEBUG) {
+            //     long elapsedUs = System.nanoTime() / 1000 - startTimeUs;
+            //     String dimName = world.dimension().identifier().toString();
+            //     LOGGER.info(
+            //             "[civil-fusion-score] dim={} cx={} cz={} sy={} score=0.0000 raw=0.0000 freshness=1.0000 elapsed_us={} status=UNAVAILABLE",
+            //             dimName, centerVC.getCx(), centerVC.getCz(), centerVC.getSy(), elapsedUs);
+            // }
             return new CScore(0.0);
         }
 
@@ -112,19 +113,22 @@ public final class ScalableCivilizationService implements CivilizationService {
         ResultEntry entry = resultCache.getOrCompute(world, centerVC, this::computeResultEntry);
         double score = entry.getEffectiveScore(ServerClock.now());
 
-        if (CivilMod.DEBUG) {
-            long elapsedUs = System.nanoTime() / 1000 - startTimeUs;
-            String dimName = world.dimension().identifier().toString();
-            long serverNow = ServerClock.now();
-            double freshness = ResultEntry.computeDecayFactor(serverNow, entry.getPresenceTime());
-
-            LOGGER.info("[civil-fusion-score] dim={} cx={} cz={} sy={} score={} raw={} freshness={} elapsed_us={}",
-                    dimName, centerVC.getCx(), centerVC.getCz(), centerVC.getSy(),
-                    String.format("%.4f", score),
-                    String.format("%.4f", entry.getRawScore(serverNow)),
-                    String.format("%.4f", freshness),
-                    elapsedUs);
-        }
+        // if (CivilMod.DEBUG) {
+        //     long elapsedUs = System.nanoTime() / 1000 - startTimeUs;
+        //     String dimName = world.dimension().identifier().toString();
+        //     long serverNow = ServerClock.now();
+        //     double freshness = ResultEntry.computeDecayFactor(serverNow, entry.getPresenceTime());
+        //     LOGGER.info(
+        //             "[civil-fusion-score] dim={} cx={} cz={} sy={} score={} raw={} freshness={} elapsed_us={}",
+        //             dimName,
+        //             centerVC.getCx(),
+        //             centerVC.getCz(),
+        //             centerVC.getSy(),
+        //             String.format("%.4f", score),
+        //             String.format("%.4f", entry.getRawScore(serverNow)),
+        //             String.format("%.4f", freshness),
+        //             elapsedUs);
+        // }
 
         return new CScore(score);
     }

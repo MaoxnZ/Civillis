@@ -2,9 +2,11 @@ package civil.neoforge;
 
 import civil.CivilMod;
 import civil.ModItems;
+import civil.ModRecipeSerializers;
 import civil.ModSounds;
 import civil.component.ModComponents;
 import civil.item.CivilDetectorItem;
+import civil.recipe.CivilDetectorMapUpgradeRecipe;
 import civil.aura.SonarBoundaryPayload;
 import civil.aura.SonarChargePayload;
 import civil.aura.SonarScanManager;
@@ -34,6 +36,8 @@ import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.CustomRecipe;
+import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -79,6 +83,8 @@ public class CivilModNeoForge {
             DeferredRegister.create(Registries.SOUND_EVENT, CivilMod.MOD_ID);
     private static final DeferredRegister<Item> ITEMS =
             DeferredRegister.create(Registries.ITEM, CivilMod.MOD_ID);
+    private static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS =
+            DeferredRegister.create(Registries.RECIPE_SERIALIZER, CivilMod.MOD_ID);
 
     // ── Deferred Holders (components) ───────────────────────────────────
     @SuppressWarnings("unchecked")
@@ -89,6 +95,10 @@ public class CivilModNeoForge {
     private static final DeferredHolder<DataComponentType<?>, DataComponentType<Long>> DETECTOR_ANIMATION_END =
             (DeferredHolder<DataComponentType<?>, DataComponentType<Long>>)
             (DeferredHolder<?, ?>) COMPONENTS.register("detector_animation_end", ModComponents::buildDetectorAnimationEnd);
+    @SuppressWarnings("unchecked")
+    private static final DeferredHolder<DataComponentType<?>, DataComponentType<Boolean>> CIVIL_MAP =
+            (DeferredHolder<DataComponentType<?>, DataComponentType<Boolean>>)
+            (DeferredHolder<?, ?>) COMPONENTS.register("civil_map", ModComponents::buildCivilMap);
 
     // ── Deferred Holders (sounds) ───────────────────────────────────────
     private static final DeferredHolder<SoundEvent, SoundEvent> SOUND_DEFAULT =
@@ -114,10 +124,19 @@ public class CivilModNeoForge {
                 return new CivilDetectorItem(props);
             });
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<CivilDetectorMapUpgradeRecipe>>
+            DETECTOR_MAP_UPGRADE_SERIALIZER =
+                    (DeferredHolder)
+                            RECIPE_SERIALIZERS.register(
+                                    "detector_map_upgrade",
+                                    () -> new CustomRecipe.Serializer<>(CivilDetectorMapUpgradeRecipe::new));
+
     public CivilModNeoForge(IEventBus modBus, Dist dist, ModContainer modContainer) {
         COMPONENTS.register(modBus);
         SOUNDS.register(modBus);
         ITEMS.register(modBus);
+        RECIPE_SERIALIZERS.register(modBus);
 
         modBus.addListener(this::onCommonSetup);
         modBus.addListener(this::onRegisterPayloads);
@@ -146,12 +165,14 @@ public class CivilModNeoForge {
     private void onCommonSetup(FMLCommonSetupEvent event) {
         ModComponents.DETECTOR_DISPLAY = DETECTOR_DISPLAY.get();
         ModComponents.DETECTOR_ANIMATION_END = DETECTOR_ANIMATION_END.get();
+        ModComponents.CIVIL_MAP = CIVIL_MAP.get();
         ModSounds.DETECTOR_DEFAULT = SOUND_DEFAULT.get();
         ModSounds.DETECTOR_LOW = SOUND_LOW.get();
         ModSounds.DETECTOR_MEDIUM = SOUND_MEDIUM.get();
         ModSounds.DETECTOR_HIGH = SOUND_HIGH.get();
         ModSounds.DETECTOR_MONSTER = SOUND_MONSTER.get();
         ModItems.setCivilDetector(CIVIL_DETECTOR.get());
+        ModRecipeSerializers.bindDetectorMapUpgrade(DETECTOR_MAP_UPGRADE_SERIALIZER.get());
         CivilMod.LOGGER.debug("Common fields populated from deferred holders (NeoForge)");
     }
 
@@ -169,11 +190,7 @@ public class CivilModNeoForge {
                 NeoForgeClientPayloadHandler::handleZoneTransition);
     }
 
-    /**
-     * Align with Fabric / Forge: detector immediately after {@link Items#COMPASS} in the tools tab
-     * (stable position and search indexing), not appended at the end via {@code accept}.
-     * NeoForge uses {@link BuildCreativeModeTabContentsEvent#insertAfter} (no {@code getEntries()}).
-     */
+    /** Tools tab: detector after {@link Items#COMPASS}. Filled maps (including civil) stay out of creative — they are dynamic. */
     private void onBuildCreativeTab(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() != CreativeModeTabs.TOOLS_AND_UTILITIES) {
             return;

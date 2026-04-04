@@ -1,5 +1,6 @@
 package civil;
 
+import civil.map.CivilMapPerfTrace;
 import civil.civilization.ServerClock;
 import civil.civilization.BlockScanner;
 import civil.civilization.HeadTracker;
@@ -42,7 +43,7 @@ public class CivilMod {
      * TPS logging, and other debug logs. Set to false before release builds;
      * set to true locally to enable all debug output at once.
      */
-    public static final boolean DEBUG = true;
+    public static final boolean DEBUG = false;
 
     /**
      * Thread-local flag indicating the current spawn is from the natural mob
@@ -160,6 +161,7 @@ public class CivilMod {
         if (cacheService != null && cacheService.isInitialized()) {
             cacheService.onServerTick(server);
         }
+        CivilMapPerfTrace.flushServerWindow();
     }
 
     /** CFR: player disconnect — undying-anchor transient state + prefetcher eviction. */

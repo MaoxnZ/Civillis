@@ -1,5 +1,6 @@
 {
   "item.civil.civil_detector": "文明检测器",
+  "item.civil.civil_map.lore": "纸上有文明的余温。",
   "subtitles.civil.detector_default": "文明检测器：默认",
   "subtitles.civil.detector_low": "文明检测器：低文明",
   "subtitles.civil.detector_medium": "文明检测器：中等文明",
