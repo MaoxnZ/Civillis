@@ -9,7 +9,8 @@ import java.util.List;
  *
  * <p>branch: LOW / MID / HIGH (civilization score thresholds);
  * HEAD_NEARBY (enabled heads within VC box → bypass civilization suppression);
- * HEAD_SUPPRESS (distant heads → probabilistic block).
+ * HEAD_SUPPRESS (distant heads → probabilistic block);
+ * SPAWN_GATE_WHITELIST (datapack whitelist before zone).
  *
  * <p>For HEAD_NEARBY:
  * <ul>
@@ -29,6 +30,8 @@ public record SpawnDecision(boolean block, double score, String branch,
     public static final String BRANCH_ZONE_POLICY = "ZONE_POLICY";
     /** Civilization scoring disabled for this dimension — allow spawn (no zone/score stages). */
     public static final String BRANCH_DIM_NEUTRAL = "DIM_NEUTRAL";
+    /** Datapack {@code civil_spawn_gate_entities} whitelist — allow before zone/score. */
+    public static final String BRANCH_SPAWN_GATE_WHITELIST = "SPAWN_GATE_WHITELIST";
 
     /** Convenience constructor for non-head branches (no head info). */
     public SpawnDecision(boolean block, double score, String branch) {

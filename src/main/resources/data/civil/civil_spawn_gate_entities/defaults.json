@@ -1,0 +1,25 @@
+{
+  "_comment": [
+    "Default spawn gate entity lists for the Civil mod.",
+    "Add or override JSON files under data/<namespace>/civil_spawn_gate_entities/.",
+    "",
+    "Each entry may list:",
+    "  whitelist — entity types that get an allow pass before zone-based rules",
+    "    (relax civilization pressure for those spawns).",
+    "  blacklist — entity types that also go through the same natural-spawn",
+    "    civilization gate as hostile mobs. This is NOT a deny-spawn list.",
+    "",
+    "If the same entity id appears in both lists, whitelist wins.",
+    "",
+    "Files load in lexicographic order; later files add to the merged sets.",
+    "Set replace: true on a file to clear all entries loaded from earlier files,",
+    "then apply that file (same idea as civil_blocks)."
+  ],
+  "replace": false,
+  "entries": [
+    {
+      "blacklist": [],
+      "whitelist": ["minecraft:pig"]
+    }
+  ]
+}

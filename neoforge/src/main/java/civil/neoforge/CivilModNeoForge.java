@@ -21,6 +21,7 @@ import civil.perf.TpsLogger;
 import civil.registry.BlockWeightLoader;
 import civil.registry.HeadTypeLoader;
 import civil.registry.DimensionPolicyLoader;
+import civil.registry.SpawnGateEntityLoader;
 import civil.registry.ZonePolicyLoader;
 import civil.civilization.ZoneTransitionPayload;
 import civil.config.CivilConfig;
@@ -207,6 +208,7 @@ public class CivilModNeoForge {
         HeadTypeLoader.reload(manager);
         ZonePolicyLoader.reload(manager);
         DimensionPolicyLoader.reload(manager);
+        SpawnGateEntityLoader.reload(manager);
     }
 
     private void onDatapackSync(OnDatapackSyncEvent event) {
@@ -216,6 +218,7 @@ public class CivilModNeoForge {
         HeadTypeLoader.reload(manager);
         ZonePolicyLoader.reload(manager);
         DimensionPolicyLoader.reload(manager);
+        SpawnGateEntityLoader.reload(manager);
     }
 
     private void onRegisterCommands(RegisterCommandsEvent event) {

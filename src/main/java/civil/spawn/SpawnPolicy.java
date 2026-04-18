@@ -7,26 +7,33 @@ import civil.civilization.HeadTracker;
 import civil.civilization.ZonePolicyService;
 import civil.config.CivilConfig;
 import civil.registry.DimensionPolicyRegistry;
+import civil.registry.SpawnGateEntityRegistry;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 
 /**
- * Fusion Architecture spawn policy — dimension policy, then head stages, then civilization.
+ * Fusion Architecture spawn policy — dimension policy (civilization gate first), then heads,
+ * datapack spawn-gate whitelist, zone policy, then civilization score.
  *
  * <p>{@link DimensionPolicyRegistry} (datapack {@code civil_dimension_policies}) can disable
  * head mechanics and/or civilization per dimension. When civilization is off for the current
- * dimension, zone policy and score thresholds are skipped ({@link SpawnDecision#BRANCH_DIM_NEUTRAL}).
+ * dimension, head stages are skipped and {@link SpawnDecision#BRANCH_DIM_NEUTRAL} is returned
+ * (no zone/score stages).
  *
- * <p>Decision priority when civilization is on:
+ * <p>When civilization is on, decision priority is:
  * <ol>
  *   <li>HEAD_NEARBY: enabled heads within VC box → bypass civilization suppression;
  *       conversion handled downstream by Mixin (3+ heads threshold).</li>
  *   <li>HEAD_SUPPRESS: enabled heads exist in wider area but spawn is far → probabilistic block</li>
+ *   <li>SPAWN_GATE_WHITELIST: datapack {@code civil_spawn_gate_entities} whitelist → allow before zone</li>
  *   <li>ZONE_POLICY: structure rules that allow hostile spawn</li>
  *   <li>LOW/MID/HIGH: civilization score thresholds (result shard O(1) query)</li>
  * </ol>
+ *
+ * <p>{@link SpawnGateEntityRegistry} whitelist is only applied when {@code entityType != null}
+ * (e.g. {@link #shouldBlockMonsterSpawn} passes null and does not use whitelist).
  *
  * <p>Head logic queries HeadTracker directly (decoupled from civilization scoring).
  * Civilization score queries the ResultCache via ScalableCivilizationService (O(1)).
@@ -43,6 +50,10 @@ public final class SpawnPolicy {
 
         String dim = world.dimension().identifier().toString();
         DimensionPolicyRegistry.DimensionPolicy dimPolicy = DimensionPolicyRegistry.policyFor(dim);
+
+        if (!dimPolicy.civilization()) {
+            return new SpawnDecision(false, 0.0, SpawnDecision.BRANCH_DIM_NEUTRAL);
+        }
 
         // ===== Stage 1: Head Detection (single O(N) pass via HeadTracker) =====
         if (dimPolicy.headMechanics()) {
@@ -70,17 +81,18 @@ public final class SpawnPolicy {
             }
         }
 
-        if (!dimPolicy.civilization()) {
-            return new SpawnDecision(false, 0.0, SpawnDecision.BRANCH_DIM_NEUTRAL);
+        // ===== Stage 2: Spawn gate whitelist (datapack — before zone) =====
+        if (entityType != null && SpawnGateEntityRegistry.isWhitelist(entityType)) {
+            return new SpawnDecision(false, 0, SpawnDecision.BRANCH_SPAWN_GATE_WHITELIST);
         }
 
-        // ===== Stage 2: Zone policy (structure rules — bypass civilization suppression) =====
+        // ===== Stage 3: Zone policy (structure rules — bypass civilization suppression) =====
         ZonePolicyService zonePolicyService = CivilServices.getZonePolicyService();
         if (zonePolicyService != null && zonePolicyService.allowsHostileSpawn(world, pos, entityType)) {
             return new SpawnDecision(false, 0, SpawnDecision.BRANCH_ZONE_POLICY);
         }
 
-        // ===== Stage 3: Civilization Score (Result Shard O(1), only if no nearby heads) =====
+        // ===== Stage 4: Civilization Score (Result Shard O(1)) =====
         CScore cScore = CivilServices.getCivilizationService().getCScoreAt(world, pos);
         double score = cScore.score();
         double thresholdLow = CivilConfig.spawnThresholdLow;

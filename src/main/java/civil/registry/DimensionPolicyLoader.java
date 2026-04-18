@@ -26,10 +26,11 @@ import java.util.Map;
  * <p>Entry fields:
  * <ul>
  *   <li>{@code dimension} — dimension id (e.g. {@code minecells:prison}, {@code dimdungeons:dungeon_dimension})</li>
- *   <li>{@code civilization} — optional, default {@code true}. When {@code false}, zone + score spawn
- *       stages are skipped and civilization score queries return 0 without computing.</li>
+ *   <li>{@code civilization} — optional, default {@code true}. When {@code false}, head-based spawn stages
+ *       (HEAD_NEARBY / HEAD_SUPPRESS) and zone + score spawn stages are skipped ({@code SpawnPolicy}
+ *       returns {@code DIM_NEUTRAL} without querying heads).</li>
  *   <li>{@code head_mechanics} — optional, default {@code true}. When {@code false}, head-based spawn
- *       stages (HEAD_NEARBY / HEAD_SUPPRESS) are skipped.</li>
+ *       stages are skipped when civilization is enabled for the dimension.</li>
  * </ul>
  *
  * <p>Files are processed in lexicographic order by resource id; later entries for the same

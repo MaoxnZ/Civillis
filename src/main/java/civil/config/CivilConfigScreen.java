@@ -7,12 +7,14 @@ import me.shedaniel.clothconfig2.impl.builders.SubCategoryBuilder;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
+import java.util.Locale;
+
 /**
  * User-friendly Cloth Config GUI for Civil mod settings.
  *
  * <p>Dynamic derived info (half-life, moat width, etc.) is shown directly
  * on the slider face via {@code setTextGetter()}, so users see the impact
- * without hovering.  Individual slider tooltips are intentionally removed
+ * without hovering. Individual slider tooltips are intentionally removed
  * to avoid obscuring the slider during interaction; the subcategory header
  * tooltip explains the overall concept instead.
  *
@@ -322,6 +324,68 @@ public final class CivilConfigScreen {
 
         cat.addEntry(podium.build());
 
+        // ── Zone transition HUD (collapsible) ──
+        SubCategoryBuilder zoneHud = eb.startSubCategory(
+                Component.translatable("civil.config.subcategory.zoneTransitionHud"));
+        zoneHud.setExpanded(false);
+        zoneHud.setTooltip(
+                Component.translatable("civil.config.subcategory.zoneTransitionHud.tooltip.1"),
+                Component.translatable("civil.config.subcategory.zoneTransitionHud.tooltip.2"));
+
+        zoneHud.add(eb.startBooleanToggle(
+                        Component.translatable("civil.config.ui.zoneTransitionHudEnabled"),
+                        CivilConfig.zoneTransitionHudEnabled)
+                .setDefaultValue(true)
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionHudEnabled = v)
+                .build());
+
+        zoneHud.add(eb.startStrField(
+                        Component.translatable("civil.config.ui.zoneTransitionLabel.civilized"),
+                        CivilConfig.zoneTransitionLabelCivilized)
+                .setDefaultValue("")
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionLabelCivilized = CivilConfig.sanitizeZoneTransitionLabel(v))
+                .build());
+        zoneHud.add(eb.startStrField(
+                        Component.translatable("civil.config.ui.zoneTransitionLabel.wilderness"),
+                        CivilConfig.zoneTransitionLabelWilderness)
+                .setDefaultValue("")
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionLabelWilderness = CivilConfig.sanitizeZoneTransitionLabel(v))
+                .build());
+        zoneHud.add(eb.startStrField(
+                        Component.translatable("civil.config.ui.zoneTransitionLabel.caution"),
+                        CivilConfig.zoneTransitionLabelCaution)
+                .setDefaultValue("")
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionLabelCaution = CivilConfig.sanitizeZoneTransitionLabel(v))
+                .build());
+
+        zoneHud.add(eb.startIntSlider(
+                        Component.translatable("civil.config.ui.zoneTransitionHudCooldownSeconds"),
+                        CivilConfig.zoneTransitionHudCooldownSeconds, 0, 60)
+                .setDefaultValue(10)
+                .setTextGetter(val -> val == 0
+                        ? Component.translatable("civil.config.slider.zoneTransitionHudCooldown.off")
+                        : Component.translatable("civil.config.slider.zoneTransitionHudCooldown", val))
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionHudCooldownSeconds = v)
+                .build());
+
+        zoneHud.add(eb.startIntSlider(
+                        Component.translatable("civil.config.ui.zoneTransitionHudAnchorOffsetXPercent"),
+                        CivilConfig.zoneTransitionHudAnchorOffsetXPercent, -50, 50)
+                .setDefaultValue(0)
+                .setTextGetter(val -> Component.literal(String.format(Locale.ROOT, "%+d%%", val)))
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionHudAnchorOffsetXPercent = v)
+                .build());
+
+        zoneHud.add(eb.startIntSlider(
+                        Component.translatable("civil.config.ui.zoneTransitionHudAnchorOffsetYPercent"),
+                        CivilConfig.zoneTransitionHudAnchorOffsetYPercent, -50, 50)
+                .setDefaultValue(30)
+                .setTextGetter(val -> Component.literal(String.format(Locale.ROOT, "%+d%%", val)))
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionHudAnchorOffsetYPercent = v)
+                .build());
+
+        cat.addEntry(zoneHud.build());
+
         // ── Miscellaneous (collapsible, last) ──
         SubCategoryBuilder misc = eb.startSubCategory(
                 Component.translatable("civil.config.subcategory.miscellaneous"));
@@ -339,17 +403,6 @@ public final class CivilConfigScreen {
                         Component.translatable("civil.config.subcategory.mobFlee.tooltip.2"),
                         Component.translatable("civil.config.subcategory.mobFlee.tooltip.3"))
                 .setSaveConsumer(v -> CivilConfig.mobFleeEnabled = v)
-                .build());
-
-        // CFR: zone transition HUD lives under Miscellaneous (not Sonar).
-        misc.add(eb.startBooleanToggle(
-                        Component.translatable("civil.config.ui.zoneTransitionHudEnabled"),
-                        CivilConfig.zoneTransitionHudEnabled)
-                .setDefaultValue(true)
-                .setTooltip(
-                        Component.translatable("civil.config.ui.zoneTransitionHudEnabled.tooltip.1"),
-                        Component.translatable("civil.config.ui.zoneTransitionHudEnabled.tooltip.2"))
-                .setSaveConsumer(v -> CivilConfig.zoneTransitionHudEnabled = v)
                 .build());
 
         cat.addEntry(misc.build());
