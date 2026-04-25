@@ -1,0 +1,47 @@
+{
+  "_comment": [
+    "Default civilization custom tag weights for the Civil mod.",
+    "Modpack authors and players can add items or blocks to these",
+    "tags to apply a civilized radius.",
+    "Example: adding a workbench to the #civillis:greatly_civilized tag gives it a weight of 5."
+  ],
+  "replace": false,
+  "entries": [
+    {
+      "block": "#civillis:very_very_high_civilized",
+      "weight": 5.0
+    },
+    {
+      "block": "#civillis:very_high_civilized",
+      "weight": 3.0
+    },
+    {
+      "block": "#civillis:high_civilized",
+      "weight": 2.0
+    },
+    {
+      "block": "#civillis:medium_high_civilized",
+      "weight": 1.5
+    },
+    {
+      "block": "#civillis:medium_civilized",
+      "weight": 1.0
+    },
+    {
+      "block": "#civillis:medium_low_civilized",
+      "weight": 0.8
+    },
+    {
+      "block": "#civillis:low_civilized",
+      "weight": 0.5
+    },
+    {
+      "block": "#civillis:very_low_civilized",
+      "weight": 0.3
+    },
+    {
+      "block": "#civillis:very_very_low_civilized",
+      "weight": 0.1
+    }
+  ]
+}
