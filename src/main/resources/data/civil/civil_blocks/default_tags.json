@@ -3,7 +3,7 @@
     "Default civilization custom tag weights for the Civil mod.",
     "Modpack authors and players can add items or blocks to these",
     "tags to apply a civilized radius.",
-    "Example: adding a workbench to the #civillis:greatly_civilized tag gives it a weight of 5."
+    "Example: adding a workbench to the #civillis:very_very_civilized tag gives it a weight of 5."
   ],
   "replace": false,
   "entries": [
