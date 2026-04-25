@@ -6,7 +6,7 @@ Some dimensions are not meant to play by **overworld-style civilization**: dunge
 
 **When civilization is off for a dimension**, the mod effectively treats that world as **uncivilized for spawn math** — your base’s score in another dimension does not protect you here, and building here does not create the same suppression loop as in the overworld unless the pack author designed it that way.
 
-**When head mechanics are off for a dimension**, skull-based bypass, redirection, and related pipeline stages for heads are skipped there (skulls may still be decorative).
+**When head mechanics are off for a dimension**, podium/head bypass, attraction, and conversion stages are skipped there (skulls may still be decorative).
 
 You can have **civilization off** but **heads on**, or tune per pack — the important part for players is: **behavior depends on dimension**, not only on blocks under your feet.
 
@@ -25,6 +25,6 @@ To add or change per-dimension behavior, use JSON registries as described on **[
 ## See also
 
 - [Structure spawn rules](structure-spawn-rules.md)
-- [Monster Heads](../monster-heads.md)
+- [Podium of Spawning](podium-of-spawning.md)
 - [Built-in Compatibility](../modpack/compatibility.md)
 - [Data-Driven Registries](../modpack/data-driven.md)

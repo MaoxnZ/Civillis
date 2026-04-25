@@ -104,7 +104,8 @@ At runtime, the core paths are all stable:
 
 - Civilization score query is O(1) on warm cache (map lookup)
 - Block change update stays constant-time at shard level (recompute + delta propagation)
-- Monster head checks are handled by spatial indexing, so typical overhead remains low
+- Podium of Spawning / monster-head checks are handled by spatial indexing, so typical overhead remains low
+- Civil map tinting uses sparse per-chunk surface sampling rather than full-column scans
 
 This means Civillis has no obvious performance hotspot in normal deployments. The dominant variable is still spawn-attempt volume (mob-cap churn), not one specific subsystem.
 
@@ -112,7 +113,8 @@ This means Civillis has no obvious performance hotspot in normal deployments. Th
 
 - **Spawn churn**: dark civilized areas can increase retry volume when mob cap fills slowly
 - **Player movement**: prefetch and cache maintenance scale with active movement
-- **Extreme local head density**: only when many enabled heads are packed into one active area
+- **External map overlays**: JourneyMap / Xaero overlays can scan wider areas than a handheld civil map; supported builds start them disabled by default
+- **Extreme local podium head density**: only when many enabled heads are packed into one active podium pocket
 
 ### Multiplayer Server Budget
 
@@ -134,3 +136,11 @@ All values are rounded estimates under the stated assumptions.
 !!! warning "Edge case: very dense head hotspots"
     If many enabled heads are concentrated in one active attraction area, head-query overhead can become noticeable.
     Mitigation is straightforward: spread clusters, disable unused head types, or reduce attraction radius.
+
+---
+
+## Civil Maps and Overlays
+
+Civil maps bake small palette changes into vanilla map updates. The server samples representative surface height per chunk and evaluates one tint band (civilized, monster pocket, or none) for that chunk. Recent builds use a fixed sparse sample grid for surface height, cutting per-chunk map work while keeping region-scale tinting accurate.
+
+External overlays (JourneyMap / Xaero on supported port lines) are different: they may explore server-side region data for a live minimap or world-map overlay. Because that can grow with exploration radius, those integrations start disabled by default on the supported lines and should be enabled deliberately.

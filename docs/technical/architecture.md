@@ -1,6 +1,6 @@
 # Architecture Overview
 
-This page illustrates how Civillis decides whether a hostile mob is allowed to spawn, and how the major systems — civilization scoring, decay, and monster heads — interact.
+This page illustrates how Civillis decides whether a hostile mob is allowed to spawn, and how the major systems — civilization scoring, decay, Podium of Spawning, and monster heads — interact.
 
 ---
 
@@ -12,13 +12,15 @@ Every time Minecraft's natural spawn cycle tries to place a hostile mob, Civilli
 flowchart TD
     SpawnAttempt["Hostile Mob Spawn Attempt"]
     NaturalCheck{Natural spawn?}
-    HeadQuery["Query nearby skulls"]
-    HasNearby{Skulls in local zone?}
-    HeadNearby["HEAD_NEARBY: Allow spawn"]
+    ShrineQuery["Query active spawning podiums"]
+    HasNearby{Inside podium pocket?}
+    HeadNearby["SHRINE_NEARBY: Allow spawn"]
     ConvertCheck{3+ skulls?}
     ConvertMob["Roll conversion"]
-    HeadAttract{Distant skull attraction?}
-    HeadSuppress["HEAD_SUPPRESS: Block spawn"]
+    HeadAttract{Distant podium attraction?}
+    HeadSuppress["SHRINE_SUPPRESS: Block spawn"]
+    Whitelist{Spawn-gate whitelist?}
+    ZonePolicy{Structure allows spawn?}
     ScoreQuery["Query civilization score"]
     ApplyDecay["Apply decay factor"]
     ThresholdCheck{Score vs thresholds}
@@ -28,16 +30,20 @@ flowchart TD
 
     SpawnAttempt --> NaturalCheck
     NaturalCheck -->|No: spawner / egg / summon| Allow
-    NaturalCheck -->|Yes| HeadQuery
-    HeadQuery --> HasNearby
+    NaturalCheck -->|Yes| ShrineQuery
+    ShrineQuery --> HasNearby
     HasNearby -->|Yes| HeadNearby
     HeadNearby --> ConvertCheck
     ConvertCheck -->|Yes| ConvertMob
     ConvertCheck -->|No| Allow
     ConvertMob --> Allow
     HasNearby -->|No| HeadAttract
-    HeadAttract -->|Suppressed by distant skulls| HeadSuppress
-    HeadAttract -->|Not suppressed| ScoreQuery
+    HeadAttract -->|Suppressed by distant podiums| HeadSuppress
+    HeadAttract -->|Not suppressed| Whitelist
+    Whitelist -->|Yes| Allow
+    Whitelist -->|No| ZonePolicy
+    ZonePolicy -->|Yes| Allow
+    ZonePolicy -->|No| ScoreQuery
     ScoreQuery --> ApplyDecay
     ApplyDecay --> ThresholdCheck
     ThresholdCheck -->|Below low threshold| Allow
@@ -47,13 +53,13 @@ flowchart TD
 
 Non-natural spawns (spawn eggs, spawners, `/summon`, reinforcements) bypass the pipeline entirely and always succeed.
 
-**Datapack hooks:** Before civilization scoring runs, **dimension policies** (`civil_dimension_policies`) can disable civilization logic (and optionally head stages) per dimension. **Zone policies** (`civil_zone_policies`) can allow hostile spawns inside matched vanilla structures regardless of nearby score. See [Structure spawn rules](../play/structure-spawn-rules.md), [Dimension rules](../play/dimension-rules.md), and [Data-Driven Registries](../modpack/data-driven.md).
+**Datapack hooks:** Before civilization scoring runs, **dimension policies** (`civil_dimension_policies`) can disable civilization logic (and optionally head / podium stages) per dimension. **Spawn gate entity lists** (`civil_spawn_gate_entities`) can force extra entity types through the gate or whitelist selected types. **Zone policies** (`civil_zone_policies`) can allow hostile spawns inside matched vanilla structures regardless of nearby score. See [Structure spawn rules](../play/structure-spawn-rules.md), [Dimension rules](../play/dimension-rules.md), and [Data-Driven Registries](../modpack/data-driven.md).
 
 ---
 
 ## Persistence (NBT storage)
 
-Civillis **does not use an embedded SQL database**. Since the 1.2.0 storage rewrite, civilization **L1 shard** scores, **ServerClock**, decay **presence** data, **mob head** positions, and **Podium of Undying** anchors are persisted through a dedicated **NBT-based storage layer** with **asynchronous I/O**. Dirty data is **staged in memory** and written in a **unified flush** about every **30 seconds** (600 ticks), not as a synchronous follow-up to every cache mutation. On cold paths, **bulk region load** pulls an entire on-disk region into L1 once; that region is then marked **activated** so repeated work does not re-read the same NBT bulk until the next flush **deactivates** it after persisting. Result shards remain **derived cache** in memory and are rebuilt from L1 when needed.
+Civillis **does not use an embedded SQL database**. Since the 1.2.0 storage rewrite, civilization **L1 shard** scores, **ServerClock**, decay **presence** data, **mob head** positions, **Podium of Undying** anchors, and **Podium of Spawning** anchors are persisted through a dedicated **NBT-based storage layer** with **asynchronous I/O**. Dirty data is **staged in memory** and written in a **unified flush** about every **30 seconds** (600 ticks), not as a synchronous follow-up to every cache mutation. On cold paths, **bulk region load** pulls an entire on-disk region into L1 once; that region is then marked **activated** so repeated work does not re-read the same NBT bulk until the next flush **deactivates** it after persisting. Result shards remain **derived cache** in memory and are rebuilt from L1 when needed.
 
 World switches keep each world's data isolated; see the changelog for storage-related upgrade notes.
 
@@ -135,26 +141,26 @@ When a player returns, their presence gradually advances the recorded visit time
 
 ---
 
-## Monster Head Interaction
+## Podium of Spawning / Monster Head Interaction
 
-Monster heads operate on a separate pathway that runs *before* the civilization score is even consulted:
+Active Podiums of Spawning operate on a separate pathway that runs *before* the civilization score is even consulted. Mob heads inside the podium pocket provide the type pool and scaling inputs:
 
 ```mermaid
 flowchart TD
     SpawnPos["Spawn position"]
-    ScanHeads["Query indexed skull buckets near spawn"]
-    DimFilter["Filter by dimension whitelist"]
-    LocalZone{Skulls within local zone?}
-    AllowSpawn["HEAD_NEARBY: Allow spawn"]
-    CountHeads{"3+ skulls clustered?"}
+    ScanHeads["Query indexed podium buckets near spawn"]
+    DimFilter["Filter by dimension / head mechanics"]
+    LocalZone{Inside active podium pocket?}
+    AllowSpawn["SHRINE_NEARBY: Allow spawn"]
+    CountHeads{"3+ eligible heads in pocket?"}
     NoConvert["Spawn original mob"]
     RollConvert["Roll conversion probability"]
     ConvertSuccess{Roll succeeds?}
     SpawnConverted["Spawn as converted type"]
     SpawnOriginal["Spawn original mob"]
-    DistantCalc["Evaluate heads within attraction window"]
+    DistantCalc["Evaluate podiums within attraction window"]
     SuppressRoll{Suppression roll succeeds?}
-    BlockSpawn["HEAD_SUPPRESS: Block spawn"]
+    BlockSpawn["SHRINE_SUPPRESS: Block spawn"]
     ContinueToCiv["Continue to civilization scoring"]
 
     SpawnPos --> ScanHeads --> DimFilter --> LocalZone
@@ -168,9 +174,10 @@ flowchart TD
     SuppressRoll -->|No| ContinueToCiv
 ```
 
-- Skulls restricted to specific dimensions (e.g., wither skeleton skulls → Nether only) are filtered out before any mechanism activates
+- Skulls restricted to specific dimensions (e.g., wither skeleton skulls -> Nether only) are filtered out before they affect conversion or attraction
+- Podium pockets bypass civilization locally; heads inside the pocket shape the mob type pool
 - Conversion probability scales with skull count; converted mobs bypass this pipeline on their own spawn to prevent recursion
-- Distant suppression is range-bounded and index-backed: only heads in the local attraction window are considered
+- Distant suppression is range-bounded and index-backed: only nearby active podiums are considered
 
 ---
 

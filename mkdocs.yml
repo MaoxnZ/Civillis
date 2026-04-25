@@ -36,11 +36,13 @@ nav:
         - Blocks & Scoring: blocks-and-scoring.md
         - Civilization Decay: civilization-decay.md
     - Spawn and mobs:
-        - Monster Heads: monster-heads.md
+        - Podium of Spawning: play/podium-of-spawning.md
         - Mob Flee AI: mob-flee-ai.md
     - Survival and structures:
         - Podium of Undying: play/podium-of-undying.md
     - Visualization:
+        - Civil Maps: play/civil-maps.md
+        - Map mod overlays: play/map-overlays.md
         - Zone transition HUD: play/zone-transition-hud.md
         - Civilization Sonar: sonar/index.md
     - World rules:

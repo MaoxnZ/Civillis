@@ -7,7 +7,7 @@ Civillis ships **default datapack JSON** under `data/civil/…`. At load time th
 
 ## Block weights (`civil_blocks`)
 
-**Vanilla:** see the full table on **[Blocks & Scoring](../blocks-and-scoring.md)**; bundled data is `data/civil/civil_blocks/defaults.json` (**36** entries — block IDs and tags such as `#minecraft:beds`).
+**Vanilla:** see the full table on **[Blocks & Scoring](../blocks-and-scoring.md)**; bundled data is `data/civil/civil_blocks/defaults.json` (**36** entries — block IDs and tags such as `#minecraft:beds`) plus `data/civil/civil_blocks/default_tags.json` for tier tags such as `#civil:high_civilized`.
 
 Each **mod** below uses an **expandable block** so wide ID tables do not force a horizontal tab strip.
 
@@ -278,7 +278,7 @@ Each **mod** below uses an **expandable block** so wide ID tables do not force a
 
     File: `data/civil/civil_heads/defaults.json`. **5** vanilla skull types.
 
-    Gameplay is described on [Monster Heads](../monster-heads.md).
+    Gameplay is described on [Podium of Spawning](../play/podium-of-spawning.md).
 
     | `skull_type` | `entity_type` | `dimensions` (optional) |
     |--------------|---------------|---------------------------|

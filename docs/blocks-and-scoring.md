@@ -1,21 +1,21 @@
 # Blocks & Scoring
 
-Scoring works in two stages. First, each recognized block contributes its weight to the **voxel chunk** (16×16×16 area) it belongs to, producing a per-chunk civilization score. Then, all chunk scores within the detection range are aggregated into a final score for the spawn point being evaluated. Unrecognized blocks contribute nothing.
+Scoring works in two stages. First, each recognized block contributes its weight to the **voxel chunk** (16 x 16 x 16 area) it belongs to, producing a per-chunk civilization score. Then, all chunk scores within the detection range are aggregated into a final score for the spawn point being evaluated. Unrecognized blocks contribute nothing.
 
-## Weight Framework
+## Weight framework
 
 Block weights follow a progression based on crafting complexity and symbolic significance:
 
-| Era | Weight Range | Examples |
-|-----|-------------|----------|
-| Stone Age | 0.2–0.3 | Crafting table, furnace, chest, farmland, barrel |
-| Iron Age | 0.4–0.5 | Lanterns, workstations, campfires, lecterns |
-| Advanced | 0.6–1.0 | Beds, anvils, shulker boxes, brewing stands, sea lanterns |
-| Mythic | 2.0–5.0 | Respawn anchors, enchanting tables, beacons, conduits |
+| Era | Weight range | Examples |
+|-----|--------------|----------|
+| Stone Age | 0.2-0.3 | Crafting table, furnace, chest, farmland, barrel |
+| Iron Age | 0.4-0.5 | Lanterns, workstations, campfires, lecterns |
+| Advanced | 0.6-1.0 | Beds, anvils, shulker boxes, brewing stands, sea lanterns |
+| Mythic | 2.0-5.0 | Respawn anchors, enchanting tables, beacons, conduits |
 
 Blocks that emit light or have magical properties receive additional weight within their era.
 
-## Vanilla Block Weights
+## Vanilla block weights
 
 | Block | Weight | | Block | Weight |
 |-------|--------|-|-------|--------|
@@ -44,26 +44,44 @@ Blocks that emit light or have magical properties receive additional weight with
 | Lectern | 0.5 | | | |
 | End Rod | 0.5 | | | |
 
-Entries marked "all types" use block tags — all variants (e.g., oak bed, spruce bed) share the same weight.
+Entries marked "all types" use block tags — all variants share the same weight.
+
+## Tier tags for modpacks
+
+Civillis also ships a tag-based weight file, `data/civil/civil_blocks/default_tags.json`. Pack authors can add blocks to these tags instead of writing one weight row per block:
+
+| Tag | Weight |
+|-----|--------|
+| `#civil:very_very_high_civilized` | 5.0 |
+| `#civil:very_high_civilized` | 3.0 |
+| `#civil:high_civilized` | 2.0 |
+| `#civil:medium_high_civilized` | 1.5 |
+| `#civil:medium_civilized` | 1.0 |
+| `#civil:medium_low_civilized` | 0.7 |
+| `#civil:low_civilized` | 0.5 |
+| `#civil:very_low_civilized` | 0.3 |
+| `#civil:very_very_low_civilized` | 0.2 |
+
+Example: add a modded workstation to `#civil:medium_civilized`, or a landmark block to `#civil:high_civilized`, and Civillis will apply the matching weight automatically.
 
 ## Mod compatibility (built-in weights)
 
-Civillis ships **`civil_blocks`** JSON for **Create**, **Farmer's Delight**, **Supplementaries**, **Quark**, **Applied Energistics 2**, **Storage Drawers**, **Iron Chests**, **Sophisticated Storage**, **Functional Storage**, plus vanilla **`defaults.json`**. If a mod is not installed, its rows are skipped — no errors, no runtime cost.
+Civillis ships **`civil_blocks`** JSON for **Create**, **Farmer's Delight**, **Supplementaries**, **Quark**, **Applied Energistics 2**, **Storage Drawers**, **Iron Chests**, **Sophisticated Storage**, **Functional Storage**, plus vanilla defaults and the tier tags above. If a mod is not installed, its rows are skipped — no errors, no runtime cost.
 
-Full ID → weight tables, zone/dimension/head defaults, and file paths: **[Built-in Compatibility](modpack/compatibility.md)** (expandable sections per source). Regenerate block tables after JSON changes with `python tools/gen_wiki_compatibility.py`.
+Full ID -> weight tables, zone/dimension/head defaults, and file paths: **[Built-in Compatibility](modpack/compatibility.md)** (expandable sections per source). Regenerate block tables after JSON changes with `python tools/gen_wiki_compatibility.py`.
 
-## Data-Driven
+## Data-driven
 
-All block weights are loaded from JSON data files and can be fully overridden via datapacks. See [Data-Driven Registries](modpack/data-driven.md) for details on adding custom blocks.
+All block weights are loaded from JSON data files and can be fully overridden via datapacks. See [Data-Driven Registries](modpack/data-driven.md) for details on adding custom blocks or using tags.
 
-## In-Game Configuration
+## In-game configuration
 
 Scoring-related parameters are adjustable via the in-game GUI (requires [Mod Menu](https://modrinth.com/mod/modmenu) + [Cloth Config](https://modrinth.com/mod/cloth-config)):
 
 | Setting | Range | Default | What it controls |
 |---------|-------|---------|-----------------|
-| Civilization Strength | 1–10 | 5 | Adjusts both spawn thresholds together — higher values make it easier to reach full protection |
-| Max. Civilization Radius | 112–496 blocks | 240 blocks | Size of the area evaluated around each spawn point |
+| Civilization Strength | 1-10 | 5 | Adjusts both spawn thresholds together — higher values make it easier to reach full protection. |
+| Max. Civilization Radius | 112-496 blocks | 240 blocks | Size of the area evaluated around each spawn point. |
 
 !!! warning "Advanced: civil.properties"
     Raw parameters can also be edited in `config/civil.properties`, but this is intended for advanced users only. If things break, delete `civil.properties` and restart — the mod will regenerate it with defaults.

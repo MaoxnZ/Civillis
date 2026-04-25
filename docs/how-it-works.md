@@ -55,10 +55,11 @@ Light-emitting and magical blocks receive a bonus multiplier. See [Blocks & Scor
 Civilization scoring is the foundation, but the mod doesn't stop there:
 
 - **[Civilization Decay](civilization-decay.md)** — Protection fades from the edges inward when you leave. Return and stay, and it recovers.
-- **[Monster Heads](monster-heads.md)** — Skulls punch through civilization protection and redirect distant hostiles toward themselves.
+- **[Civil Maps](play/civil-maps.md)** — Filled maps upgraded with a Civil Detector show civilized and monster-pocket regions as map tints.
+- **[Podium of Spawning](play/podium-of-spawning.md)** and **[Podium of Spawning](play/podium-of-spawning.md)** — A controlled mob-friendly pocket inside civilization, shaped by skulls placed inside it.
 - **[Mob Flee AI](mob-flee-ai.md)** — Existing hostiles can retreat from civilization pressure, especially in dense city cores.
 - **[Civilization Sonar](sonar/index.md)** — Portable detector and static bell scans; visualize boundaries in real time (overview + tabbed detail).
-- **[Zone transition HUD](play/zone-transition-hud.md)**, **[Structure spawn rules](play/structure-spawn-rules.md)**, **[Dimension rules](play/dimension-rules.md)**, **[Podium of Undying](play/podium-of-undying.md)**, **[Commands](play/commands.md)** — feedback, structure/dimension exceptions, late-game rescue, `/civil rebuild`.
+- **[Zone transition HUD](play/zone-transition-hud.md)**, **[Structure spawn rules](play/structure-spawn-rules.md)**, **[Dimension rules](play/dimension-rules.md)**, **[Podium of Undying](play/podium-of-undying.md)**, **[Commands](play/commands.md)** — feedback, structure/dimension exceptions, late-game rescue, `/civil rebuild`, and `/civil ring`.
 
 ## In-game configuration
 
@@ -69,7 +70,7 @@ The two knobs that most change the feel of the spawn loop are on the **main** ro
 | **Civilization Strength** | 1–10 | 5 | Moves both spawn thresholds — higher = easier full protection. |
 | **Max. Civilization Radius** | 112–496 blocks (step 32) | 240 blocks | How far around each spawn attempt the mod looks for civilization blocks. |
 
-Sonar, decay, heads, podium, flee AI, and HUD live in **collapsible subcategories** on the same screen. Full table in [Configuration](configuration.md).
+Sonar, decay, Podium of Spawning, Podium of Undying, flee AI, and HUD live in **collapsible subcategories** on the same screen. Full table in [Configuration](configuration.md).
 
 !!! warning "Advanced: civil.properties"
     Raw keys override the GUI for matching parameters. If tuning goes wrong, delete `config/civil.properties` and restart.

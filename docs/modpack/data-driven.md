@@ -4,6 +4,7 @@ Civillis loads several JSON registries from datapacks:
 
 - **Block Weights** (`civil_blocks`) — which blocks count as civilization and how much they contribute
 - **Head Types** (`civil_heads`) — which skull types are recognized and what mobs they map to
+- **Spawn Gate Entities** (`civil_spawn_gate_entities`) — entity types that should enter or bypass the Civillis spawn gate
 - **Zone Policies** (`civil_zone_policies`) — structure-tagged rules (e.g. allow hostile spawns inside monuments)
 - **Dimension Policies** (`civil_dimension_policies`) — per-dimension toggles for civilization scoring and head mechanics
 
@@ -46,6 +47,24 @@ Files are discovered by scanning all namespaces for JSON under `civil_blocks/`. 
 ### Tag Support
 
 Prefix a block ID with `#` to target an entire block tag. For example, `"#minecraft:beds"` assigns the weight to all bed variants (oak, spruce, birch, etc.) in one entry. Unknown tags are silently skipped.
+
+### Built-in Tier Tags
+
+Civillis ships one extra helper file, `data/civil/civil_blocks/default_tags.json`, so modpacks can add blocks to shared tags instead of writing one entry per block:
+
+| Tag | Weight |
+|-----|--------|
+| `#civil:very_very_high_civilized` | 5.0 |
+| `#civil:very_high_civilized` | 3.0 |
+| `#civil:high_civilized` | 2.0 |
+| `#civil:medium_high_civilized` | 1.5 |
+| `#civil:medium_civilized` | 1.0 |
+| `#civil:medium_low_civilized` | 0.7 |
+| `#civil:low_civilized` | 0.5 |
+| `#civil:very_low_civilized` | 0.3 |
+| `#civil:very_very_low_civilized` | 0.2 |
+
+Add a tag file under `data/<namespace>/tags/blocks/` (or extend the `civil` tag from your datapack) and the weight applies through the normal block-weight loader.
 
 ### Loading Order & Overrides
 
@@ -93,7 +112,7 @@ Prefix a block ID with `#` to target an entire block tag. For example, `"#minecr
 
 ## Head Types
 
-The head type registry controls which monster skulls are recognized by Civillis and maps each one to a mob entity. Recognized skulls activate three gameplay mechanisms: local spawn gate bypass, range-bounded spawn redirection, and mob conversion. See [Monster Heads](../monster-heads.md) for how these mechanics work in detail.
+The head type registry controls which monster skulls are recognized by Civillis and maps each one to a mob entity. Eligible skulls are used by active Podiums of Spawning for attraction and conversion; dimension rules still apply. See [Podium of Spawning](../play/podium-of-spawning.md) for gameplay details.
 
 ### Default Registry
 
@@ -220,9 +239,69 @@ Only skeleton and zombie skulls remain active. All other vanilla skulls become d
 
 ---
 
-## Zone Policies (`civil_zone_policies`)
+## Spawn Gate Entities
 
-Controls how **natural** hostile spawns behave **inside matched vanilla structures**, independent of nearby civilization score. Also feeds **structure-tint** style hints for the [zone HUD](../play/zone-transition-hud.md).
+Registry path: `civil_spawn_gate_entities`. Controls entity-type exceptions around the natural-spawn gate.
+
+!!! important "Blacklist does not mean deny"
+    In this registry, `blacklist` means **extra entity types that should enter the Civillis natural-spawn gate**, not “always block this mob.” The normal civilization / podium / zone-policy decision still decides the result.
+
+### File location
+
+```text
+data/<namespace>/civil_spawn_gate_entities/<any_name>.json
+```
+
+### JSON format
+
+```json
+{
+  "replace": false,
+  "entries": [
+    {
+      "blacklist": ["mymod:hostile_construct"],
+      "whitelist": ["minecraft:slime"]
+    }
+  ]
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `replace` | No | If `true`, clears accumulated spawn-gate entity lists before applying this file. Default `false`. |
+| `entries` | Yes | Array of list entries. |
+| `entries[].blacklist` | No | Entity IDs that should be treated as eligible for Civillis spawn gating in addition to normal hostile categories. |
+| `entries[].whitelist` | No | Entity IDs that should be allowed before zone and civilization scoring. |
+
+Files load in resource-id order. Unknown entity IDs are skipped with a warning. If the same entity appears in both lists after merging, **whitelist wins** at decision time.
+
+### Examples
+
+**Make a modded hostile construct obey civilization:**
+
+```json
+{
+  "entries": [
+    { "blacklist": ["mymod:clockwork_raider"] }
+  ]
+}
+```
+
+**Let a specific mob bypass Civillis scoring:**
+
+```json
+{
+  "entries": [
+    { "whitelist": ["minecraft:slime"] }
+  ]
+}
+```
+
+---
+
+## Zone Policies
+
+Registry path: `civil_zone_policies`. Controls how **natural** hostile spawns behave **inside matched vanilla structures**, independent of nearby civilization score. Also feeds **structure-tint** style hints for the [zone HUD](../play/zone-transition-hud.md).
 
 ### File location
 
@@ -244,9 +323,9 @@ See also: [Structure spawn rules](../play/structure-spawn-rules.md), [Built-in C
 
 ---
 
-## Dimension Policies (`civil_dimension_policies`)
+## Dimension Policies
 
-Per-dimension switches so Civillis can stay out of dimensions where civilization scoring or head logic does not make sense (dungeon dimensions, instanced rooms, etc.).
+Registry path: `civil_dimension_policies`. Per-dimension switches so Civillis can stay out of dimensions where civilization scoring or head logic does not make sense (dungeon dimensions, instanced rooms, etc.).
 
 ### File location
 

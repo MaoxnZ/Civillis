@@ -1,6 +1,6 @@
 # Civilization Sonar
 
-**Sonar** is Civillis’s shared name for **scans that sample civilization data and visualize it** — expanding particle rings, optional **aura walls** at civilization and head-zone boundaries, and matching audio. The server computes boundaries; the client renders the effect.
+**Sonar** is Civillis’s shared name for **scans that sample civilization data and visualize it** — expanding particle rings, optional **aura walls** at civilization and monster-pocket boundaries, and matching audio. The server computes boundaries; the client renders the effect.
 
 ## Overview
 
@@ -11,12 +11,12 @@ Two variants:
 | **Handheld sonar** | **Portable** tab — Civilization Detector, right-click | Portable scouting; configurable pulse toggle and sonar radius |
 | **Static sonar** | **Static** tab — ring a bell placed **on top of** a lodestone | Stationary “detection station”; longer range, stronger presentation, per-player cooldown |
 
-Both use the same underlying idea: a **BFS-style scan** out to a **sonar radius** (in voxel-chunk units) that is **independent** from the much larger spawn **detection radius** used for civilization scoring. Colors along the wave indicate protected ground, wilderness, and monster-head zones (see the **Portable** tab for the particle legend).
+Both use the same underlying idea: a **BFS-style scan** out to a **sonar radius** (in voxel-chunk units) that is **independent** from the much larger spawn **detection radius** used for civilization scoring. Colors along the wave indicate protected ground, wilderness, and monster-pocket zones (see the **Portable** tab for the particle legend).
 
 ### See also
 
 - [How It Works](../how-it-works.md) — what the score means
-- [Monster Heads](../monster-heads.md) — purple/orange head zones in sonar
+- [Podium of Spawning](../play/podium-of-spawning.md) — purple/orange head zones in sonar
 
 ## Portable and static detail
 
@@ -63,7 +63,7 @@ Both use the same underlying idea: a **BFS-style scan** out to a **sonar radius*
 
     - **White sparks** (End Rod) — you're in a protected area
     - **Blue flames** (Soul Fire) — you're in wilderness
-    - **Orange flames** (Fire) — you're in a head zone
+    - **Orange flames** (Fire) — you're in a monster pocket
 
     #### Expanding shockwave
 
@@ -76,7 +76,7 @@ Both use the same underlying idea: a **BFS-style scan** out to a **sonar radius*
     ~1.2 seconds after the scan, glowing translucent walls rise at the boundaries of your civilization:
 
     - **Gold/amber walls** — civilization boundaries (where protection ends and wilderness begins)
-    - **Amethyst/purple walls** — monster head zone boundaries
+    - **Amethyst/purple walls** — monster-pocket boundaries
 
     Walls appear with a fade-in, hold steady for ~2.5 seconds, then gently fade out over ~2 seconds. Firing the detector again while walls are visible extends their duration — and if you've moved toward a boundary, newly discovered faces appear while existing ones hold steady.
 

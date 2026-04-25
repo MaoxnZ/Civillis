@@ -13,7 +13,7 @@ Both scale with **Civilization Strength** the same way spawn thresholds do.
 
 ## How direction is chosen
 
-The mod samples candidate directions, compares civilization pressure along each ray, and prefers moving toward **lower** pressure. Vanilla pathfinding still applies underneath.
+The mod first looks for a nearby active [Podium of Spawning](play/podium-of-spawning.md) attraction target when the mob is outside the local podium pocket. If none is useful, it samples candidate directions, compares civilization pressure along each ray, and prefers moving toward **lower** pressure. Vanilla pathfinding still applies underneath.
 
 ## Relationship to spawn suppression
 
@@ -35,3 +35,4 @@ Open **Civillis Settings** → **Civilization** → expand **Miscellaneous** (re
 
 - [Configuration](configuration.md) — full screen layout and properties overview
 - [How It Works](how-it-works.md) — spawn LOW / MID / HIGH pipeline
+- [Podium of Spawning](play/podium-of-spawning.md) — controlled hostile pockets
