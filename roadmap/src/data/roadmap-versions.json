@@ -353,12 +353,86 @@
         "id": "r130-release",
         "version": "1.3.0",
         "phase": "release",
-        "status": "Tentative",
-        "theme": "Civilization Map Item",
-        "summary": "This release plans to introduce a Civilization Map item that overlays civilization coverage on vanilla terrain with surface-aware sampling and controlled refresh cost.",
+        "status": "Released",
+        "theme": "Civil Maps",
+        "summary": "Civil maps landed as an upgrade path for filled maps, adding regional civilization tints while preserving vanilla terrain context and cartography table behavior.",
         "image": "__PLACEHOLDER__",
         "featureRefs": [
-          "f-civil-map-vanilla-overlay"
+          "f-civil-map-vanilla-overlay",
+          "f-civil-map-upgrade-recipe",
+          "f-civil-map-cartography-table"
+        ]
+      },
+      {
+        "id": "r131-release",
+        "version": "1.3.1",
+        "phase": "release",
+        "status": "Released",
+        "theme": "Map Mod Overlays and HUD Control",
+        "summary": "JourneyMap and Xaero civilization overlays shipped for supported ports, zone transition HUD gained customization controls, and spawn-gate rules became data-driven for pack authors.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-map-mod-overlays",
+          "f-supplementaries-map-tint-compat",
+          "f-zone-hud-customization",
+          "f-civil-ring-command",
+          "f-spawn-gate-entity-datapack",
+          "f-admin-command-permissions",
+          "f-dimension-policy-head-fix"
+        ]
+      },
+      {
+        "id": "r132-release",
+        "version": "1.3.2",
+        "phase": "release",
+        "status": "Released",
+        "theme": "Podium of Spawning and Runtime Efficiency",
+        "summary": "Podium of Spawning introduced controlled hostile pockets inside civilizations, while map tinting, chunk scoring, overlay scanning, and datapack block tagging were tightened for heavier servers and modpacks.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-podium-spawning",
+          "f-podium-spawning-head-conversion",
+          "f-civil-block-tier-tags",
+          "f-civil-map-sparse-surface-sampling",
+          "f-lazy-chunk-scoring",
+          "f-overlay-default-disabled-exploration-radius",
+          "f-nested-block-update-state-fix",
+          "f-temporary-score-ttl-fix"
+        ]
+      },
+      {
+        "id": "r133-release",
+        "version": "1.3.3",
+        "phase": "release",
+        "status": "Tentative",
+        "theme": "Map Display Clarity",
+        "summary": "The next map-focused pass is planned to improve civil tint readability on bright terrain and make zone-policy regions display with the correct non-civil semantics.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-map-tint-bright-terrain-contrast",
+          "f-zone-policy-map-classification"
+        ]
+      }
+    ]
+  },
+  {
+    "stream": "2.0-release",
+    "phase": "release",
+    "summaryTitle": "Town Center",
+    "releases": [
+      {
+        "id": "r200-release",
+        "version": "2.0.0",
+        "phase": "release",
+        "status": "Tentative",
+        "theme": "Town Center",
+        "summary": "A major Town Center milestone is planned as the foundation for settlement-scale interaction, local management, and future town upgrades.",
+        "image": "__PLACEHOLDER__",
+        "featureRefs": [
+          "f-town-center",
+          "f-town-center-interaction-gui",
+          "f-town-center-area-buffs",
+          "f-town-center-structure-management"
         ]
       }
     ]

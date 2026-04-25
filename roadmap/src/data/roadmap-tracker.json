@@ -117,7 +117,7 @@
       "description": "Civil spawn policy, natural spawn filtering, and structure-specific hostile bypass rules.",
       "status": "In Progress",
       "startDate": "2026-01-24",
-      "endDate": "2026-03-22",
+      "endDate": "2026-04-25",
       "children": [
         {
           "id": "sim-spawn-1",
@@ -139,6 +139,20 @@
           "archived": false,
           "startDate": "2026-03-13",
           "endDate": "2026-03-22"
+        },
+        {
+          "id": "sim-spawn-4",
+          "featureRef": "f-spawn-gate-entity-datapack",
+          "archived": false,
+          "startDate": "2026-04-06",
+          "endDate": "2026-04-19"
+        },
+        {
+          "id": "sim-spawn-5",
+          "featureRef": "f-podium-spawning",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
         }
       ]
     },
@@ -194,6 +208,30 @@
           "archived": false,
           "startDate": "2026-03-12",
           "endDate": "2026-03-14"
+        }
+      ]
+    },
+    {
+      "id": "track-simulation-spawning-podium",
+      "name": "Simulation | Spawning Podium",
+      "description": "Podium of Spawning pockets and head-driven hostile attraction inside civilized areas.",
+      "status": "In Progress",
+      "startDate": "2026-04-20",
+      "endDate": "2026-04-25",
+      "children": [
+        {
+          "id": "sim-spawnpodium-1",
+          "featureRef": "f-podium-spawning",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
+        },
+        {
+          "id": "sim-spawnpodium-2",
+          "featureRef": "f-podium-spawning-head-conversion",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
         }
       ]
     },
@@ -258,7 +296,7 @@
       "description": "Scalable processing layout and fusion-architecture runtime efficiency.",
       "status": "In Progress",
       "startDate": "2026-01-24",
-      "endDate": "2026-03-28",
+      "endDate": "2026-04-25",
       "children": [
         {
           "id": "eng-found-1",
@@ -280,6 +318,27 @@
           "archived": true,
           "startDate": "2026-03-24",
           "endDate": "2026-03-28"
+        },
+        {
+          "id": "eng-found-4",
+          "featureRef": "f-lazy-chunk-scoring",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
+        },
+        {
+          "id": "eng-found-5",
+          "featureRef": "f-nested-block-update-state-fix",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
+        },
+        {
+          "id": "eng-found-6",
+          "featureRef": "f-temporary-score-ttl-fix",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
         }
       ]
     },
@@ -500,14 +559,80 @@
       "description": "Civilization map overlay on vanilla terrain for readable surface-level context.",
       "status": "In Progress",
       "startDate": "2026-03-30",
-      "endDate": "2026-04-06",
+      "endDate": "2026-05-06",
       "children": [
         {
           "id": "vis-map-1",
           "featureRef": "f-civil-map-vanilla-overlay",
           "archived": false,
           "startDate": "2026-03-30",
-          "endDate": "2026-04-06"
+          "endDate": "2026-04-05"
+        },
+        {
+          "id": "vis-map-2",
+          "featureRef": "f-civil-map-upgrade-recipe",
+          "archived": false,
+          "startDate": "2026-03-30",
+          "endDate": "2026-04-05"
+        },
+        {
+          "id": "vis-map-3",
+          "featureRef": "f-civil-map-cartography-table",
+          "archived": false,
+          "startDate": "2026-03-30",
+          "endDate": "2026-04-05"
+        },
+        {
+          "id": "vis-map-5",
+          "featureRef": "f-civil-map-sparse-surface-sampling",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
+        },
+        {
+          "id": "vis-map-6",
+          "featureRef": "f-map-tint-bright-terrain-contrast",
+          "archived": false,
+          "startDate": "2026-04-27",
+          "endDate": "2026-05-06"
+        },
+        {
+          "id": "vis-map-7",
+          "featureRef": "f-zone-policy-map-classification",
+          "archived": false,
+          "startDate": "2026-04-27",
+          "endDate": "2026-05-06"
+        }
+      ]
+    },
+    {
+      "id": "track-visualization-map-overlays",
+      "name": "Visualization | Map overlays",
+      "description": "JourneyMap, Xaero, and compatibility-layer civilization overlays outside vanilla map items.",
+      "status": "In Progress",
+      "startDate": "2026-04-06",
+      "endDate": "2026-04-25",
+      "children": [
+        {
+          "id": "vis-overlay-1",
+          "featureRef": "f-map-mod-overlays",
+          "archived": false,
+          "startDate": "2026-04-06",
+          "endDate": "2026-04-19"
+        },
+        {
+          "id": "vis-overlay-2",
+          "featureRef": "f-supplementaries-map-tint-compat",
+          "archived": false,
+          "startDate": "2026-04-06",
+          "endDate": "2026-04-19"
+        },
+        {
+          "id": "vis-overlay-3",
+          "featureRef": "f-overlay-default-disabled-exploration-radius",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
         }
       ]
     },
@@ -517,7 +642,7 @@
       "description": "Zone transition messaging for civilized versus wilderness areas.",
       "status": "In Progress",
       "startDate": "2026-03-13",
-      "endDate": "2026-03-28",
+      "endDate": "2026-04-19",
       "children": [
         {
           "id": "vis-hud-1",
@@ -532,6 +657,20 @@
           "archived": true,
           "startDate": "2026-03-24",
           "endDate": "2026-03-28"
+        },
+        {
+          "id": "vis-hud-3",
+          "featureRef": "f-zone-hud-customization",
+          "archived": false,
+          "startDate": "2026-04-06",
+          "endDate": "2026-04-19"
+        },
+        {
+          "id": "vis-hud-4",
+          "featureRef": "f-civil-ring-command",
+          "archived": false,
+          "startDate": "2026-04-06",
+          "endDate": "2026-04-19"
         }
       ]
     },
@@ -579,7 +718,7 @@
       "description": "Block scoring balance and mod-compat scored blocks.",
       "status": "In Progress",
       "startDate": "2026-02-16",
-      "endDate": "2026-03-28",
+      "endDate": "2026-04-25",
       "children": [
         {
           "id": "content-score-1",
@@ -601,16 +740,23 @@
           "archived": true,
           "startDate": "2026-03-24",
           "endDate": "2026-03-28"
+        },
+        {
+          "id": "content-score-4",
+          "featureRef": "f-civil-block-tier-tags",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
         }
       ]
     },
     {
       "id": "track-content-datapack",
       "name": "Content | Datapack",
-      "description": "Head and block datapack registries, data-driven skull rules, and dimension policy JSON.",
+      "description": "Head, block, spawn-gate, and dimension-policy datapack registries.",
       "status": "In Progress",
       "startDate": "2026-02-16",
-      "endDate": "2026-03-28",
+      "endDate": "2026-04-25",
       "children": [
         {
           "id": "content-dp-1",
@@ -625,6 +771,27 @@
           "archived": true,
           "startDate": "2026-03-24",
           "endDate": "2026-03-28"
+        },
+        {
+          "id": "content-dp-3",
+          "featureRef": "f-spawn-gate-entity-datapack",
+          "archived": false,
+          "startDate": "2026-04-06",
+          "endDate": "2026-04-19"
+        },
+        {
+          "id": "content-dp-4",
+          "featureRef": "f-dimension-policy-head-fix",
+          "archived": false,
+          "startDate": "2026-04-06",
+          "endDate": "2026-04-19"
+        },
+        {
+          "id": "content-dp-5",
+          "featureRef": "f-civil-block-tier-tags",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
         }
       ]
     },
@@ -655,38 +822,59 @@
     {
       "id": "track-tentative",
       "name": "Tentative",
-      "description": "Speculative ideas only—town hub, advancements, bell sonar revamp, multiblocks; details live on each feature card.",
+      "description": "Speculative ideas only—Town Center, advancements, bell sonar revamp, multiblocks; details live on each feature card.",
       "status": "Tentative",
-      "startDate": "2026-04-01",
-      "endDate": "2026-06-01",
+      "startDate": "2026-05-01",
+      "endDate": "2026-07-31",
       "children": [
         {
           "id": "tentative-1",
           "featureRef": "f-town-center",
           "archived": false,
-          "startDate": "2026-04-01",
-          "endDate": "2026-06-01"
+          "startDate": "2026-05-01",
+          "endDate": "2026-07-31"
+        },
+        {
+          "id": "tentative-5",
+          "featureRef": "f-town-center-interaction-gui",
+          "archived": false,
+          "startDate": "2026-05-01",
+          "endDate": "2026-07-31"
+        },
+        {
+          "id": "tentative-6",
+          "featureRef": "f-town-center-area-buffs",
+          "archived": false,
+          "startDate": "2026-05-01",
+          "endDate": "2026-07-31"
+        },
+        {
+          "id": "tentative-7",
+          "featureRef": "f-town-center-structure-management",
+          "archived": false,
+          "startDate": "2026-05-01",
+          "endDate": "2026-07-31"
         },
         {
           "id": "tentative-2",
           "featureRef": "f-civillis-advancements",
           "archived": false,
-          "startDate": "2026-04-01",
-          "endDate": "2026-06-01"
+          "startDate": "2026-05-01",
+          "endDate": "2026-07-31"
         },
         {
           "id": "tentative-3",
           "featureRef": "f-bell-sonar-revamp",
           "archived": false,
-          "startDate": "2026-04-01",
-          "endDate": "2026-06-01"
+          "startDate": "2026-05-01",
+          "endDate": "2026-07-31"
         },
         {
           "id": "tentative-4",
           "featureRef": "f-multiblocks-custom-blocks",
           "archived": false,
-          "startDate": "2026-04-01",
-          "endDate": "2026-06-01"
+          "startDate": "2026-05-01",
+          "endDate": "2026-07-31"
         }
       ]
     }

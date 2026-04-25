@@ -923,13 +923,294 @@
   {
     "id": "f-civil-map-vanilla-overlay",
     "name": "Civilization map overlay system",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Civil maps show civilization coverage directly on filled maps while keeping vanilla terrain readable.",
+    "items": [
+      "Filled maps upgraded into civil maps keep terrain context and add regional civilization tinting.",
+      "Washed-white areas mark civilized ground, while purple areas mark hostile-friendly head or structure zones.",
+      "Tint updates are tied to normal map exploration and world changes instead of a constant background scan."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-civil-map-upgrade-recipe",
+    "name": "Civil map craft recipe",
+    "status": "Committed",
+    "progress": 100,
+    "details": "A filled map can be crafted into a civil map with a Civil Detector.",
+    "items": [
+      "The recipe uses an existing filled map plus a Civil Detector to preserve explored terrain.",
+      "Empty and locked maps are intentionally rejected so the item has clear vanilla-map semantics.",
+      "Civil maps carry recognizable lore so players can distinguish them from ordinary maps."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-civil-map-cartography-table",
+    "name": "Civil map cartography table support",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Civil maps keep their identity through vanilla cartography table operations.",
+    "items": [
+      "Paper zoom, glass-pane locking, and empty-map duplication work like normal filled maps.",
+      "Outputs keep civil-map lore and tint behavior after cartography operations.",
+      "This makes civil maps fit into existing map workflows instead of becoming a one-off item."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-map-mod-overlays",
+    "name": "JourneyMap and Xaero civilization overlays",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Civilization coloring can appear directly in popular map mods on supported port lines.",
+    "items": [
+      "JourneyMap overlay support shows civil regions without requiring a vanilla map item.",
+      "Xaero's Minimap and World Map overlay support can be toggled independently.",
+      "The integration is currently limited to the supported 1.20.1 and 1.21.1 builds."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-zone-hud-customization",
+    "name": "Zone transition HUD customization",
+    "status": "Committed",
+    "progress": 100,
+    "details": "The zone transition HUD now exposes text, timing, and screen-position controls.",
+    "items": [
+      "Civilized, Wilderness, and Caution labels can be customized in the in-game settings GUI.",
+      "A cooldown prevents repeat hints from firing too often during border movement.",
+      "HUD position controls let players move the message away from other UI elements."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-civil-ring-command",
+    "name": "/civil ring admin sonar command",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Admins can trigger a sonar pulse at their current position with /civil ring.",
+    "items": [
+      "The command is useful for testing aura-wall visuals without placing and ringing a bell.",
+      "It runs through the same visual scan path as player-facing sonar behavior.",
+      "The command requires game-master permission."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-spawn-gate-entity-datapack",
+    "name": "Spawn gate entity datapack registry",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Pack authors can explicitly include or exclude extra entity types from civilization spawn gating.",
+    "items": [
+      "The civil_spawn_gate_entities datapack registry supports whitelist and blacklist style rules.",
+      "Custom mobs can be aligned with a pack's intended hostile-spawn behavior.",
+      "The registry keeps spawn policy tuning out of code for modpack authors."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-supplementaries-map-tint-compat",
+    "name": "Supplementaries map tint compatibility",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Civil map tinting is restored alongside Supplementaries client-side map rendering on supported ports.",
+    "items": [
+      "Supplementaries no longer overrides civil-region coloring on affected 1.20.1 and 1.21.1 builds.",
+      "Civil map and map-mod overlay visuals remain consistent when Supplementaries is installed."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-admin-command-permissions",
+    "name": "Admin command permission hardening",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Civil admin commands now require game-master permission instead of being available to ordinary players.",
+    "items": [
+      "/civil rebuild and /civil ring require OP level 2+ or single-player cheats.",
+      "Recovery and diagnostic commands are kept out of normal survival-player access."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-dimension-policy-head-fix",
+    "name": "Dimension policy head-mechanics fix",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Dimension policies now fully apply before mob-head mechanics run.",
+    "items": [
+      "Dimensions marked as no-civilization no longer leak head attraction or conversion behavior.",
+      "Scoring and head systems respect their independent per-dimension switches consistently."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-podium-spawning",
+    "name": "Podium of Spawning",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Podium of Spawning creates a controlled hostile-friendly pocket inside an otherwise civilized area.",
+    "items": [
+      "A crying obsidian base, soul campfire, and bone sacrifice activate the structure.",
+      "Inside the pocket, hostile natural spawns bypass normal civilization suppression.",
+      "The structure gives builders a way to preserve danger, farms, and mob pressure without weakening the whole settlement."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-podium-spawning-head-conversion",
+    "name": "Podium head conversion tuning",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Mob heads inside a Podium of Spawning pocket influence which mobs are drawn into the pocket.",
+    "items": [
+      "Eligible heads begin contributing from the first placed head.",
+      "Each eligible head adds conversion pressure, capped at full conversion strength.",
+      "Attract Strength and Attract Range are configurable in the in-game settings GUI."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-civil-map-sparse-surface-sampling",
+    "name": "Sparse civil-map surface sampling",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Civil map tinting samples chunk surface data more cheaply while preserving useful map accuracy.",
+    "items": [
+      "Per-chunk surface work uses a sparse grid instead of scanning every possible point.",
+      "Civil map and map-mod overlay tinting become lighter on busy servers.",
+      "Sampling stays aligned with spawn-position surface semantics."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-lazy-chunk-scoring",
+    "name": "Lazy chunk scoring slots",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Chunk loading no longer creates empty scoring slots before a score is needed.",
+    "items": [
+      "Empty score data is deferred until gameplay actually asks for civilization state.",
+      "Chunk loading does less work on servers with broad exploration or many loaded chunks.",
+      "Real score computation still happens when block changes, spawns, maps, or scans need it."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-overlay-default-disabled-exploration-radius",
+    "name": "Map overlay scan controls",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Map mod overlays start disabled by default and expose exploration-radius controls on supported ports.",
+    "items": [
+      "JourneyMap and Xaero overlays default off because their scans are server-side and can be costly at large ranges.",
+      "Players can enable each overlay independently when they want live map-mod coloring.",
+      "Exploration Radius controls how aggressively overlay scans discover nearby civil state."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-civil-block-tier-tags",
+    "name": "Tiered civil block tags",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Civilization block weights can be extended through tiered block tags for modpack authoring.",
+    "items": [
+      "Tags such as civil:high_civilized and civil:low_civilized let packs classify whole sets of blocks.",
+      "Pack authors can add custom blocks without writing one explicit weight entry per block.",
+      "The system keeps default scoring data easier to extend and audit."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-nested-block-update-state-fix",
+    "name": "Nested block update state fix",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Civilization score updates now use the correct previous block state during nested server-thread block updates.",
+    "items": [
+      "Placing or removing blocks no longer leaves civilization score wrong because an inner update overwrote old-state context.",
+      "Block-change scoring is more reliable in rare modded or chained update paths."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-temporary-score-ttl-fix",
+    "name": "Temporary score TTL fix",
+    "status": "Committed",
+    "progress": 100,
+    "details": "Early temporary score estimates expire on a fixed schedule instead of being kept alive by unrelated touches.",
+    "items": [
+      "Rough estimates no longer block real computed scores indefinitely.",
+      "Background activity cannot continuously refresh temporary placeholders.",
+      "Score correctness recovers more predictably after rough first reads."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-map-tint-bright-terrain-contrast",
+    "name": "Map tint contrast on bright terrain",
     "status": "Planned",
     "progress": 0,
-    "details": "A Civilization Map item is planned to show civilization coverage on top of vanilla terrain context.",
+    "details": "Civil map coloring needs stronger readability on bright surfaces such as snow fields, where pale civil tint can disappear into the vanilla map palette.",
     "items": [
-      "Surface-aware sampling is intended to keep map output aligned with real ground-level gameplay.",
-      "Civilization tint is intended to highlight safe and weak zones without hiding familiar landmarks.",
-      "Refresh cadence is planned to be throttled and batched to keep the item practical on live worlds."
+      "Adjust civil tint blending so protected regions remain visible on snowy and other high-brightness terrain.",
+      "Preserve terrain readability instead of turning map tiles into flat opaque color.",
+      "Keep civil-map and supported map-mod overlay appearance aligned where they share tint logic."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-zone-policy-map-classification",
+    "name": "Zone policy map classification",
+    "status": "Planned",
+    "progress": 0,
+    "details": "Zone-policy regions should not be painted as ordinary civilization when their gameplay semantics are caution, bypass, or hostile-friendly space.",
+    "items": [
+      "Audit how zone-policy results are converted into map display categories.",
+      "Show structure or policy-controlled areas with the intended non-civil visual treatment.",
+      "Avoid misleading safe-looking tint where spawn policy is actually bypassed or cautionary."
     ],
     "images": [
       "__PLACEHOLDER__"
@@ -940,11 +1221,56 @@
     "name": "Town Center structure",
     "status": "Planned",
     "progress": 0,
-    "details": "A dedicated structure that activates when placed and oriented correctly; an interactable hub designed for future management layers and upgrade systems.",
+    "details": "A dedicated settlement hub structure that activates when placed and oriented correctly, forming the anchor for town-scale systems.",
     "items": [
-      "Placement puzzle unlocks activation.",
-      "Interaction surface is built for extensibility.",
-      "Future: administration, upgrades, and other town-scale systems."
+      "Placement puzzle unlocks activation and establishes a clear town-center identity.",
+      "The structure acts as the visible anchor for local settlement management.",
+      "Future upgrade and administration layers can build on the same hub."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-town-center-interaction-gui",
+    "name": "Town Center interaction GUI",
+    "status": "Planned",
+    "progress": 0,
+    "details": "Town Center should expose a custom interaction screen for settlement information and management actions.",
+    "items": [
+      "Open a dedicated Town Center interface from the activated structure.",
+      "Show core settlement status in one place instead of scattering feedback across items and commands.",
+      "Leave room for future tabs such as upgrades, permissions, and resource inputs."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-town-center-area-buffs",
+    "name": "Town Center area buff management",
+    "status": "Planned",
+    "progress": 0,
+    "details": "Town Center is planned to manage a first layer of local area buffs tied to the surrounding settlement.",
+    "items": [
+      "Define basic buff slots or toggles that apply around the town area.",
+      "Keep effects modest enough to support settlement identity without replacing vanilla progression.",
+      "Use the Town Center GUI as the management surface for these local rules."
+    ],
+    "images": [
+      "__PLACEHOLDER__"
+    ]
+  },
+  {
+    "id": "f-town-center-structure-management",
+    "name": "Town Center structure management",
+    "status": "Planned",
+    "progress": 0,
+    "details": "Town Center should provide a baseline structure-management layer for region-aware Civillis features.",
+    "items": [
+      "Track important local structures or managed anchors from the town hub.",
+      "Expose simple structure state and availability through the interaction GUI.",
+      "Create a foundation for later upgrades without committing every future building type up front."
     ],
     "images": [
       "__PLACEHOLDER__"
