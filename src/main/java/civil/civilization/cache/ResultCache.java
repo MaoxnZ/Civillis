@@ -25,12 +25,22 @@ import civil.civilization.storage.CivilStorage;
  * <p>Not persisted to disk — result shards are pure derived data from L1 shards and can be
  * recomputed in ~34μs from cached L1 scores.
  *
+ * <p>Non-cacheable (partial) result entries use a <b>fixed wall-clock lifetime</b> from
+ * {@link ResultEntry#getCreateTime()} — they are evicted after 5000 ms regardless of read
+ * frequency, so map/prefetch hot paths cannot pin stale partials forever.
+ *
  * @see ResultEntry
  */
 public final class ResultCache {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("civil-result-cache");
-    private static final long PARTIAL_BACKOFF_MS = 500;
+    /** Max age (ms) for a partial result shard; after this it must recompute (may promote to main). */
+    private static final long PARTIAL_MAX_LIFETIME_MS = 5_000L;
+
+    private static boolean partialExpired(long nowMillis, TimestampedEntry<ResultEntry> wrapped) {
+        ResultEntry re = wrapped.getValue();
+        return nowMillis - re.getCreateTime() > PARTIAL_MAX_LIFETIME_MS;
+    }
 
     private final ConcurrentHashMap<String, TimestampedEntry<ResultEntry>> cache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, TimestampedEntry<ResultEntry>> partialBackoffCache = new ConcurrentHashMap<>();
@@ -99,9 +109,9 @@ public final class ResultCache {
             }
         }
 
+        long nowMillis = System.currentTimeMillis();
         TimestampedEntry<ResultEntry> partial = partialBackoffCache.get(k);
-        if (partial != null && !partial.isExpired(PARTIAL_BACKOFF_MS)) {
-            partial.touch();
+        if (partial != null && !partialExpired(nowMillis, partial)) {
             return partial.getValue();
         }
 
@@ -312,7 +322,7 @@ public final class ResultCache {
         var partialIt = partialBackoffCache.entrySet().iterator();
         while (partialIt.hasNext()) {
             var entry = partialIt.next();
-            if (now - entry.getValue().getCreateTime() > PARTIAL_BACKOFF_MS) {
+            if (partialExpired(now, entry.getValue())) {
                 partialIt.remove();
             }
         }

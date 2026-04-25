@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.3.2-release]
+
+### Added
+
+- **Podium of Spawning**: Crying obsidian, a soul campfire burning on top, and a bone
+  to sacrifice. Build it in any civilization area to carve out a **mob-friendly pocket**
+  — hostile mobs spawn freely inside as if it were open wilderness, regardless of the
+  surrounding civilization score. Mob heads placed inside shape which types are drawn to
+  the area. Attract Strength and Attract Range are tunable in the in-game settings GUI.
+
+### Changed
+
+- **Civil map tinting — faster**: Chunk height sampling now uses a sparse grid, cutting
+  the per-chunk work while keeping tint accuracy on civil maps and map mod overlays.
+- **Lighter chunk loading**: Civillis no longer pre-populates empty scoring slots when a
+  chunk loads. That work is deferred until a score is actually needed, which should make
+  chunk loading noticeably lighter on busy servers.
+- **Civilization overlay** *(1.20.1 and 1.21.1 only)*: JourneyMap and Xaero's overlays
+  now **start disabled** by default — the scanning is server-side and can be costly at
+  larger ranges. Turn each one on in settings when you want it, and use the new
+  **Exploration Radius** setting to dial in how aggressively it scans.
+- **Modpack block tagging** *(for modpack authors)*: Civilization block weights now include
+  tiered block tags such as `#civil:high_civilized` and `#civil:low_civilized`, so packs can
+  add custom blocks by assigning them to a tag instead of writing one weight entry per block.
+
+### Fixed
+
+- **Score not updating after block changes**: In rare cases, placing or removing a block
+  could leave civilization score wrong or completely unchanged — a nested block update on
+  the server thread caused the mod to read the wrong previous block state. Fixed.
+- **Stale temporary scores blocking real updates**: A rough early score could get
+  continuously refreshed by background activity, preventing the real score from ever
+  replacing it. Those estimates now expire on a fixed schedule regardless of touches.
+
+### Note
+
+- **Civilization overlay** changes above apply to **1.20.1** and **1.21.1** builds only.
+- Feedback, bug reports, ideas — join our Discord: [Civillis Official](https://discord.gg/dA7QCPx7zd)
+
 ## [1.3.1-release]
 
 ### Added

@@ -37,8 +37,8 @@ import java.util.TreeMap;
  * <ul>
  *   <li><b>Civilization walls</b> — warm amber-gold, global wallMinY/wallMaxY,
  *       showing boundaries between HIGH and LOW/MID civilization zones.</li>
- *   <li><b>Head zone walls</b> — amethyst/crystal purple, per-face faceMinY/faceMaxY,
- *       showing mob head "Force Allow" zone envelopes (3×3×1 VC neighborhood).</li>
+ *   <li><b>Farm shrine bypass walls</b> — amethyst/crystal purple, per-face faceMinY/faceMaxY,
+ *       showing activated shrine bypass envelopes (VC neighborhood from config ranges).</li>
  * </ul>
  * Both types share the same phase timing (sonar delay, fade-in, steady, fade-out)
  * but have independent per-face alpha tracking.
@@ -74,23 +74,22 @@ public final class AuraWallRenderer {
         boolean isFading() { return fadeOutNano != NOT_FADING; }
     }
 
-    // ========== Per-face identity (head zone) ==========
+    // ========== Per-face identity (shrine bypass zone) ==========
 
     /**
-     * Uniquely identifies a head zone boundary face. Includes {@code faceMinY}
-     * because different heads at different Y levels produce distinct faces.
+     * Uniquely identifies a shrine bypass boundary face. Includes {@code faceMinY}
+     * because different anchors at different Y levels produce distinct faces.
      */
-    private record HeadFaceId(int axis, long planeCoord, long minU, long faceMinY) {
-        static HeadFaceId of(HeadZoneFaceData face) {
-            return new HeadFaceId(face.axis(), (long) face.planeCoord(),
+    private record ShrineFaceId(int axis, long planeCoord, long minU, long faceMinY) {
+        static ShrineFaceId of(ShrineFaceData face) {
+            return new ShrineFaceId(face.axis(), (long) face.planeCoord(),
                     (long) face.minU(), (long) face.faceMinY());
         }
     }
 
-    /** A head zone boundary face paired with its discovery timestamp and optional fade-out. */
-    private record TimedHeadFace(HeadZoneFaceData face, long arrivalNano, long fadeOutNano) {
+    private record TimedShrineFace(ShrineFaceData face, long arrivalNano, long fadeOutNano) {
         static final long NOT_FADING = Long.MAX_VALUE;
-        TimedHeadFace(HeadZoneFaceData face, long arrivalNano) { this(face, arrivalNano, NOT_FADING); }
+        TimedShrineFace(ShrineFaceData face, long arrivalNano) { this(face, arrivalNano, NOT_FADING); }
         boolean isFading() { return fadeOutNano != NOT_FADING; }
     }
 
@@ -118,7 +117,7 @@ public final class AuraWallRenderer {
     // ========== Color: civilization walls (warm amber-gold) ==========
     private static final float WALL_R = 0.90f, WALL_G = 0.78f, WALL_B = 0.50f;
 
-    // ========== Color: head zone walls (amethyst / crystal purple) ==========
+    // ========== Color: shrine bypass walls (amethyst / crystal purple) ==========
     private static final float HEAD_R = 0.68f, HEAD_G = 0.40f, HEAD_B = 0.88f;
 
     // ========== Texture ==========
@@ -127,9 +126,9 @@ public final class AuraWallRenderer {
 
     // ========== GPU ==========
     private static final ByteBufferBuilder ALLOCATOR = new ByteBufferBuilder(262144);
-    private static final ByteBufferBuilder HEAD_ALLOCATOR = new ByteBufferBuilder(65536);
+    private static final ByteBufferBuilder SHRINE_ALLOCATOR = new ByteBufferBuilder(65536);
     private static MappableRingBuffer vertexBuffer;
-    private static MappableRingBuffer headVertexBuffer;
+    private static MappableRingBuffer shrineVertexBuffer;
 
     // ========== State: civilization walls ==========
 
@@ -141,13 +140,11 @@ public final class AuraWallRenderer {
     /** Per-face discovery time tracking. Only accessed from the network thread. */
     private static final HashMap<FaceId, Long> faceArrivalMap = new HashMap<>();
 
-    // ========== State: head zone walls ==========
+    // ========== State: shrine bypass walls ==========
 
-    /** Immutable snapshot of head zone faces + discovery timestamps. */
-    private static volatile List<TimedHeadFace> timedHeadFaces = List.of();
+    private static volatile List<TimedShrineFace> timedShrineFaces = List.of();
 
-    /** Per-face discovery time tracking for head zones. Only accessed from the network thread. */
-    private static final HashMap<HeadFaceId, Long> headFaceArrivalMap = new HashMap<>();
+    private static final HashMap<ShrineFaceId, Long> shrineFaceArrivalMap = new HashMap<>();
 
     // ========== State: shared phase animation ==========
 
@@ -175,7 +172,7 @@ public final class AuraWallRenderer {
 
     /**
      * Called from the network thread when a new {@link SonarBoundaryPayload} arrives.
-     * Updates both civilization and head zone face tracking.
+     * Updates both civilization and shrine bypass face tracking.
      */
     public static void updateBoundaries(SonarBoundaryPayload payload) {
         long now = System.nanoTime();
@@ -191,12 +188,12 @@ public final class AuraWallRenderer {
         steadyEndNano = visibleAfterNano + steadyDurationNs;
 
         // Fresh activation vs. renewal determines the arrival timestamp for new faces.
-        boolean freshActivation = timedFaces.isEmpty() && timedHeadFaces.isEmpty();
+        boolean freshActivation = timedFaces.isEmpty() && timedShrineFaces.isEmpty();
         long newFaceArrival = freshActivation ? now : visibleAfterNano;
 
         if (freshActivation) {
             faceArrivalMap.clear();
-            headFaceArrivalMap.clear();
+            shrineFaceArrivalMap.clear();
         }
 
         // ---- Civilization faces ----
@@ -230,45 +227,42 @@ public final class AuraWallRenderer {
         // Volatile write provides memory fence
         timedFaces = List.copyOf(civResult);
 
-        // ---- Head zone faces ----
-        Set<HeadFaceId> newHeadIds = new HashSet<>();
-        List<TimedHeadFace> headResult = new ArrayList<>(payload.headFaces().size());
-        for (HeadZoneFaceData face : payload.headFaces()) {
-            HeadFaceId id = HeadFaceId.of(face);
-            newHeadIds.add(id);
-            long arrival = headFaceArrivalMap.computeIfAbsent(id, k -> newFaceArrival);
-            headResult.add(new TimedHeadFace(face, arrival));
+        Set<ShrineFaceId> newShrineIds = new HashSet<>();
+        List<TimedShrineFace> shrineResult = new ArrayList<>(payload.shrineFaces().size());
+        for (ShrineFaceData face : payload.shrineFaces()) {
+            ShrineFaceId id = ShrineFaceId.of(face);
+            newShrineIds.add(id);
+            long arrival = shrineFaceArrivalMap.computeIfAbsent(id, k -> newFaceArrival);
+            shrineResult.add(new TimedShrineFace(face, arrival));
         }
-        // Retain removed head zone faces as fading-out (smooth disappearance)
         if (!freshActivation) {
-            for (TimedHeadFace oldFace : timedHeadFaces) {
-                HeadFaceId oldId = HeadFaceId.of(oldFace.face());
-                if (!newHeadIds.contains(oldId) && !oldFace.isFading()) {
-                    headResult.add(new TimedHeadFace(oldFace.face(), oldFace.arrivalNano(), now));
-                } else if (oldFace.isFading() && newHeadIds.contains(HeadFaceId.of(oldFace.face()))) {
-                    // Reappeared — already re-added above
+            for (TimedShrineFace oldFace : timedShrineFaces) {
+                ShrineFaceId oldId = ShrineFaceId.of(oldFace.face());
+                if (!newShrineIds.contains(oldId) && !oldFace.isFading()) {
+                    shrineResult.add(new TimedShrineFace(oldFace.face(), oldFace.arrivalNano(), now));
+                } else if (oldFace.isFading() && newShrineIds.contains(ShrineFaceId.of(oldFace.face()))) {
                 } else if (oldFace.isFading()) {
                     float fadeElapsed = (now - oldFace.fadeOutNano()) / 1_000_000_000f;
                     if (fadeElapsed < FACE_FADE_IN_S) {
-                        headResult.add(oldFace);
+                        shrineResult.add(oldFace);
                     }
                 }
             }
         }
-        headFaceArrivalMap.keySet().retainAll(newHeadIds);
-        timedHeadFaces = List.copyOf(headResult);
+        shrineFaceArrivalMap.keySet().retainAll(newShrineIds);
+        timedShrineFaces = List.copyOf(shrineResult);
     }
 
     public static void close() {
         ALLOCATOR.close();
-        HEAD_ALLOCATOR.close();
+        SHRINE_ALLOCATOR.close();
         if (vertexBuffer != null) {
             vertexBuffer.close();
             vertexBuffer = null;
         }
-        if (headVertexBuffer != null) {
-            headVertexBuffer.close();
-            headVertexBuffer = null;
+        if (shrineVertexBuffer != null) {
+            shrineVertexBuffer.close();
+            shrineVertexBuffer = null;
         }
     }
 
@@ -278,9 +272,9 @@ public final class AuraWallRenderer {
         SonarShockwaveEffect.tick();
 
         List<TimedFace> faces = timedFaces;
-        List<TimedHeadFace> headFaces = timedHeadFaces;
+        List<TimedShrineFace> shrineFaces = timedShrineFaces;
 
-        boolean hasFaces = !faces.isEmpty() || !headFaces.isEmpty();
+        boolean hasFaces = !faces.isEmpty() || !shrineFaces.isEmpty();
 
         if (!hasFaces && phaseAlpha < 0.01f) return;
 
@@ -311,7 +305,7 @@ public final class AuraWallRenderer {
             phaseAlpha = 0.0f;
             if (now > visibleAfterNano && now > steadyEndNano) {
                 timedFaces = List.of();
-                timedHeadFaces = List.of();
+                timedShrineFaces = List.of();
                 lastFrameNano = 0;
             }
             return;
@@ -333,9 +327,8 @@ public final class AuraWallRenderer {
             renderCivilizationWalls(faces, now, globalAlpha, texMatrix, cam);
         }
 
-        // ---- Render head zone walls (amethyst) ----
-        if (!headFaces.isEmpty()) {
-            renderHeadZoneWalls(headFaces, now, globalAlpha, texMatrix, cam);
+        if (!shrineFaces.isEmpty()) {
+            renderShrineZoneWalls(shrineFaces, now, globalAlpha, texMatrix, cam);
         }
     }
 
@@ -413,15 +406,13 @@ public final class AuraWallRenderer {
                 WALL_R, WALL_G, WALL_B, texMatrix, true);
     }
 
-    // ========== Head zone wall rendering ==========
-
-    private static void renderHeadZoneWalls(List<TimedHeadFace> faces, long now,
+    private static void renderShrineZoneWalls(List<TimedShrineFace> faces, long now,
                                              float globalAlpha, Matrix4f texMatrix, Vec3 cam) {
         var pipeline = RenderPipelines.WORLD_BORDER;
 
         // Group faces into alpha buckets
-        TreeMap<Integer, List<TimedHeadFace>> buckets = new TreeMap<>();
-        for (TimedHeadFace tf : faces) {
+        TreeMap<Integer, List<TimedShrineFace>> buckets = new TreeMap<>();
+        for (TimedShrineFace tf : faces) {
             float faceAlpha;
             if (tf.isFading()) {
                 float fadeElapsed = (now - tf.fadeOutNano()) / 1_000_000_000f;
@@ -438,7 +429,7 @@ public final class AuraWallRenderer {
         if (buckets.isEmpty()) return;
 
         // Build vertices — each face has its own faceMinY/faceMaxY
-        BufferBuilder builder = new BufferBuilder(HEAD_ALLOCATOR,
+        BufferBuilder builder = new BufferBuilder(SHRINE_ALLOCATOR,
                 pipeline.getVertexFormatMode(), pipeline.getVertexFormat());
 
         List<int[]> bucketRanges = new ArrayList<>();
@@ -448,8 +439,8 @@ public final class AuraWallRenderer {
             int bucketLevel = entry.getKey();
             int bucketStartQuad = totalQuads;
 
-            for (TimedHeadFace tf : entry.getValue()) {
-                HeadZoneFaceData face = tf.face();
+            for (TimedShrineFace tf : entry.getValue()) {
+                ShrineFaceData face = tf.face();
                 double plane = face.planeCoord();
                 double minU  = face.minU();
                 double maxU  = minU + 16.0;
@@ -498,7 +489,7 @@ public final class AuraWallRenderer {
      * @param globalAlpha   global alpha (base × phase × breathe)
      * @param r, g, b       wall color
      * @param texMatrix     texture scroll matrix
-     * @param usePrimaryBuf true for civilization buffer, false for head zone buffer
+     * @param usePrimaryBuf true for civilization buffer, false for shrine bypass buffer
      */
     private static void drawBucketedWalls(BufferBuilder builder, List<int[]> bucketRanges,
                                            int totalQuads, float globalAlpha,
@@ -526,14 +517,14 @@ public final class AuraWallRenderer {
                 }
                 ringBuf = vertexBuffer;
             } else {
-                if (headVertexBuffer == null || headVertexBuffer.size() < totalBytes) {
-                    if (headVertexBuffer != null) headVertexBuffer.close();
-                    headVertexBuffer = new MappableRingBuffer(
-                            () -> "civil head zone wall",
+                if (shrineVertexBuffer == null || shrineVertexBuffer.size() < totalBytes) {
+                    if (shrineVertexBuffer != null) shrineVertexBuffer.close();
+                    shrineVertexBuffer = new MappableRingBuffer(
+                            () -> "civil shrine bypass wall",
                             GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_MAP_WRITE,
                             Math.max(totalBytes, 8192));
                 }
-                ringBuf = headVertexBuffer;
+                ringBuf = shrineVertexBuffer;
             }
 
             GpuBuffer gpuVerts = ringBuf.currentBuffer();
@@ -571,7 +562,7 @@ public final class AuraWallRenderer {
 
                 try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
                         .createRenderPass(
-                                () -> usePrimaryBuf ? "civil aura wall" : "civil head zone wall",
+                                () -> usePrimaryBuf ? "civil aura wall" : "civil shrine bypass wall",
                                 fb.getColorTextureView(), OptionalInt.empty(),
                                 fb.getDepthTextureView(), OptionalDouble.empty())) {
                     pass.setPipeline(pipeline);

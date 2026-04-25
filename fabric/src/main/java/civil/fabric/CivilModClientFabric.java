@@ -9,6 +9,8 @@ import civil.aura.SonarChargePayload;
 import civil.respawn.UndyingAnchorCinematicEffect;
 import civil.respawn.UndyingAnchorParticleEffect;
 import civil.respawn.UndyingAnchorParticlePayload;
+import civil.shrine.FarmShrineParticleEffect;
+import civil.shrine.FarmShrineParticlePayload;
 import civil.respawn.UndyingAnchorPreTeleportPayload;
 import civil.aura.SonarShockwaveEffect;
 import civil.aura.SonarType;
@@ -51,7 +53,7 @@ public class CivilModClientFabric implements ClientModInitializer {
                     if (player != null) {
                         SonarShockwaveEffect.startCharge(
                                 payload.centerX(), payload.centerY(), payload.centerZ(),
-                                payload.playerInHigh(), payload.playerInHeadZone(),
+                                payload.playerInHigh(), payload.playerInShrineZone(),
                                 SonarType.fromId(payload.sonarType()));
                     }
                 });
@@ -63,17 +65,20 @@ public class CivilModClientFabric implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(UndyingAnchorParticlePayload.ID,
                 (payload, context) -> UndyingAnchorParticleEffect.updateFromPayload(payload));
 
+        ClientPlayNetworking.registerGlobalReceiver(FarmShrineParticlePayload.ID,
+                (payload, context) -> FarmShrineParticleEffect.updateFromPayload(payload));
+
         ClientPlayNetworking.registerGlobalReceiver(SonarBoundaryPayload.ID,
                 (payload, context) -> {
                     AuraWallRenderer.updateBoundaries(payload);
                     var player = Minecraft.getInstance().player;
                     if (player != null) {
-                        Map<Long, float[]> headZoneYMap = buildHeadZoneYMap(
-                                payload.headZone2D(), payload.headZoneMinY(), payload.headZoneMaxY());
+                        Map<Long, float[]> shrineZoneYMap = buildShrineZoneYMap(
+                                payload.shrineZone2D(), payload.shrineZoneMinY(), payload.shrineZoneMaxY());
                         Set<Long> civHighZone2DSet = buildLongSet(payload.civHighZone2D());
 
                         SonarShockwaveEffect.startRing(
-                                payload.playerInHigh(), headZoneYMap, civHighZone2DSet,
+                                payload.playerInHigh(), shrineZoneYMap, civHighZone2DSet,
                                 SonarType.fromId(payload.sonarType()));
                     }
                 });
@@ -87,6 +92,7 @@ public class CivilModClientFabric implements ClientModInitializer {
         WorldRenderEvents.END_MAIN.register(context -> {
             UndyingAnchorCinematicEffect.tickAndApplyShake(null);
             UndyingAnchorParticleEffect.tick();
+            FarmShrineParticleEffect.tick();
             // MC 1.21.11+: Camera no longer exposes getPosition(); match NeoForge (eye + partial tick).
             Minecraft mc = Minecraft.getInstance();
             float pt = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
@@ -116,7 +122,7 @@ public class CivilModClientFabric implements ClientModInitializer {
         return set;
     }
 
-    private static Map<Long, float[]> buildHeadZoneYMap(long[] keys, float[] minY, float[] maxY) {
+    private static Map<Long, float[]> buildShrineZoneYMap(long[] keys, float[] minY, float[] maxY) {
         if (keys.length == 0) return Map.of();
         Map<Long, float[]> map = new HashMap<>(keys.length);
         for (int i = 0; i < keys.length; i++) {

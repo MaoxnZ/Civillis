@@ -5,21 +5,23 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * Listener for structure-related block removals. Called from {@code CivilLevelBlockChangeMixin}
- * when a block is removed; implementations check if the removed block affects their structure
- * and update internal state (e.g. anchor tracker) accordingly.
+ * Listener for structure-related block transitions at a single position. Invoked from
+ * {@link civil.mixin.CivilLevelBlockChangeMixin} after a successful {@code Level#setBlock}.
  *
- * <p>Add new structure types by implementing this interface and registering in
- * {@link StructureBlockChangeListeners#LISTENERS}.
+ * <p>Implementations inspect {@code oldState} → {@code newState} (or re-query the level) to
+ * invalidate anchors, farm shrines, etc.
+ *
+ * <p>Register implementations in {@link StructureBlockChangeListeners#LISTENERS}.
  */
 public interface StructureBlockChangeListener {
 
     /**
-     * Called when a block is removed. {@code oldState} is the block state before removal.
+     * Called when a block at {@code pos} was replaced successfully.
      *
      * @param level    the server level
-     * @param pos      the position where the block was removed
-     * @param oldState the block state before removal (never null when this is called)
+     * @param pos      the position that changed
+     * @param oldState block state before {@code setBlock} (never null)
+     * @param newState block state after {@code setBlock} (never null)
      */
-    void onBlockRemoved(ServerLevel level, BlockPos pos, BlockState oldState);
+    void onBlockChanged(ServerLevel level, BlockPos pos, BlockState oldState, BlockState newState);
 }

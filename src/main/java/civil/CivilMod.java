@@ -3,6 +3,7 @@ package civil;
 import civil.map.CivilMapPerfTrace;
 import civil.civilization.ServerClock;
 import civil.civilization.BlockScanner;
+import civil.civilization.FarmShrineTracker;
 import civil.civilization.HeadTracker;
 import civil.civilization.UndyingAnchorTracker;
 import civil.civilization.ZonePolicyService;
@@ -11,7 +12,9 @@ import civil.civilization.cache.TtlCacheService;
 import civil.civilization.scoring.ScalableCivilizationService;
 import civil.respawn.UndyingAnchorParticleManager;
 import civil.respawn.UndyingAnchorSaveHandler;
+import civil.shrine.FarmShrineParticleManager;
 import civil.config.CivilConfig;
+import civil.registry.HeadTypeLoader;
 import net.minecraft.world.level.block.AbstractSkullBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
@@ -64,6 +67,9 @@ public class CivilMod {
     /** Undying anchor tracker (civil save system). */
     private static UndyingAnchorTracker undyingAnchorTracker;
 
+    /** Farm shrine tracker (mob farm / spawn bypass). */
+    private static FarmShrineTracker farmShrineTracker;
+
     /** Structure-based zone policy (spawn bypass, caution, HUD). */
     private static ZonePolicyService zonePolicyService;
 
@@ -83,11 +89,13 @@ public class CivilMod {
         headTracker = new HeadTracker();
         zonePolicyService = new ZonePolicyService();
         undyingAnchorTracker = new UndyingAnchorTracker();
+        farmShrineTracker = new FarmShrineTracker();
         CivilServices.initCivilizationService(civilizationService);
         CivilServices.initCivilizationCache(cacheService);
         CivilServices.initHeadTracker(headTracker);
         CivilServices.initZonePolicyService(zonePolicyService);
         CivilServices.initUndyingAnchorTracker(undyingAnchorTracker);
+        CivilServices.initFarmShrineTracker(farmShrineTracker);
 
         // Registry calls (ModComponents, ModSounds, ModItems) are handled by
         // platform-specific entry points: Fabric calls registerDirect(),
@@ -100,6 +108,18 @@ public class CivilMod {
             LOGGER.info("[civil] config thresholdMid={} thresholdLow={}",
                     String.format("%.4f", CivilConfig.spawnThresholdMid),
                     String.format("%.4f", CivilConfig.spawnThresholdLow));
+        }
+    }
+
+    /**
+     * Call immediately after {@link HeadTypeLoader#reload} on the server thread.
+     * Rebuilds farm-shrine head attribution so {@link FarmShrineTracker} matches the new head-type table
+     * (Fabric: world LOAD can run before the first reload; datapack /reload on both loaders).
+     */
+    public static void onHeadTypesReloaded() {
+        FarmShrineTracker shrines = CivilServices.getFarmShrineTracker();
+        if (shrines != null) {
+            shrines.rebuildAllShrineHeadPosSetsFromHeadTracker();
         }
     }
 
@@ -119,6 +139,10 @@ public class CivilMod {
             if (headTracker != null) {
                 headTracker.initialize(cacheService.getStorage());
             }
+            // Farm shrines rebuild headPosSet from HeadTracker — must run after headTracker.initialize.
+            if (farmShrineTracker != null) {
+                farmShrineTracker.initialize(cacheService.getStorage(), headTracker);
+            }
             if (undyingAnchorTracker != null) {
                 undyingAnchorTracker.initialize(cacheService.getStorage());
             }
@@ -137,12 +161,16 @@ public class CivilMod {
             UndyingAnchorSaveHandler.clearForWorld(world);
             SonarScanManager.shutdown();
             UndyingAnchorParticleManager.reset();
+            FarmShrineParticleManager.reset();
             // Shutdown cache first: unified flush snapshots from headTracker/anchorTracker, then awaits
             if (cacheService != null) {
                 cacheService.shutdown();
             }
             if (headTracker != null) {
                 headTracker.shutdown();
+            }
+            if (farmShrineTracker != null) {
+                farmShrineTracker.shutdown();
             }
             if (undyingAnchorTracker != null) {
                 undyingAnchorTracker.shutdown();
@@ -172,7 +200,7 @@ public class CivilMod {
         }
     }
 
-    /** Called when a chunk loads. Discovers pre-existing heads and pre-fills L1 shards. */
+    /** Called when a chunk loads. Discovers pre-existing mob heads (L1 is lazy via {@link TtlCacheService#getChunkCScore}). */
     public static void onChunkLoad(ServerLevel world, ChunkAccess chunk) {
         String dim = world.dimension().identifier().toString();
 
@@ -187,10 +215,6 @@ public class CivilMod {
                     }
                 }
             }
-        }
-
-        if (cacheService != null && cacheService.isInitialized()) {
-            cacheService.onChunkLoadPreFill(world, chunk);
         }
     }
 

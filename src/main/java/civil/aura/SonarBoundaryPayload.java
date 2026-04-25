@@ -15,12 +15,11 @@ import java.util.List;
  * faces (X and Z axes only) discovered by the 2D BFS, the scan center,
  * wall vertical extent, and whether the player started inside a HIGH zone.
  *
- * <p>Also carries head zone ("Force Allow") boundary faces with per-face
- * vertical extents for rendering amethyst-colored mob head territory envelopes,
- * and the 2D (XZ) footprint of all force-allow VCs for sonar particle effects.
+ * <p>Also carries farm shrine bypass boundary faces with per-face vertical extents
+ * for rendering amethyst-colored envelopes, and the 2D (XZ) footprint of all bypass
+ * VCs for sonar particle effects.
  *
- * <p>The client uses this data to render translucent wall quads via
- * {@link AuraWallRenderer}.
+ * <p>The client uses this data to render translucent wall quads via {@link AuraWallRenderer}.
  */
 public record SonarBoundaryPayload(
         boolean playerInHigh,
@@ -30,10 +29,10 @@ public record SonarBoundaryPayload(
         double wallMinY,
         double wallMaxY,
         List<BoundaryFaceData> faces,
-        List<HeadZoneFaceData> headFaces,
-        long[] headZone2D,
-        float[] headZoneMinY,
-        float[] headZoneMaxY,
+        List<ShrineFaceData> shrineFaces,
+        long[] shrineZone2D,
+        float[] shrineZoneMinY,
+        float[] shrineZoneMaxY,
         long[] civHighZone2D,
         byte sonarType
 ) implements CustomPacketPayload {
@@ -44,7 +43,6 @@ public record SonarBoundaryPayload(
     public static final StreamCodec<RegistryFriendlyByteBuf, SonarBoundaryPayload> CODEC =
             StreamCodec.ofMember(SonarBoundaryPayload::encode, SonarBoundaryPayload::decode);
 
-    /** ValueFirstEncoder: (value, buf) order — required by StreamCodec.of in 1.21.11. */
     private static void encode(SonarBoundaryPayload payload, RegistryFriendlyByteBuf buf) {
         buf.writeBoolean(payload.playerInHigh);
         buf.writeDouble(payload.centerX);
@@ -56,15 +54,15 @@ public record SonarBoundaryPayload(
         for (BoundaryFaceData face : payload.faces) {
             face.write(buf);
         }
-        buf.writeVarInt(payload.headFaces.size());
-        for (HeadZoneFaceData hf : payload.headFaces) {
+        buf.writeVarInt(payload.shrineFaces.size());
+        for (ShrineFaceData hf : payload.shrineFaces) {
             hf.write(buf);
         }
-        buf.writeVarInt(payload.headZone2D.length);
-        for (int i = 0; i < payload.headZone2D.length; i++) {
-            buf.writeLong(payload.headZone2D[i]);
-            buf.writeFloat(payload.headZoneMinY[i]);
-            buf.writeFloat(payload.headZoneMaxY[i]);
+        buf.writeVarInt(payload.shrineZone2D.length);
+        for (int i = 0; i < payload.shrineZone2D.length; i++) {
+            buf.writeLong(payload.shrineZone2D[i]);
+            buf.writeFloat(payload.shrineZoneMinY[i]);
+            buf.writeFloat(payload.shrineZoneMaxY[i]);
         }
         buf.writeVarInt(payload.civHighZone2D.length);
         for (long v : payload.civHighZone2D) {
@@ -85,19 +83,19 @@ public record SonarBoundaryPayload(
         for (int i = 0; i < count; i++) {
             faces.add(BoundaryFaceData.read(buf));
         }
-        int headCount = buf.readVarInt();
-        List<HeadZoneFaceData> headFaces = new ArrayList<>(headCount);
-        for (int i = 0; i < headCount; i++) {
-            headFaces.add(HeadZoneFaceData.read(buf));
+        int shrineFaceCount = buf.readVarInt();
+        List<ShrineFaceData> shrineFaces = new ArrayList<>(shrineFaceCount);
+        for (int i = 0; i < shrineFaceCount; i++) {
+            shrineFaces.add(ShrineFaceData.read(buf));
         }
-        int hzCount = buf.readVarInt();
-        long[] headZone2D = new long[hzCount];
-        float[] headZoneMinY = new float[hzCount];
-        float[] headZoneMaxY = new float[hzCount];
-        for (int i = 0; i < hzCount; i++) {
-            headZone2D[i] = buf.readLong();
-            headZoneMinY[i] = buf.readFloat();
-            headZoneMaxY[i] = buf.readFloat();
+        int szCount = buf.readVarInt();
+        long[] shrineZone2D = new long[szCount];
+        float[] shrineZoneMinY = new float[szCount];
+        float[] shrineZoneMaxY = new float[szCount];
+        for (int i = 0; i < szCount; i++) {
+            shrineZone2D[i] = buf.readLong();
+            shrineZoneMinY[i] = buf.readFloat();
+            shrineZoneMaxY[i] = buf.readFloat();
         }
         int chCount = buf.readVarInt();
         long[] civHighZone2D = new long[chCount];
@@ -106,7 +104,7 @@ public record SonarBoundaryPayload(
         }
         byte sonarType = buf.readByte();
         return new SonarBoundaryPayload(playerInHigh, cx, cy, cz, wMinY, wMaxY,
-                faces, headFaces, headZone2D, headZoneMinY, headZoneMaxY, civHighZone2D, sonarType);
+                faces, shrineFaces, shrineZone2D, shrineZoneMinY, shrineZoneMaxY, civHighZone2D, sonarType);
     }
 
     @Override

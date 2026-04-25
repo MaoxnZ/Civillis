@@ -8,8 +8,8 @@ import civil.aura.SonarScanManager;
 import civil.aura.SonarType;
 import civil.component.ModComponents;
 import civil.civilization.CScore;
-import civil.civilization.HeadTracker;
-import net.minecraft.world.entity.EntityType;
+import civil.civilization.FarmShrineTracker;
+import civil.registry.DimensionPolicyRegistry;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -21,8 +21,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.Level;
-
-import java.util.List;
 
 /**
  * Civilization detector: right-click when held to activate, outputs current position's civilization value to chat,
@@ -101,31 +99,27 @@ public class CivilDetectorItem extends Item {
     }
 
     /**
-     * Determine display state from civilization score and nearby mob heads.
+     * Determine display state from civilization score and farm shrine bypass proximity.
      *
-     * <p>Priority: monster head nearby = purple,
+     * <p>Priority: inside an activated shrine bypass box = purple,
      * below thresholdLow = low/red, between thresholdLow..thresholdMid = medium/yellow,
      * above thresholdMid = high/green.  Thresholds follow CivilConfig (GUI suppression slider).
      *
-     * <p>Head detection queries HeadTracker directly (consistent with SpawnPolicy),
-     * since CScore no longer carries headTypes in the Fusion Architecture.
+     * <p>Shrine bypass uses {@link FarmShrineTracker} (consistent with spawn policy), since CScore
+     * does not fold mob heads into the fusion score.
      */
     private static String scoreToDisplayState(CScore cScore, ServerLevel world, BlockPos pos) {
         if (cScore == null) {
             return "default";
         }
 
-        // Check HeadTracker directly (fusion architecture: heads decoupled from CScore)
-        HeadTracker registry = CivilServices.getHeadTracker();
-        if (registry != null && registry.isInitialized()) {
-            String dim = world.dimension().identifier().toString();
-            List<EntityType<?>> headTypes = registry.getHeadTypesNear(
-                    dim, pos,
-                    CivilConfig.headRangeX,
-                    CivilConfig.headRangeZ,
-                    CivilConfig.headRangeY);
-            if (!headTypes.isEmpty()) {
-                return "monster";
+        if (DimensionPolicyRegistry.policyFor(world).headMechanics()) {
+            FarmShrineTracker shrines = CivilServices.getFarmShrineTracker();
+            if (shrines != null && shrines.isInitialized()) {
+                String dim = world.dimension().identifier().toString();
+                if (shrines.isInsideAnyBypassBox(dim, pos)) {
+                    return "monster";
+                }
             }
         }
 

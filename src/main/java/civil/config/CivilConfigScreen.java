@@ -46,6 +46,22 @@ public final class CivilConfigScreen {
         return Math.max(0, Math.min(12, idx));
     }
 
+    /** Undying anchor search radius (blocks): discrete GUI bounds, aligned with {@link CivilConfig#snapUndyingAnchorMaxSearchRadiusBlocks}. */
+    private static final int UNDYING_SEARCH_MIN_BLOCKS = 32;
+    private static final int UNDYING_SEARCH_MAX_BLOCKS = 256;
+    private static final int UNDYING_SEARCH_IDX_MAX =
+            (UNDYING_SEARCH_MAX_BLOCKS - UNDYING_SEARCH_MIN_BLOCKS) / 16;
+
+    private static int undyingSearchRadiusToIndex(int blocks) {
+        int snapped = CivilConfig.snapUndyingAnchorMaxSearchRadiusBlocks(blocks);
+        return (snapped - UNDYING_SEARCH_MIN_BLOCKS) / 16;
+    }
+
+    private static int undyingSearchIndexToBlocks(int idx) {
+        int i = Math.max(0, Math.min(UNDYING_SEARCH_IDX_MAX, idx));
+        return UNDYING_SEARCH_MIN_BLOCKS + i * 16;
+    }
+
     private CivilConfigScreen() {
     }
 
@@ -242,53 +258,43 @@ public final class CivilConfigScreen {
 
         cat.addEntry(decay.build());
 
-        // ── 4. Head Attraction (collapsible) ──
-        SubCategoryBuilder headAttract = eb.startSubCategory(
-                Component.translatable("civil.config.subcategory.headAttract"));
-        headAttract.setExpanded(false);
-        headAttract.setTooltip(
-                Component.translatable("civil.config.subcategory.headAttract.tooltip.1"),
-                Component.translatable("civil.config.subcategory.headAttract.tooltip.2"),
-                Component.translatable("civil.config.subcategory.headAttract.tooltip.3"));
+        // ── 4. Farm shrine (collapsible) ──
+        SubCategoryBuilder farmShrine = eb.startSubCategory(
+                Component.translatable("civil.config.subcategory.farmShrine"));
+        farmShrine.setExpanded(false);
+        farmShrine.setTooltip(
+                Component.translatable("civil.config.subcategory.farmShrine.tooltip.1"),
+                Component.translatable("civil.config.subcategory.farmShrine.tooltip.2"),
+                Component.translatable("civil.config.subcategory.farmShrine.tooltip.3"));
 
-        // 4a. Mob head system enabled (spawn bypass / suppression)
-        headAttract.add(eb.startBooleanToggle(
-                        Component.translatable("civil.config.headAttract.enabled"),
-                        CivilConfig.headAttractEnabled)
-                .setDefaultValue(true)
-                .setSaveConsumer(v -> CivilConfig.headAttractEnabled = v)
-                .build());
-
-        // 4c. Attraction Strength (1-10) → headAttractLambda
-        if (CivilConfig.hasRawOverride(CivilConfig.PARAM_HEAD_ATTRACT)) {
-            headAttract.add(eb.startTextDescription(
+        if (CivilConfig.hasRawOverride(CivilConfig.PARAM_SHRINE_SUPPRESS)) {
+            farmShrine.add(eb.startTextDescription(
                     Component.translatable("civil.config.override.warning")).build());
         }
-        headAttract.add(eb.startIntSlider(
-                        Component.translatable("civil.config.simple.headAttractStrength"),
-                        CivilConfig.simpleHeadAttractStrength, 1, 10)
+        farmShrine.add(eb.startIntSlider(
+                        Component.translatable("civil.config.simple.shrineSuppressStrength"),
+                        CivilConfig.simpleShrineSuppressStrength, 1, 10)
                 .setDefaultValue(5)
                 .setTextGetter(val -> {
                     double lambda = 0.03 * val;
                     String lambdaStr = String.format("%.2f", lambda);
-                    return Component.translatable("civil.config.slider.headAttractStrength", val, lambdaStr);
+                    return Component.translatable("civil.config.slider.shrineSuppressStrength", val, lambdaStr);
                 })
-                .setSaveConsumer(v -> CivilConfig.simpleHeadAttractStrength = v)
+                .setSaveConsumer(v -> CivilConfig.simpleShrineSuppressStrength = v)
                 .build());
 
-        // 4d. Attraction Range (3-10) → headAttractMaxRadius (val × 16 blocks)
-        headAttract.add(eb.startIntSlider(
-                        Component.translatable("civil.config.simple.headAttractRange"),
-                        CivilConfig.simpleHeadAttractRange, 3, 10)
+        farmShrine.add(eb.startIntSlider(
+                        Component.translatable("civil.config.simple.shrineSuppressRange"),
+                        CivilConfig.simpleShrineSuppressRange, 3, 10)
                 .setDefaultValue(8)
                 .setTextGetter(val -> {
                     int blocks = val * 16;
-                    return Component.translatable("civil.config.slider.headAttractRange", blocks);
+                    return Component.translatable("civil.config.slider.shrineSuppressRange", blocks);
                 })
-                .setSaveConsumer(v -> CivilConfig.simpleHeadAttractRange = v)
+                .setSaveConsumer(v -> CivilConfig.simpleShrineSuppressRange = v)
                 .build());
 
-        cat.addEntry(headAttract.build());
+        cat.addEntry(farmShrine.build());
 
         // ── Podium of Undying (collapsible, second-to-last) ──
         SubCategoryBuilder podium = eb.startSubCategory(
@@ -308,10 +314,13 @@ public final class CivilConfigScreen {
 
         podium.add(eb.startIntSlider(
                         Component.translatable("civil.config.undyingAnchor.maxSearchRadius"),
-                        CivilConfig.undyingAnchorMaxSearchRadius, 32, 256)
-                .setDefaultValue(128)
-                .setTextGetter(val -> Component.translatable("civil.config.slider.undyingAnchorRadius", val))
-                .setSaveConsumer(v -> CivilConfig.undyingAnchorMaxSearchRadius = v)
+                        undyingSearchRadiusToIndex(CivilConfig.undyingAnchorMaxSearchRadius), 0, UNDYING_SEARCH_IDX_MAX)
+                .setDefaultValue(undyingSearchRadiusToIndex(128))
+                .setTextGetter(idx -> {
+                    int blocks = undyingSearchIndexToBlocks(idx);
+                    return Component.translatable("civil.config.slider.undyingAnchorRadius", blocks);
+                })
+                .setSaveConsumer(idx -> CivilConfig.undyingAnchorMaxSearchRadius = undyingSearchIndexToBlocks(idx))
                 .build());
 
         podium.add(eb.startIntSlider(

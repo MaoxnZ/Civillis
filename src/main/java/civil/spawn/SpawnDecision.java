@@ -8,11 +8,11 @@ import java.util.List;
  * Single spawn decision result, for Mixin logging and head-based conversion.
  *
  * <p>branch: LOW / MID / HIGH (civilization score thresholds);
- * HEAD_NEARBY (enabled heads within VC box → bypass civilization suppression);
- * HEAD_SUPPRESS (distant heads → probabilistic block);
+ * SHRINE_NEARBY (inside farm shrine bypass box → bypass civilization suppression + optional conversion);
+ * SHRINE_SUPPRESS (nearby shrine anchors → probabilistic block);
  * SPAWN_GATE_WHITELIST (datapack whitelist before zone).
  *
- * <p>For HEAD_NEARBY:
+ * <p>For SHRINE_NEARBY:
  * <ul>
  *   <li>{@code nearbyHeadCount}: total enabled heads in the VC box (for conversion threshold)</li>
  *   <li>{@code headTypes}: conversion pool (enabled + convert=true entity types, with duplicates
@@ -25,8 +25,8 @@ public record SpawnDecision(boolean block, double score, String branch,
     public static final String BRANCH_LOW = "LOW";
     public static final String BRANCH_MID = "MID";
     public static final String BRANCH_HIGH = "HIGH";
-    public static final String BRANCH_HEAD_NEARBY = "HEAD_NEARBY";
-    public static final String BRANCH_HEAD_SUPPRESS = "HEAD_SUPPRESS";
+    public static final String BRANCH_SHRINE_NEARBY = "SHRINE_NEARBY";
+    public static final String BRANCH_SHRINE_SUPPRESS = "SHRINE_SUPPRESS";
     public static final String BRANCH_ZONE_POLICY = "ZONE_POLICY";
     /** Civilization scoring disabled for this dimension — allow spawn (no zone/score stages). */
     public static final String BRANCH_DIM_NEUTRAL = "DIM_NEUTRAL";

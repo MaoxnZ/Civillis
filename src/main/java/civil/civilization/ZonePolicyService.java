@@ -12,21 +12,24 @@ import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Per-VC cache of zone policy matches (structure-based). Used for spawn bypass, HUD caution, and flee.
+ *
+ * <p>Cache is a {@link ConcurrentHashMap} so natural-spawn / structure queries from parallel server
+ * work (e.g. threaded mob spawning) do not corrupt the map.
  */
 public final class ZonePolicyService {
 
     private static final long CACHE_TTL_MS = 300_000L;
     private static final int CLEANUP_INTERVAL_TICKS = 100;
 
-    private final Map<ZoneCacheKey, ZoneCacheEntry> cache = new HashMap<>();
+    private final Map<ZoneCacheKey, ZoneCacheEntry> cache = new ConcurrentHashMap<>();
     private long lastCleanupTick;
 
     public boolean allowsHostileSpawn(ServerLevel world, BlockPos pos, EntityType<?> entityType) {

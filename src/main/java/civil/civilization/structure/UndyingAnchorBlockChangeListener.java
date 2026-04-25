@@ -12,12 +12,13 @@ import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * Structure block-change listener for undying anchors. When emerald, gold, or stairs
- * are removed from a 3×3 anchor structure, removes the anchor from the tracker.
+ * at the changed position indicate loss of a 3×3 anchor, removes the anchor from the tracker.
  */
 public final class UndyingAnchorBlockChangeListener implements StructureBlockChangeListener {
 
     @Override
-    public void onBlockRemoved(ServerLevel level, BlockPos pos, BlockState oldState) {
+    @SuppressWarnings("unused")
+    public void onBlockChanged(ServerLevel level, BlockPos pos, BlockState oldState, BlockState newState) {
         UndyingAnchorTracker tracker = CivilServices.getUndyingAnchorTracker();
         if (tracker == null || !tracker.isInitialized()) return;
 

@@ -58,11 +58,11 @@ public final class CivilConfig {
     /** Patrol influence range: 2-8 slider (VC radius), val×16 = blocks. Default 4 → 64 blocks. */
     public static int simplePatrolRange = 4;
 
-    /** Head attraction strength: 1 (weak) to 10 (strong), default 5. Maps to headAttractLambda. */
-    public static int simpleHeadAttractStrength = 5;
+    /** Farm shrine suppression strength: 1 (weak) to 10 (strong), default 5. Maps to farmShrineAttractLambda. */
+    public static int simpleShrineSuppressStrength = 5;
 
-    /** Head attraction range: 3-10 slider, val×16 = blocks. Default 8 → 128 blocks. Maps to headAttractMaxRadius. */
-    public static int simpleHeadAttractRange = 8;
+    /** Farm shrine suppression range: 3-10 slider, val×16 = blocks. Default 8 → 128 blocks. Maps to farmShrineAttractMaxRadius. */
+    public static int simpleShrineSuppressRange = 8;
 
     /** Whether the protection aura visualization is enabled (sonar scan, particles, walls, sounds). */
     public static boolean auraEffectEnabled = true;
@@ -78,7 +78,10 @@ public final class CivilConfig {
     /** Global cooldown in seconds after rescue before anchor can save again. */
     public static int undyingAnchorGlobalCooldownSeconds = 10;
 
-    /** Max search radius in blocks (3D Euclidean) when looking for a valid anchor on death. */
+    /**
+     * Max search radius in blocks (3D Euclidean) when looking for a valid anchor on death.
+     * Range [32, 256] step 16 (same discrete pattern as {@link #snapUndyingAnchorMaxSearchRadiusBlocks}).
+     */
     public static int undyingAnchorMaxSearchRadius = 128;
 
     /** Civilization score required for undying anchor: greenLine + (1 - greenLine) * civRatio.
@@ -99,7 +102,7 @@ public final class CivilConfig {
     public static final int PARAM_RECOVERY      = 3;
     public static final int PARAM_SPAWN         = 4;
     public static final int PARAM_RANGE         = 5;
-    public static final int PARAM_HEAD_ATTRACT  = 6;
+    public static final int PARAM_SHRINE_SUPPRESS = 6;
     private static final boolean[] rawOverrides = new boolean[7];
 
     /** Whether a raw override was detected for the given simple param group. */
@@ -114,8 +117,8 @@ public final class CivilConfig {
     private static int loadedSimpleRecoverySpeed;
     private static int loadedSimpleSpawnSuppression;
     private static int loadedSimpleDetectionRange;
-    private static int loadedSimpleHeadAttractStrength;
-    private static int loadedSimpleHeadAttractRange;
+    private static int loadedSimpleShrineSuppressStrength;
+    private static int loadedSimpleShrineSuppressRange;
 
     /**
      * Compare current simple values to the snapshot taken at load time.
@@ -147,11 +150,11 @@ public final class CivilConfig {
             rawOverrides[PARAM_RANGE] = false;
             loadedSimpleDetectionRange = simpleDetectionRange;
         }
-        if (simpleHeadAttractStrength != loadedSimpleHeadAttractStrength
-                || simpleHeadAttractRange != loadedSimpleHeadAttractRange) {
-            rawOverrides[PARAM_HEAD_ATTRACT] = false;
-            loadedSimpleHeadAttractStrength = simpleHeadAttractStrength;
-            loadedSimpleHeadAttractRange = simpleHeadAttractRange;
+        if (simpleShrineSuppressStrength != loadedSimpleShrineSuppressStrength
+                || simpleShrineSuppressRange != loadedSimpleShrineSuppressRange) {
+            rawOverrides[PARAM_SHRINE_SUPPRESS] = false;
+            loadedSimpleShrineSuppressStrength = simpleShrineSuppressStrength;
+            loadedSimpleShrineSuppressRange = simpleShrineSuppressRange;
         }
     }
 
@@ -191,9 +194,10 @@ public final class CivilConfig {
     public static int coreRadiusX = 1;
     public static int coreRadiusZ = 1;
     public static int coreRadiusY = 0;
-    public static int headRangeX = 1;
-    public static int headRangeZ = 1;
-    public static int headRangeY = 0;
+    /** Farm shrine bypass window half-extent in voxel chunks (±N from anchor VC), default 1/1/0. */
+    public static int farmShrineRangeX = 1;
+    public static int farmShrineRangeZ = 1;
+    public static int farmShrineRangeY = 0;
 
     // -- Patrol Influence (player presence keeping area alive) --
     /** Patrol radius (voxel chunks). User slider sets X/Z together; Y defaults to 1. */
@@ -220,13 +224,9 @@ public final class CivilConfig {
     /** Result raw score threshold for staging presence writes vs deletes (CFR prefetch). */
     public static double presenceRawEpsilon = 0.01;
 
-    // -- Head Attraction (totem suppression of distant spawns) --
-    public static boolean headAttractEnabled = true;
-    /** Deprecated: retained for backward compatibility in config parsing only. */
-    public static double headAttractNearBlocks = 32.0;
-    public static double headAttractMaxRadius = 128.0;
-    public static double headAttractLambda = 0.15;
-    private static boolean nearBlocksDeprecationLogged = false;
+    // -- Farm shrine spawn suppression (attract radius around activated anchors) --
+    public static double farmShrineAttractMaxRadius = 128.0;
+    public static double farmShrineAttractLambda = 0.15;
 
     // -- Cache & Performance --
     /** L1 information shard TTL. Short-lived: only needs to survive until ResultEntry is computed.
@@ -372,10 +372,10 @@ public final class CivilConfig {
             detectionRadiusZ = radius;
         }
 
-        // 7-8. Head attraction strength & range
-        if (!rawOverrides[PARAM_HEAD_ATTRACT]) {
-            headAttractLambda    = 0.03 * simpleHeadAttractStrength;
-            headAttractMaxRadius = simpleHeadAttractRange * 16.0;
+        // 7-8. Farm shrine suppression strength & range
+        if (!rawOverrides[PARAM_SHRINE_SUPPRESS]) {
+            farmShrineAttractLambda = 0.03 * simpleShrineSuppressStrength;
+            farmShrineAttractMaxRadius = simpleShrineSuppressRange * 16.0;
         }
 
         // 9. Patrol influence range (slider sets XZ together, Y fixed)
@@ -428,11 +428,13 @@ public final class CivilConfig {
         // Snap to nearest valid step (odd chunk count): 112, 144, 176, ..., 496
         simpleDetectionRange = snapDetectionRange(simpleDetectionRange);
 
-        simpleHeadAttractStrength = parseInt(p.getProperty("simple.headAttractStrength"), simpleHeadAttractStrength);
-        simpleHeadAttractStrength = Math.max(1, Math.min(10, simpleHeadAttractStrength));
+        simpleShrineSuppressStrength = parseInt(p.getProperty("simple.shrineSuppressStrength",
+                p.getProperty("simple.headAttractStrength")), simpleShrineSuppressStrength);
+        simpleShrineSuppressStrength = Math.max(1, Math.min(10, simpleShrineSuppressStrength));
 
-        simpleHeadAttractRange = parseInt(p.getProperty("simple.headAttractRange"), simpleHeadAttractRange);
-        simpleHeadAttractRange = Math.max(3, Math.min(10, simpleHeadAttractRange));
+        simpleShrineSuppressRange = parseInt(p.getProperty("simple.shrineSuppressRange",
+                p.getProperty("simple.headAttractRange")), simpleShrineSuppressRange);
+        simpleShrineSuppressRange = Math.max(3, Math.min(10, simpleShrineSuppressRange));
 
         simplePatrolRange = parseInt(p.getProperty("simple.patrolRange"), simplePatrolRange);
         simplePatrolRange = Math.max(2, Math.min(8, simplePatrolRange));
@@ -444,8 +446,8 @@ public final class CivilConfig {
                 parseDouble(p.getProperty("undyingAnchor.civRatio"), undyingAnchorCivRatio)));
         undyingAnchorGlobalCooldownSeconds = Math.max(1, Math.min(300,
                 parseInt(p.getProperty("undyingAnchor.globalCooldownSeconds"), undyingAnchorGlobalCooldownSeconds)));
-        undyingAnchorMaxSearchRadius = Math.max(32, Math.min(256,
-                parseInt(p.getProperty("undyingAnchor.maxSearchRadius"), undyingAnchorMaxSearchRadius)));
+        undyingAnchorMaxSearchRadius = snapUndyingAnchorMaxSearchRadiusBlocks(
+                parseInt(p.getProperty("undyingAnchor.maxSearchRadius"), undyingAnchorMaxSearchRadius));
 
         detectorSonarEnabled  = parseBoolean(p.getProperty("sonar.detectorEnabled"), detectorSonarEnabled);
         sonarDetectorRadius   = Math.max(3, Math.min(7,  parseInt(p.getProperty("sonar.detectorRadius"), sonarDetectorRadius)));
@@ -459,8 +461,8 @@ public final class CivilConfig {
         loadedSimpleRecoverySpeed       = simpleRecoverySpeed;
         loadedSimpleSpawnSuppression    = simpleSpawnSuppression;
         loadedSimpleDetectionRange      = simpleDetectionRange;
-        loadedSimpleHeadAttractStrength = simpleHeadAttractStrength;
-        loadedSimpleHeadAttractRange    = simpleHeadAttractRange;
+        loadedSimpleShrineSuppressStrength = simpleShrineSuppressStrength;
+        loadedSimpleShrineSuppressRange = simpleShrineSuppressRange;
 
         // Reset override flags (important if load() is called more than once)
         java.util.Arrays.fill(rawOverrides, false);
@@ -479,8 +481,8 @@ public final class CivilConfig {
         double compSpawnMid           = spawnThresholdMid;
         int    compDetRadX            = detectionRadiusX;
         int    compDetRadZ            = detectionRadiusZ;
-        double compHeadAttractLambda  = headAttractLambda;
-        double compHeadAttractMaxRad  = headAttractMaxRadius;
+        double compFarmShrineAttractLambda = farmShrineAttractLambda;
+        double compFarmShrineAttractMaxRad = farmShrineAttractMaxRadius;
 
         // ── Phase 4: Load raw overrides (advanced users) ──
         gracePeriodHours   = parseDouble(p.getProperty("decay.gracePeriodHours"), gracePeriodHours);
@@ -503,17 +505,22 @@ public final class CivilConfig {
         coreRadiusX        = parseInt(p.getProperty("range.coreRadiusX"), coreRadiusX);
         coreRadiusZ        = parseInt(p.getProperty("range.coreRadiusZ"), coreRadiusZ);
         coreRadiusY        = parseInt(p.getProperty("range.coreRadiusY"), coreRadiusY);
-        headRangeX         = parseInt(p.getProperty("range.headRangeX"), headRangeX);
-        headRangeZ         = parseInt(p.getProperty("range.headRangeZ"), headRangeZ);
-        headRangeY         = parseInt(p.getProperty("range.headRangeY"), headRangeY);
+        farmShrineRangeX = parseInt(p.getProperty("range.farmShrineRangeX",
+                p.getProperty("range.headRangeX")), farmShrineRangeX);
+        farmShrineRangeZ = parseInt(p.getProperty("range.farmShrineRangeZ",
+                p.getProperty("range.headRangeZ")), farmShrineRangeZ);
+        farmShrineRangeY = parseInt(p.getProperty("range.farmShrineRangeY",
+                p.getProperty("range.headRangeY")), farmShrineRangeY);
 
-        headAttractEnabled    = parseBoolean(p.getProperty("headAttract.enabled"), headAttractEnabled);
-        headAttractNearBlocks = parseDouble(p.getProperty("headAttract.nearBlocks"), headAttractNearBlocks);
-        headAttractMaxRadius  = parseDouble(p.getProperty("headAttract.maxRadius"), headAttractMaxRadius);
-        headAttractLambda     = parseDouble(p.getProperty("headAttract.lambda"), headAttractLambda);
-        if (p.containsKey("headAttract.nearBlocks") && !nearBlocksDeprecationLogged) {
-            nearBlocksDeprecationLogged = true;
-            LOGGER.warn("[civil] Config key 'headAttract.nearBlocks' is deprecated and ignored by HEAD_SUPPRESS logic.");
+        if (p.containsKey("headAttract.enabled")) {
+            // Silently ignore legacy master toggle (farm shrine mechanics follow dimension headMechanics()).
+        }
+        farmShrineAttractMaxRadius = parseDouble(p.getProperty("farmShrine.attractMaxRadius",
+                p.getProperty("headAttract.maxRadius")), farmShrineAttractMaxRadius);
+        farmShrineAttractLambda = parseDouble(p.getProperty("farmShrine.attractLambda",
+                p.getProperty("headAttract.lambda")), farmShrineAttractLambda);
+        if (p.containsKey("headAttract.nearBlocks")) {
+            LOGGER.warn("[civil] Config key 'headAttract.nearBlocks' is deprecated and ignored.");
         }
 
         l1TtlMs            = parseLong(p.getProperty("cache.l1TtlMs"), l1TtlMs);
@@ -593,8 +600,8 @@ public final class CivilConfig {
                                         || !approxEq(spawnThresholdMid, compSpawnMid);
         rawOverrides[PARAM_RANGE]       = detectionRadiusX != compDetRadX
                                         || detectionRadiusZ != compDetRadZ;
-        rawOverrides[PARAM_HEAD_ATTRACT] = !approxEq(headAttractLambda, compHeadAttractLambda)
-                                        || !approxEq(headAttractMaxRadius, compHeadAttractMaxRad);
+        rawOverrides[PARAM_SHRINE_SUPPRESS] = !approxEq(farmShrineAttractLambda, compFarmShrineAttractLambda)
+                                        || !approxEq(farmShrineAttractMaxRadius, compFarmShrineAttractMaxRad);
 
         // ── Phase 6: Write default file if not present ──
         if (!Files.isRegularFile(file)) {
@@ -635,8 +642,8 @@ public final class CivilConfig {
             sb.append("simple.recoverySpeed=").append(simpleRecoverySpeed).append('\n');
             sb.append("simple.spawnSuppression=").append(simpleSpawnSuppression).append('\n');
             sb.append("simple.detectionRange=").append(simpleDetectionRange).append('\n');
-            sb.append("simple.headAttractStrength=").append(simpleHeadAttractStrength).append('\n');
-            sb.append("simple.headAttractRange=").append(simpleHeadAttractRange).append('\n');
+            sb.append("simple.shrineSuppressStrength=").append(simpleShrineSuppressStrength).append('\n');
+            sb.append("simple.shrineSuppressRange=").append(simpleShrineSuppressRange).append('\n');
             sb.append("simple.patrolRange=").append(simplePatrolRange).append('\n');
             sb.append('\n');
 
@@ -664,7 +671,7 @@ public final class CivilConfig {
             String pRecov  = rawOverrides[PARAM_RECOVERY]    ? "" : "#";
             String pSpawn  = rawOverrides[PARAM_SPAWN]       ? "" : "#";
             String pRange  = rawOverrides[PARAM_RANGE]       ? "" : "#";
-            String pHead   = rawOverrides[PARAM_HEAD_ATTRACT] ? "" : "#";
+            String pShrine = rawOverrides[PARAM_SHRINE_SUPPRESS] ? "" : "#";
 
             sb.append("# ── Advanced: Decay & Recovery (uncomment to override) ──\n");
             sb.append(pFresh).append("decay.gracePeriodHours=").append(gracePeriodHours).append('\n');
@@ -694,17 +701,14 @@ public final class CivilConfig {
             sb.append("#range.coreRadiusX=").append(coreRadiusX).append('\n');
             sb.append("#range.coreRadiusZ=").append(coreRadiusZ).append('\n');
             sb.append("#range.coreRadiusY=").append(coreRadiusY).append('\n');
-            sb.append("#range.headRangeX=").append(headRangeX).append('\n');
-            sb.append("#range.headRangeZ=").append(headRangeZ).append('\n');
-            sb.append("#range.headRangeY=").append(headRangeY).append('\n');
+            sb.append("#range.farmShrineRangeX=").append(farmShrineRangeX).append('\n');
+            sb.append("#range.farmShrineRangeZ=").append(farmShrineRangeZ).append('\n');
+            sb.append("#range.farmShrineRangeY=").append(farmShrineRangeY).append('\n');
             sb.append('\n');
 
-            sb.append("# ── Advanced: Head Attraction (totem spawn suppression) ──\n");
-            sb.append("headAttract.enabled=").append(headAttractEnabled).append('\n');
-            sb.append("#headAttract.nearBlocks=").append(headAttractNearBlocks)
-                    .append("   # deprecated: parsed for backward compatibility only\n");
-            sb.append(pHead).append("headAttract.maxRadius=").append(headAttractMaxRadius).append('\n');
-            sb.append(pHead).append("headAttract.lambda=").append(headAttractLambda).append('\n');
+            sb.append("# ── Advanced: Farm shrine spawn suppression ──\n");
+            sb.append(pShrine).append("farmShrine.attractMaxRadius=").append(farmShrineAttractMaxRadius).append('\n');
+            sb.append(pShrine).append("farmShrine.attractLambda=").append(farmShrineAttractLambda).append('\n');
             sb.append('\n');
 
             sb.append("# ── Advanced: Cache & Performance ──\n");
@@ -774,6 +778,16 @@ public final class CivilConfig {
         // Valid values: 112, 144, 176, ..., 496 (step 32)
         int clamped = Math.max(112, Math.min(496, blocks));
         return ((clamped - 112 + 16) / 32) * 32 + 112;
+    }
+
+    /**
+     * Snap undying anchor search radius to the legal 16-block grid, then clamp to [32, 256].
+     * Same structural role as {@link #snapDetectionRange}: limits are encoded here, not as extra fields above.
+     */
+    static int snapUndyingAnchorMaxSearchRadiusBlocks(int blocks) {
+        int clamped = Math.max(32, Math.min(256, blocks));
+        int snapped = (int) Math.round(clamped / 16.0) * 16;
+        return Math.max(32, Math.min(256, snapped));
     }
 
     private static double lerp(double a, double b, double t) {

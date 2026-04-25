@@ -8,6 +8,8 @@ import civil.aura.SonarType;
 import civil.respawn.UndyingAnchorCinematicEffect;
 import civil.respawn.UndyingAnchorParticleEffect;
 import civil.respawn.UndyingAnchorParticlePayload;
+import civil.shrine.FarmShrineParticleEffect;
+import civil.shrine.FarmShrineParticlePayload;
 import civil.respawn.UndyingAnchorPreTeleportPayload;
 import civil.civilization.ZoneTransitionHud;
 import civil.civilization.ZoneTransitionPayload;
@@ -33,7 +35,7 @@ final class NeoForgeClientPayloadHandler {
         if (player != null) {
             SonarShockwaveEffect.startCharge(
                     payload.centerX(), payload.centerY(), payload.centerZ(),
-                    payload.playerInHigh(), payload.playerInHeadZone(),
+                    payload.playerInHigh(), payload.playerInShrineZone(),
                     SonarType.fromId(payload.sonarType()));
         }
     }
@@ -42,12 +44,12 @@ final class NeoForgeClientPayloadHandler {
         AuraWallRenderer.updateBoundaries(payload);
         var player = Minecraft.getInstance().player;
         if (player != null) {
-            Map<Long, float[]> headZoneYMap = buildHeadZoneYMap(
-                    payload.headZone2D(), payload.headZoneMinY(), payload.headZoneMaxY());
+            Map<Long, float[]> shrineZoneYMap = buildShrineZoneYMap(
+                    payload.shrineZone2D(), payload.shrineZoneMinY(), payload.shrineZoneMaxY());
             Set<Long> civHighZone2DSet = buildLongSet(payload.civHighZone2D());
 
             SonarShockwaveEffect.startRing(
-                    payload.playerInHigh(), headZoneYMap, civHighZone2DSet,
+                    payload.playerInHigh(), shrineZoneYMap, civHighZone2DSet,
                     SonarType.fromId(payload.sonarType()));
         }
     }
@@ -68,11 +70,15 @@ final class NeoForgeClientPayloadHandler {
         UndyingAnchorParticleEffect.updateFromPayload(payload);
     }
 
+    static void handleFarmShrineParticles(FarmShrineParticlePayload payload, IPayloadContext context) {
+        FarmShrineParticleEffect.updateFromPayload(payload);
+    }
+
     static void handleZoneTransition(ZoneTransitionPayload payload, IPayloadContext context) {
         ZoneTransitionHud.onPayload(payload);
     }
 
-    private static Map<Long, float[]> buildHeadZoneYMap(long[] keys, float[] minY, float[] maxY) {
+    private static Map<Long, float[]> buildShrineZoneYMap(long[] keys, float[] minY, float[] maxY) {
         if (keys.length == 0) return Map.of();
         Map<Long, float[]> map = new HashMap<>(keys.length);
         for (int i = 0; i < keys.length; i++) {

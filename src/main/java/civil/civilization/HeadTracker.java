@@ -1,11 +1,8 @@
 package civil.civilization;
 
 import civil.CivilMod;
+import civil.CivilServices;
 import civil.civilization.storage.CivilStorage;
-import civil.config.CivilConfig;
-import civil.registry.HeadTypeRegistry;
-import civil.registry.HeadTypeRegistry.HeadTypeEntry;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,34 +72,6 @@ public final class HeadTracker {
     /** Single head entry: exact block position + skull type name. */
     public record HeadEntry(int x, int y, int z, String skullType) {}
 
-    /**
-     * Query result: nearest head distance and aggregate info.
-     *
-     * @param nearestDist3D   Euclidean distance in full 3D (for suppression curve)
-     * @param nearestDistXZ   Horizontal (XZ plane) distance (for max radius check)
-     */
-    public record HeadProximity(boolean hasHeads, double nearestDist3D, double nearestDistXZ, int countInRadius) {
-        public static final HeadProximity NONE = new HeadProximity(false, Double.MAX_VALUE, Double.MAX_VALUE, 0);
-    }
-
-    /**
-     * Combined query result: nearby head count + conversion pool (for HEAD_NEARBY)
-     * + nearest distance info (for HEAD_SUPPRESS), computed in a single O(N) pass.
-     *
-     * <p>Only heads whose skull type is registered <b>and</b> {@code enabled=true}
-     * in {@link HeadTypeRegistry} participate in any calculation.
-     *
-     * @param nearbyHeadCount Total enabled heads within the VC box (includes convert=false heads).
-     * @param convertPool     Entity types of enabled+convert=true heads in the VC box
-     *                        (with duplicates for weighted sampling). Empty if none qualify.
-     * @param proximity       Nearest enabled head distance info inside the suppress scan window.
-     */
-    public record HeadQuery(int nearbyHeadCount, List<EntityType<?>> convertPool, HeadProximity proximity) {
-        public static final HeadQuery NONE = new HeadQuery(0, List.of(), HeadProximity.NONE);
-
-        public boolean hasNearbyHeads() { return nearbyHeadCount > 0; }
-    }
-
     // ========== Lifecycle ==========
 
     /**
@@ -144,151 +113,12 @@ public final class HeadTracker {
     // ========== Queries ==========
 
     /**
-     * Combined query: two-stage bucket scan that returns nearby head count + conversion
-     * pool (for HEAD_NEARBY) and nearest distance info (for HEAD_SUPPRESS).
-     *
-     * <p>Only heads whose skull type is registered <b>and enabled</b> in
-     * {@link HeadTypeRegistry} participate. Unregistered or disabled heads are
-     * skipped entirely — they do not contribute to distance, count, or conversion.
-     * This is both correct (datapack control) and performant (fewer distance calcs).
-     *
-     * <p>Cost is proportional to candidates inside scanned XZ buckets.
-     *
-     * @param dim     dimension key
-     * @param pos     center position (block coordinates)
-     * @param rangeCX nearby range in voxel chunks along X
-     * @param rangeCZ nearby range in voxel chunks along Z
-     * @param rangeSY nearby range in voxel chunks along Y
-     * @return combined result; {@link HeadQuery#NONE} if no enabled heads are found
+     * Returns the head entry at the exact block, or null.
      */
-    public HeadQuery queryHeads(String dim, BlockPos pos, int rangeCX, int rangeCZ, int rangeSY) {
-        if (!CivilConfig.headAttractEnabled) return HeadQuery.NONE;
-        var dimIndex = headsByVcXZ.get(dim);
-        if (dimIndex == null || dimIndex.isEmpty()) return HeadQuery.NONE;
-
-        String dimId = dim;
-        int centerVCX = pos.getX() >> 4;
-        int centerVCZ = pos.getZ() >> 4;
-        int centerVCY = Math.floorDiv(pos.getY(), 16);
-
-        List<EntityType<?>> convertPool = new ArrayList<>();
-        int nearbyHeadCount = 0;
-
-        // Stage A: HEAD_NEARBY (fixed 3-axis VC window)
-        for (int dx = -rangeCX; dx <= rangeCX; dx++) {
-            int vcx = centerVCX + dx;
-            for (int dz = -rangeCZ; dz <= rangeCZ; dz++) {
-                int vcz = centerVCZ + dz;
-                var syMap = dimIndex.get(packVcXZ(vcx, vcz));
-                if (syMap == null || syMap.isEmpty()) continue;
-
-                for (int sy = centerVCY - rangeSY; sy <= centerVCY + rangeSY; sy++) {
-                    var cell = syMap.get(sy);
-                    if (cell == null || cell.isEmpty()) continue;
-                    for (HeadEntry h : cell.values()) {
-                        HeadTypeEntry entry = HeadTypeRegistry.get(h.skullType());
-                        if (entry == null || !entry.enabled() || !entry.isActiveIn(dimId)) continue;
-                        nearbyHeadCount++;
-                        if (entry.entityType() != null && entry.convertEnabled()) {
-                            convertPool.add(entry.entityType());
-                        }
-                    }
-                }
-            }
-        }
-
-        // Stage B: HEAD_SUPPRESS (XZ conservative scan + iterate existing sy buckets)
-        double maxRadius = CivilConfig.headAttractMaxRadius;
-        int vcRadiusXZ = (int) Math.ceil((maxRadius + 16.0) / 16.0);
-        double maxRadiusSq = maxRadius * maxRadius;
-
-        double cx = pos.getX() + 0.5;
-        double cy = pos.getY() + 0.5;
-        double cz = pos.getZ() + 0.5;
-
-        boolean hasEnabledHeads = false;
-        int countInRadius = 0;
-        double minDistSqXZ = Double.MAX_VALUE;
-        double minDistSq3DInRadius = Double.MAX_VALUE;
-
-        for (int dx = -vcRadiusXZ; dx <= vcRadiusXZ; dx++) {
-            int vcx = centerVCX + dx;
-            for (int dz = -vcRadiusXZ; dz <= vcRadiusXZ; dz++) {
-                int vcz = centerVCZ + dz;
-                var syMap = dimIndex.get(packVcXZ(vcx, vcz));
-                if (syMap == null || syMap.isEmpty()) continue;
-
-                for (var cell : syMap.values()) {
-                    if (cell == null || cell.isEmpty()) continue;
-                    for (HeadEntry h : cell.values()) {
-                        HeadTypeEntry entry = HeadTypeRegistry.get(h.skullType());
-                        if (entry == null || !entry.enabled() || !entry.isActiveIn(dimId)) continue;
-
-                        hasEnabledHeads = true;
-                        double ddx = h.x() + 0.5 - cx;
-                        double ddy = h.y() + 0.5 - cy;
-                        double ddz = h.z() + 0.5 - cz;
-                        double distSqXZ = ddx * ddx + ddz * ddz;
-                        if (distSqXZ < minDistSqXZ) minDistSqXZ = distSqXZ;
-
-                        if (distSqXZ <= maxRadiusSq) {
-                            countInRadius++;
-                            double distSq3D = ddx * ddx + ddy * ddy + ddz * ddz;
-                            if (distSq3D < minDistSq3DInRadius) minDistSq3DInRadius = distSq3D;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (!hasEnabledHeads) return HeadQuery.NONE;
-
-        double nearestDistXZ = Math.sqrt(minDistSqXZ);
-        double nearestDist3D = countInRadius > 0 ? Math.sqrt(minDistSq3DInRadius) : Double.MAX_VALUE;
-        HeadProximity proximity = new HeadProximity(true, nearestDist3D, nearestDistXZ, countInRadius);
-        return new HeadQuery(nearbyHeadCount, convertPool, proximity);
-    }
-
-    /**
-     * Simple nearby head check (for CivilDetectorItem and other non-spawn callers).
-     * Single O(N) pass, returns only the nearby entity types without distance info.
-     *
-     * <p>Only enabled heads with a non-null entity type are returned (regardless
-     * of their {@code convertEnabled} flag — this is a general-purpose query,
-     * not a conversion-specific one).
-     */
-    public List<EntityType<?>> getHeadTypesNear(String dim, BlockPos pos, int rangeCX, int rangeCZ, int rangeSY) {
-        if (!CivilConfig.headAttractEnabled) return List.of();
+    public HeadEntry getHeadAt(String dim, int x, int y, int z) {
         var dimHeads = heads.get(dim);
-        if (dimHeads == null || dimHeads.isEmpty()) return List.of();
-
-        String dimId = dim;
-
-        int centerCX = pos.getX() >> 4;
-        int centerCZ = pos.getZ() >> 4;
-        int centerSY = Math.floorDiv(pos.getY(), 16);
-
-        List<EntityType<?>> result = new ArrayList<>();
-
-        for (HeadEntry h : dimHeads.values()) {
-            HeadTypeEntry entry = HeadTypeRegistry.get(h.skullType());
-            if (entry == null || !entry.enabled() || !entry.isActiveIn(dimId)) continue;
-
-            int hcx = h.x() >> 4;
-            int hcz = h.z() >> 4;
-            int hsy = Math.floorDiv(h.y(), 16);
-
-            if (Math.abs(hcx - centerCX) <= rangeCX
-                    && Math.abs(hcz - centerCZ) <= rangeCZ
-                    && Math.abs(hsy - centerSY) <= rangeSY) {
-
-                if (entry.entityType() != null) {
-                    result.add(entry.entityType());
-                }
-            }
-        }
-
-        return result;
+        if (dimHeads == null) return null;
+        return dimHeads.get(packPos(x, y, z));
     }
 
     /**
@@ -316,7 +146,6 @@ public final class HeadTracker {
      * @return collection of head entries, or empty collection if no heads in dimension
      */
     public java.util.Collection<HeadEntry> getHeadsInDimension(String dim) {
-        if (!CivilConfig.headAttractEnabled) return List.of();
         var dimHeads = heads.get(dim);
         if (dimHeads == null || dimHeads.isEmpty()) return List.of();
         return dimHeads.values();
@@ -340,6 +169,10 @@ public final class HeadTracker {
         if (prev == null) {
             indexHead(dim, entry);
             mobHeadsDirty = true;
+            FarmShrineTracker shrines = CivilServices.getFarmShrineTracker();
+            if (shrines != null && shrines.isInitialized()) {
+                shrines.onMobHeadAdded(dim, x, y, z, skullType);
+            }
             if (CivilMod.DEBUG) {
                 LOGGER.info("[civil-heads] Added head dim={} pos=({},{},{}) type={}",
                         dim, x, y, z, skullType);
@@ -364,6 +197,10 @@ public final class HeadTracker {
         if (removed != null) {
             unindexHead(dim, removed);
             mobHeadsDirty = true;
+            FarmShrineTracker shrines = CivilServices.getFarmShrineTracker();
+            if (shrines != null && shrines.isInitialized()) {
+                shrines.onMobHeadRemoved(dim, x, y, z);
+            }
             if (CivilMod.DEBUG) {
                 LOGGER.info("[civil-heads] Removed head dim={} pos=({},{},{})",
                         dim, x, y, z);

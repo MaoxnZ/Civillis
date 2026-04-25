@@ -6,6 +6,7 @@ import civil.config.CivilConfigScreen;
 import civil.item.CivilDetectorClientParticles;
 import civil.respawn.UndyingAnchorCinematicEffect;
 import civil.respawn.UndyingAnchorParticleEffect;
+import civil.shrine.FarmShrineParticleEffect;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
@@ -45,6 +46,7 @@ final class CivilModClientNeoForge {
         var poseStack = event.getPoseStack();
         UndyingAnchorCinematicEffect.tickAndApplyShake(poseStack);
         UndyingAnchorParticleEffect.tick();
+        FarmShrineParticleEffect.tick();
         // Match Fabric WorldRenderEvents (cameraRenderState.pos): per-frame interpolated eye position.
         // entity.getEyePosition() without partial tick snaps to tick boundaries → walls jitter vs smooth world.
         Minecraft mc = Minecraft.getInstance();

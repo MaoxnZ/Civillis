@@ -20,6 +20,9 @@ public interface CivilStorage {
 
     record StoredMobHead(String dim, int x, int y, int z, String skullType) {}
     record StoredUndyingAnchor(String dim, int x, int y, int z, boolean activated, long lastUsedGlobal) {}
+
+    /** Farm shrine anchor = lit soul campfire block; {@code activated} must be true for persisted entries. */
+    record StoredFarmShrine(String dim, int x, int y, int z, boolean activated) {}
     record StoredL1Entry(VoxelChunkKey key, CScore cScore, long createTime, String dim) {
         public StoredL1Entry(VoxelChunkKey key, CScore cScore, long createTime) {
             this(key, cScore, createTime, null);
@@ -95,6 +98,17 @@ public interface CivilStorage {
      * NBT: write undying_anchors.nbt.
      */
     void writeUndyingAnchors(List<StoredUndyingAnchor> snapshot);
+
+    // ========== Structure: farm shrines ==========
+
+    /** Load all farm shrines at init. NBT: read farm_shrines.nbt. */
+    List<StoredFarmShrine> loadFarmShrines();
+
+    /**
+     * Write full snapshot of farm shrines. Called by unified flush when dirty.
+     * NBT: write farm_shrines.nbt.
+     */
+    void writeFarmShrines(List<StoredFarmShrine> snapshot);
 
     // ========== Batch L1 (legacy / prefetch) ==========
 

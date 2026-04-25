@@ -154,6 +154,7 @@ public final class NbtStorage implements CivilStorage {
 
     private static final String MOB_HEADS_FILE = "mob_heads.nbt";
     private static final String UNDYING_ANCHORS_FILE = "undying_anchors.nbt";
+    private static final String FARM_SHRINES_FILE = "farm_shrines.nbt";
 
     @Override
     public List<StoredMobHead> loadMobHeads() {
@@ -246,6 +247,52 @@ public final class NbtStorage implements CivilStorage {
             NbtIo.writeCompressed(root, p);
         } catch (Exception e) {
             LOGGER.warn("[civil-storage] Failed to write undying_anchors.nbt: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public List<StoredFarmShrine> loadFarmShrines() {
+        Path p = resolve(FARM_SHRINES_FILE);
+        if (p == null || !Files.isRegularFile(p)) return Collections.emptyList();
+        try {
+            CompoundTag root = NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap());
+            if (root == null || !root.contains("entries")) return Collections.emptyList();
+            ListTag entries = root.getList("entries").orElse(new ListTag());
+            List<StoredFarmShrine> out = new ArrayList<>(entries.size());
+            for (int i = 0; i < entries.size(); i++) {
+                CompoundTag e = entries.getCompound(i).orElse(new CompoundTag());
+                out.add(new StoredFarmShrine(
+                        e.getString("dim").orElse(""),
+                        e.getInt("x").orElse(0), e.getInt("y").orElse(0), e.getInt("z").orElse(0),
+                        e.getBoolean("activated").orElse(false)));
+            }
+            return out;
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to load farm_shrines.nbt: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public void writeFarmShrines(List<StoredFarmShrine> snapshot) {
+        Path p = resolve(FARM_SHRINES_FILE);
+        if (p == null) return;
+        try {
+            ListTag entries = new ListTag();
+            for (StoredFarmShrine s : snapshot) {
+                CompoundTag e = new CompoundTag();
+                e.putString("dim", s.dim());
+                e.putInt("x", s.x());
+                e.putInt("y", s.y());
+                e.putInt("z", s.z());
+                e.putBoolean("activated", s.activated());
+                entries.add(e);
+            }
+            CompoundTag root = new CompoundTag();
+            root.put("entries", entries);
+            NbtIo.writeCompressed(root, p);
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to write farm_shrines.nbt: {}", e.getMessage());
         }
     }
 

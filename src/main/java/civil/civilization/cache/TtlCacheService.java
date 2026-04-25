@@ -11,8 +11,6 @@ import civil.civilization.storage.NbtStorage;
 import civil.civilization.VoxelChunkKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.chunk.LevelChunkSection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -201,6 +199,16 @@ public final class TtlCacheService implements CivilizationCache {
             anchorsDirty = false;
             anchorsSnapshot = List.of();
         }
+        final boolean shrinesDirty;
+        final List<CivilStorage.StoredFarmShrine> shrinesSnapshot;
+        final var farmShrineTracker = civil.CivilServices.getFarmShrineTracker();
+        if (farmShrineTracker != null && farmShrineTracker.isShrinesDirty()) {
+            shrinesDirty = true;
+            shrinesSnapshot = farmShrineTracker.snapshotAllShrines();
+        } else {
+            shrinesDirty = false;
+            shrinesSnapshot = List.of();
+        }
 
         return storage.submitOnIO(() -> {
             long flushStartMs = System.currentTimeMillis();
@@ -212,6 +220,10 @@ public final class TtlCacheService implements CivilizationCache {
             if (anchorsDirty) {
                 storage.writeUndyingAnchors(anchorsSnapshot);
                 if (anchorTracker != null) anchorTracker.clearAnchorsDirty();
+            }
+            if (shrinesDirty) {
+                storage.writeFarmShrines(shrinesSnapshot);
+                if (farmShrineTracker != null) farmShrineTracker.clearShrinesDirty();
             }
 
             Map<String, CScore> resolvedScoreUpserts = new HashMap<>(pendingScores);
@@ -320,10 +332,10 @@ public final class TtlCacheService implements CivilizationCache {
 
             if (CivilMod.DEBUG) {
                 long elapsedMs = System.currentTimeMillis() - flushStartMs;
-                LOGGER.info("[civil-storage-flush] regions={} scoreUps={} scoreDel={} presUps={} presDel={} heads={} anchors={} elapsed_ms={}",
+                LOGGER.info("[civil-storage-flush] regions={} scoreUps={} scoreDel={} presUps={} presDel={} heads={} anchors={} shrines={} elapsed_ms={}",
                         regionKeys.size(), resolvedScoreUpserts.size(), resolvedScoreDeletes.size(),
                         resolvedPresenceUpserts.size(), resolvedPresenceDeletes.size(),
-                        mobHeadsDirty ? 1 : 0, anchorsDirty ? 1 : 0, elapsedMs);
+                        mobHeadsDirty ? 1 : 0, anchorsDirty ? 1 : 0, shrinesDirty ? 1 : 0, elapsedMs);
             }
         });
     }
@@ -379,7 +391,7 @@ public final class TtlCacheService implements CivilizationCache {
 
     /**
      * Restore a bulk-loaded region into cache and mark it activated.
-     * Shared by getChunkCScore (per-key) and onChunkLoadPreFill (per-chunk).
+     * Invoked from {@link #getChunkCScore} on first hot miss for any key in the region.
      */
     private void restoreRegionFromBulkLoad(ServerLevel level, String dim, int rx, int rz,
             Map<VoxelChunkKey, L1Entry> region) {
@@ -395,48 +407,6 @@ public final class TtlCacheService implements CivilizationCache {
         }
         String regionKey = dim + "|" + rx + "|" + rz;
         activatedRegions.add(regionKey);
-    }
-
-    /**
-     * Per-chunk prefill on chunk load. Does one bulk load per region, then restores
-     * all keys. For section keys not in cold storage, restores 0.0 when section is empty.
-     */
-    public void onChunkLoadPreFill(ServerLevel world, ChunkAccess chunk) {
-        String dim = world.dimension().identifier().toString();
-        int rx = Math.floorDiv(chunk.getPos().x, 32);
-        int rz = Math.floorDiv(chunk.getPos().z, 32);
-        String regionKey = dim + "|" + rx + "|" + rz;
-
-        if (!activatedRegions.contains(regionKey)) {
-            Map<VoxelChunkKey, L1Entry> region;
-            try {
-                region = storage.bulkLoadRegion(dim, rx, rz).get(5, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                LOGGER.warn("[civil-cache-service] Chunk load bulk region {} interrupted", regionKey);
-                return;
-            } catch (ExecutionException | TimeoutException e) {
-                LOGGER.warn("[civil-cache-service] Chunk load bulk region {} failed: {}", regionKey, e.getMessage());
-                return;
-            }
-            restoreRegionFromBulkLoad(world, dim, rx, rz, region);
-        }
-
-        LevelChunkSection[] sections = chunk.getSections();
-        int bottomSy = Math.floorDiv(world.dimensionType().minY(), 16);
-        long now = System.currentTimeMillis();
-
-        for (int i = 0; i < sections.length; i++) {
-            int sy = bottomSy + i;
-            VoxelChunkKey key = new VoxelChunkKey(chunk.getPos().x, chunk.getPos().z, sy);
-
-            if (cache.containsL1(world, key)) continue;
-
-            LevelChunkSection section = sections[i];
-            if (!section.maybeHas(civil.civilization.BlockScanner::isTargetBlock)) {
-                cache.restoreL1(world, key, new CScore(0.0), now);
-            }
-        }
     }
 
     @Override

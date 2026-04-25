@@ -13,14 +13,14 @@ import net.minecraft.resources.Identifier;
  * in sync with the server-side charge-up sound.
  *
  * <p>Only carries the minimum information needed for charge-up particle selection:
- * whether the player is in a HIGH zone and whether they are in a head (Force Allow) zone.
+ * whether the player is in a HIGH zone and whether they are inside a farm shrine bypass box.
  */
 public record SonarChargePayload(
         double centerX,
         double centerY,
         double centerZ,
         boolean playerInHigh,
-        boolean playerInHeadZone,
+        boolean playerInShrineZone,
         byte sonarType
 ) implements CustomPacketPayload {
 
@@ -35,7 +35,7 @@ public record SonarChargePayload(
         buf.writeDouble(payload.centerY);
         buf.writeDouble(payload.centerZ);
         buf.writeBoolean(payload.playerInHigh);
-        buf.writeBoolean(payload.playerInHeadZone);
+        buf.writeBoolean(payload.playerInShrineZone);
         buf.writeByte(payload.sonarType);
     }
 
@@ -44,9 +44,9 @@ public record SonarChargePayload(
         double centerY = buf.readDouble();
         double centerZ = buf.readDouble();
         boolean playerInHigh = buf.readBoolean();
-        boolean playerInHeadZone = buf.readBoolean();
+        boolean playerInShrineZone = buf.readBoolean();
         byte sonarType = buf.readByte();
-        return new SonarChargePayload(centerX, centerY, centerZ, playerInHigh, playerInHeadZone, sonarType);
+        return new SonarChargePayload(centerX, centerY, centerZ, playerInHigh, playerInShrineZone, sonarType);
     }
 
     @Override

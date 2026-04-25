@@ -11,9 +11,12 @@ import java.util.OptionalInt;
 
 /**
  * Representative {@code sy} (16-block vertical slice) for surface in a world chunk, using heightmaps and
- * {@code getChunkNow} only.
+ * {@code getChunkNow} only. Uses a fixed 4×4 subsample (16 columns at {@code dx,dz ∈ {0,5,10,15}}), not full 16×16.
  */
 public final class CivilMapSurfaceSy {
+
+    /** Full-span 4×4 grid in chunk-local XZ: corners through opposite corner ({@code 0,5,10,15}, 16 samples). */
+    private static final int[] CHUNK_SUBSAMPLE_DXZ = {0, 5, 10, 15};
 
     /** Why {@link #representativeSy} returned empty; used for DEBUG aggregation only. */
     public enum SyMissingCause {
@@ -28,7 +31,7 @@ public final class CivilMapSurfaceSy {
     }
 
     /**
-     * Aggregates raw {@link LevelChunk#getHeight} values across many columns (one recompute). When
+     * Aggregates raw {@link LevelChunk#getHeight} values across sampled columns (one recompute). When
      * {@link CivilMapTrace#ON}, pass one instance through all {@link #compute} calls, then {@link #logSummary}.
      */
     public static final class WorldSurfaceHeightStats {
@@ -54,19 +57,19 @@ public final class CivilMapSurfaceSy {
                 int dimMinY,
                 int dimMaxY,
                 int topWorldSurface,
-                int yAfterWorldSurfaceMinus1,
+                int spawnLayerWorldSurface,
                 boolean usedMotionBlockingFallback,
                 int topMotionBlocking,
-                int yAfterMotionBlockingMinus1,
+                int spawnLayerMotionBlocking,
                 int yFinal) {
             n++;
             minTopWs = Math.min(minTopWs, topWorldSurface);
             maxTopWs = Math.max(maxTopWs, topWorldSurface);
             sumTopWs += topWorldSurface;
-            if (yAfterWorldSurfaceMinus1 < dimMinY) {
+            if (spawnLayerWorldSurface < dimMinY) {
                 wsYBelowMin++;
             }
-            if (yAfterWorldSurfaceMinus1 > dimMaxY) {
+            if (spawnLayerWorldSurface > dimMaxY) {
                 wsYAboveMax++;
             }
             if (usedMotionBlockingFallback) {
@@ -83,7 +86,7 @@ public final class CivilMapSurfaceSy {
             double meanTopWs = sumTopWs / (double) n;
             CivilMapTrace.log(
                     "heightmapRaw mapId={} dimY=[{},{}] firstChunkClass={} columns={} "
-                            + "WORLD_SURFACE top: min={} max={} mean={} | (top-1) belowMinY={} aboveMaxY={} "
+                            + "WORLD_SURFACE top: min={} max={} mean={} | spawnLayerY(=top) belowMinY={} aboveMaxY={} "
                             + "| motionBlockFallbackColumns={} | finalY(afterClamp) min={} max={}",
                     mapId,
                     dimMinY,
@@ -131,8 +134,8 @@ public final class CivilMapSurfaceSy {
             return new SurfaceSyComputation(OptionalInt.empty(), SyMissingCause.INVALID_DIMENSION_SPAN);
         }
         int[] count = new int[span];
-        for (int dx = 0; dx < 16; dx++) {
-            for (int dz = 0; dz < 16; dz++) {
+        for (int dx : CHUNK_SUBSAMPLE_DXZ) {
+            for (int dz : CHUNK_SUBSAMPLE_DXZ) {
                 int surfaceY = surfaceYForColumn(chunk, dimMinY, dimMaxY, dx, dz, heightStats);
                 int sy = Math.floorDiv(surfaceY, 16);
                 int idx = sy - syMin;
@@ -166,9 +169,13 @@ public final class CivilMapSurfaceSy {
     }
 
     /**
-     * Picks a block Y for civilization sampling: {@link Heightmap.Types#WORLD_SURFACE}, then
-     * {@link Heightmap.Types#MOTION_BLOCKING} if {@code top - 1} is outside the dimension bounds, then clamps
-     * to {@code [dimMinY, dimMaxY]}.
+     * Picks a world Y for representative {@code sy} voting: {@link Heightmap.Types#WORLD_SURFACE} {@code top},
+     * then {@link Heightmap.Types#MOTION_BLOCKING} {@code top} if that spawn layer Y is outside the dimension bounds,
+     * then clamps to {@code [dimMinY, dimMaxY]}.
+     *
+     * <p>Uses {@code top} (not {@code top - 1}) so the chosen vertical slice aligns with typical natural-spawn
+     * {@link net.minecraft.world.entity.Entity#blockPosition()} semantics on flat ground (feet in the air cell
+     * above the top solid block), avoiding an off-by-one {@code sy} at 16-block boundaries versus spawn checks.
      * <p>
      * Clamping is <strong>defensive</strong> (avoids dropping every column). Interpretation of Mojang heightmap
      * semantics must rely on {@link WorldSurfaceHeightStats} logs when {@link CivilMapTrace#ON}, not on clamp
@@ -182,14 +189,14 @@ public final class CivilMapSurfaceSy {
             int dz,
             WorldSurfaceHeightStats stats) {
         int topWs = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, dx, dz);
-        int yWs = topWs - 1;
+        int yWs = topWs;
         boolean usedMb = false;
         int topMb = topWs;
-        int yMb = yWs;
+        int yMb = topWs;
         if (yWs < dimMinY || yWs > dimMaxY) {
             usedMb = true;
             topMb = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING, dx, dz);
-            yMb = topMb - 1;
+            yMb = topMb;
         }
         int yBeforeClamp = usedMb ? yMb : yWs;
         int yFinal = Math.max(dimMinY, Math.min(dimMaxY, yBeforeClamp));

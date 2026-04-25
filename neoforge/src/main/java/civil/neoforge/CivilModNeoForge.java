@@ -16,6 +16,9 @@ import civil.respawn.UndyingAnchorParticleManager;
 import civil.respawn.UndyingAnchorParticlePayload;
 import civil.respawn.UndyingAnchorPreTeleportPayload;
 import civil.respawn.UndyingAnchorSaveHandler;
+import civil.shrine.FarmShrineActivationHandler;
+import civil.shrine.FarmShrineParticleManager;
+import civil.shrine.FarmShrineParticlePayload;
 import civil.item.CivilDetectorAnimationReset;
 import civil.perf.TpsLogger;
 import civil.registry.BlockWeightLoader;
@@ -187,6 +190,8 @@ public class CivilModNeoForge {
                 NeoForgeClientPayloadHandler::handleUndyingAnchorPreTeleport);
         registrar.playToClient(UndyingAnchorParticlePayload.ID, UndyingAnchorParticlePayload.CODEC,
                 NeoForgeClientPayloadHandler::handleUndyingAnchorParticles);
+        registrar.playToClient(FarmShrineParticlePayload.ID, FarmShrineParticlePayload.CODEC,
+                NeoForgeClientPayloadHandler::handleFarmShrineParticles);
         registrar.playToClient(ZoneTransitionPayload.ID, ZoneTransitionPayload.CODEC,
                 NeoForgeClientPayloadHandler::handleZoneTransition);
     }
@@ -209,6 +214,7 @@ public class CivilModNeoForge {
         ZonePolicyLoader.reload(manager);
         DimensionPolicyLoader.reload(manager);
         SpawnGateEntityLoader.reload(manager);
+        CivilMod.onHeadTypesReloaded();
     }
 
     private void onDatapackSync(OnDatapackSyncEvent event) {
@@ -219,6 +225,7 @@ public class CivilModNeoForge {
         ZonePolicyLoader.reload(manager);
         DimensionPolicyLoader.reload(manager);
         SpawnGateEntityLoader.reload(manager);
+        CivilMod.onHeadTypesReloaded();
     }
 
     private void onRegisterCommands(RegisterCommandsEvent event) {
@@ -247,6 +254,7 @@ public class CivilModNeoForge {
         CivilDetectorAnimationReset.onServerTick(event.getServer());
         UndyingAnchorSaveHandler.onServerTick(event.getServer());
         UndyingAnchorParticleManager.onServerTick(event.getServer());
+        FarmShrineParticleManager.onServerTick(event.getServer());
         SonarScanManager.onServerTick(event.getServer());
     }
 
@@ -284,6 +292,12 @@ public class CivilModNeoForge {
         var state = event.getLevel().getBlockState(pos);
         if (state.is(Blocks.EMERALD_BLOCK) && event.getEntity() instanceof ServerPlayer player) {
             if (UndyingAnchorActivationHandler.tryActivate(player, event.getLevel(), pos, event.getHand())) {
+                event.setCanceled(true);
+                return;
+            }
+        }
+        if (state.is(Blocks.SOUL_CAMPFIRE) && event.getEntity() instanceof ServerPlayer sp2) {
+            if (FarmShrineActivationHandler.tryActivate(sp2, event.getLevel(), pos, event.getHand())) {
                 event.setCanceled(true);
                 return;
             }

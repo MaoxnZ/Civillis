@@ -12,6 +12,9 @@ import civil.aura.SonarType;
 import civil.respawn.UndyingAnchorActivationHandler;
 import civil.respawn.UndyingAnchorParticleManager;
 import civil.respawn.UndyingAnchorParticlePayload;
+import civil.shrine.FarmShrineActivationHandler;
+import civil.shrine.FarmShrineParticleManager;
+import civil.shrine.FarmShrineParticlePayload;
 import civil.respawn.UndyingAnchorSaveHandler;
 import civil.respawn.UndyingAnchorPreTeleportPayload;
 import civil.item.CivilDetectorAnimationReset;
@@ -66,6 +69,7 @@ public class CivilModFabric implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(SonarBoundaryPayload.ID, SonarBoundaryPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(UndyingAnchorPreTeleportPayload.ID, UndyingAnchorPreTeleportPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(UndyingAnchorParticlePayload.ID, UndyingAnchorParticlePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(FarmShrineParticlePayload.ID, FarmShrineParticlePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ZoneTransitionPayload.ID, ZoneTransitionPayload.CODEC);
     }
 
@@ -78,6 +82,7 @@ public class CivilModFabric implements ModInitializer {
             ZonePolicyLoader.reload(server.getResourceManager());
             DimensionPolicyLoader.reload(server.getResourceManager());
             SpawnGateEntityLoader.reload(server.getResourceManager());
+            CivilMod.onHeadTypesReloaded();
         });
         ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resourceManager, success) -> {
             if (!success) return;
@@ -87,6 +92,7 @@ public class CivilModFabric implements ModInitializer {
             ZonePolicyLoader.reload(server.getResourceManager());
             DimensionPolicyLoader.reload(server.getResourceManager());
             SpawnGateEntityLoader.reload(server.getResourceManager());
+            CivilMod.onHeadTypesReloaded();
         });
 
         ServerTickEvents.START_SERVER_TICK.register(TpsLogger::onStartTick);
@@ -96,6 +102,7 @@ public class CivilModFabric implements ModInitializer {
             CivilDetectorAnimationReset.onServerTick(server);
             UndyingAnchorSaveHandler.onServerTick(server);
             UndyingAnchorParticleManager.onServerTick(server);
+            FarmShrineParticleManager.onServerTick(server);
             SonarScanManager.onServerTick(server);
         });
 
@@ -121,6 +128,11 @@ public class CivilModFabric implements ModInitializer {
             var state = world.getBlockState(pos);
             if (state.is(Blocks.EMERALD_BLOCK) && player instanceof ServerPlayer sp) {
                 if (UndyingAnchorActivationHandler.tryActivate(sp, world, pos, hand)) {
+                    return InteractionResult.SUCCESS;
+                }
+            }
+            if (state.is(Blocks.SOUL_CAMPFIRE) && player instanceof ServerPlayer sp2) {
+                if (FarmShrineActivationHandler.tryActivate(sp2, world, pos, hand)) {
                     return InteractionResult.SUCCESS;
                 }
             }

@@ -40,7 +40,7 @@ public final class DimensionPolicyRegistry {
 
     /**
      * @param civilization when false, civilization score is treated as 0 and zone/score spawn stages are skipped.
-     * @param headMechanics when false, HEAD_NEARBY / HEAD_SUPPRESS spawn stages are skipped for the dimension.
+     * @param headMechanics when false, SHRINE_NEARBY / SHRINE_SUPPRESS spawn stages are skipped for the dimension.
      */
     public record DimensionPolicy(boolean civilization, boolean headMechanics) {
     }

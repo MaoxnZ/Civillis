@@ -159,7 +159,7 @@ public final class UndyingAnchorTracker {
 
         int centerVCX = pos.getX() >> 4;
         int centerVCZ = pos.getZ() >> 4;
-        int vcRadius = (maxDist + 16) / 16;
+        int vcRadius = maxDist <= 0 ? 0 : (maxDist + 16) / 16;
 
         List<AnchorEntry> candidates = new ArrayList<>();
         for (int dx = -vcRadius; dx <= vcRadius; dx++) {

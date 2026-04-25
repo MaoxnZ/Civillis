@@ -1,5 +1,6 @@
 package civil;
 
+import civil.civilization.FarmShrineTracker;
 import civil.civilization.HeadTracker;
 import civil.civilization.UndyingAnchorTracker;
 import civil.civilization.ZonePolicyService;
@@ -20,6 +21,7 @@ public final class CivilServices {
     private static CivilizationCache civilizationCache;
     private static HeadTracker headTracker;
     private static UndyingAnchorTracker undyingAnchorTracker;
+    private static FarmShrineTracker farmShrineTracker;
     private static ZonePolicyService zonePolicyService;
 
     private CivilServices() {
@@ -39,6 +41,10 @@ public final class CivilServices {
 
     public static void initUndyingAnchorTracker(UndyingAnchorTracker tracker) {
         undyingAnchorTracker = tracker;
+    }
+
+    public static void initFarmShrineTracker(FarmShrineTracker tracker) {
+        farmShrineTracker = tracker;
     }
 
     public static void initZonePolicyService(ZonePolicyService service) {
@@ -62,6 +68,11 @@ public final class CivilServices {
     /** Undying anchor tracker for civil save system. null if not initialized. */
     public static UndyingAnchorTracker getUndyingAnchorTracker() {
         return undyingAnchorTracker;
+    }
+
+    /** Farm shrine tracker (spawn bypass / conversion / suppression). null if not initialized. */
+    public static FarmShrineTracker getFarmShrineTracker() {
+        return farmShrineTracker;
     }
 
     /** Zone policy (structure-based spawn bypass + caution semantics). null if not initialized. */

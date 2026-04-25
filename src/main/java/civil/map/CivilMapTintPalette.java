@@ -3,19 +3,18 @@ package civil.map;
 import civil.CivilServices;
 import civil.config.CivilConfig;
 import civil.civilization.CScore;
-import civil.civilization.HeadTracker;
+import civil.civilization.FarmShrineTracker;
+import civil.registry.DimensionPolicyRegistry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.EntityType;
-
-import java.util.List;
 
 /**
  * Encodes civil map tint bands as bytes for network + client blending.
  * <p>
  * Map overlay policy (simple): only {@link #HIGH} (white tint) and {@link #MONSTER} (purple tint) are sent;
- * all other cases use {@link #UNKNOWN} (no overlay). Legacy bytes {@link #LOW} / {@link #MEDIUM} /
- * {@link #DIM_DISABLED} may still exist in old saves; the client ignores them for blending.
+ * all other cases use {@link #UNKNOWN} (no overlay). {@link #MONSTER} indicates an activated farm shrine
+ * bypass box covering the sampled position (when head mechanics are enabled). Legacy bytes
+ * {@link #LOW} / {@link #MEDIUM} / {@link #DIM_DISABLED} may still exist in old saves; the client ignores them for blending.
  */
 public final class CivilMapTintPalette {
 
@@ -43,7 +42,7 @@ public final class CivilMapTintPalette {
      * Same as {@link #tintForChunk} but records why civilization path yielded {@link #UNKNOWN}.
      */
     public static ChunkTintEval evaluateTintForChunk(ServerLevel level, int cx, int cz, int sy) {
-        if (!civil.registry.DimensionPolicyRegistry.policyFor(level).civilization()) {
+        if (!DimensionPolicyRegistry.policyFor(level).civilization()) {
             return new ChunkTintEval(UNKNOWN, null);
         }
         int dimMinY = level.dimensionType().minY();
@@ -52,16 +51,13 @@ public final class CivilMapTintPalette {
         int y = Math.max(dimMinY, Math.min(dimMaxY, yIdeal));
         BlockPos pos = new BlockPos(cx * 16 + 8, y, cz * 16 + 8);
 
-        HeadTracker registry = CivilServices.getHeadTracker();
-        if (registry != null && registry.isInitialized()) {
-            String dim = level.dimension().identifier().toString();
-            List<EntityType<?>> headTypes = registry.getHeadTypesNear(
-                    dim, pos,
-                    CivilConfig.headRangeX,
-                    CivilConfig.headRangeZ,
-                    CivilConfig.headRangeY);
-            if (!headTypes.isEmpty()) {
-                return new ChunkTintEval(MONSTER, null);
+        if (DimensionPolicyRegistry.policyFor(level).headMechanics()) {
+            FarmShrineTracker shrines = CivilServices.getFarmShrineTracker();
+            if (shrines != null && shrines.isInitialized()) {
+                String dim = level.dimension().identifier().toString();
+                if (shrines.isInsideAnyBypassBox(dim, pos)) {
+                    return new ChunkTintEval(MONSTER, null);
+                }
             }
         }
 

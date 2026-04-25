@@ -3,11 +3,11 @@ package civil.aura;
 import civil.CivilMod;
 import civil.CivilServices;
 import civil.ModSounds;
-import civil.civilization.HeadTracker;
+import civil.civilization.FarmShrineTracker;
 import civil.civilization.VoxelChunkKey;
-import civil.registry.HeadTypeRegistry;
 import civil.config.CivilConfig;
 import civil.CivilPlatform;
+import civil.registry.DimensionPolicyRegistry;
 import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -40,8 +40,8 @@ public final class SonarScanManager {
     /** Wall extends this many blocks above and below the scan center Y. */
     private static final double WALL_HALF_HEIGHT = 48.0;
 
-    /** Vertical padding (blocks) above and below a head's voxel chunk for the zone envelope. */
-    private static final double HEAD_ZONE_Y_PADDING = 8.0;
+    /** Vertical padding (blocks) above and below a shrine bypass voxel chunk for the zone envelope. */
+    private static final double SHRINE_ZONE_Y_PADDING = 8.0;
 
     /**
      * Server ticks after scan start before the charge-up sound plays.
@@ -160,19 +160,19 @@ public final class SonarScanManager {
         long worldTick = serverWorld.getGameTime();
         SonarScan scan = new SonarScan(serverWorld, origin, worldTick);
 
-        boolean playerInHeadZone = isPositionInHeadZone(serverWorld, origin);
+        boolean playerInShrineZone = isPositionInShrineZone(serverWorld, origin);
 
         double originX = origin.getX() + 0.5;
         double originY = origin.getY() + 0.5;
         double originZ = origin.getZ() + 0.5;
 
-        ScanSession session = new ScanSession(scan, scanRadius, playerInHeadZone,
+        ScanSession session = new ScanSession(scan, scanRadius, playerInShrineZone,
                 originX, originY, originZ, type);
         ACTIVE_SCANS.put(player.getUUID(), session);
 
         if (CivilMod.DEBUG) {
-            LOGGER.info("[civil-sonar] Started {} scan for player {} (inHigh={}, inHeadZone={}, radius={})",
-                    type.name(), player.getName().getString(), scan.isPlayerInHigh(), playerInHeadZone, scanRadius);
+            LOGGER.info("[civil-sonar] Started {} scan for player {} (inHigh={}, inShrineZone={}, radius={})",
+                    type.name(), player.getName().getString(), scan.isPlayerInHigh(), playerInShrineZone, scanRadius);
         }
     }
 
@@ -190,48 +190,16 @@ public final class SonarScanManager {
         return true;
     }
 
-    /**
-     * Check if the player is within any mob head's Force Allow neighborhood.
-     * Uses VC-level XZ range checks and strict same-sy Y check, consistent
-     * with the detector sound's {@code getHeadTypesNear(headRangeY=0)} and
-     * the shockwave ring's particle zone lookup.
-     */
-    private static boolean isPlayerInHeadZone(ServerPlayer player, ServerLevel world) {
-        return isPositionInHeadZone(world, player.blockPosition());
-    }
-
-    private static boolean isPositionInHeadZone(ServerLevel world, net.minecraft.core.BlockPos pos) {
-        HeadTracker registry = CivilServices.getHeadTracker();
-        if (registry == null || !registry.isInitialized()) return false;
-
-        String dim = world.dimension().identifier().toString();
-        var allHeads = registry.getHeadsInDimension(dim);
-        if (allHeads.isEmpty()) return false;
-
-        String dimId = world.dimension().identifier().toString();
-
-        VoxelChunkKey playerVC = VoxelChunkKey.from(pos);
-        int pcx = playerVC.getCx();
-        int pcz = playerVC.getCz();
-        int playerBlockY = pos.getY();
-        int rangeCX = CivilConfig.headRangeX;
-        int rangeCZ = CivilConfig.headRangeZ;
-
-        int psy = Math.floorDiv(playerBlockY, 16);
-
-        for (HeadTracker.HeadEntry head : allHeads) {
-            if (!HeadTypeRegistry.isEnabled(head.skullType(), dimId)) continue;
-
-            int hcx = head.x() >> 4;
-            int hcz = head.z() >> 4;
-            int hsy = Math.floorDiv(head.y(), 16);
-            if (Math.abs(pcx - hcx) <= rangeCX
-                    && Math.abs(pcz - hcz) <= rangeCZ
-                    && psy == hsy) {
-                return true;
-            }
+    private static boolean isPositionInShrineZone(ServerLevel world, net.minecraft.core.BlockPos pos) {
+        if (!DimensionPolicyRegistry.policyFor(world).headMechanics()) {
+            return false;
         }
-        return false;
+        FarmShrineTracker tracker = CivilServices.getFarmShrineTracker();
+        if (tracker == null || !tracker.isInitialized()) {
+            return false;
+        }
+        String dim = world.dimension().identifier().toString();
+        return tracker.isInsideAnyBypassBox(dim, pos);
     }
 
     /**
@@ -265,7 +233,7 @@ public final class SonarScanManager {
             }
             CivilPlatform.sendToPlayer(player,
                     new SonarChargePayload(session.originX, session.originY, session.originZ,
-                            session.scan.isPlayerInHigh(), session.playerInHeadZone, type.id()));
+                            session.scan.isPlayerInHigh(), session.playerInShrineZone, type.id()));
         }
 
         // Advance BFS one ring (if still running — small envelopes finish early)
@@ -285,22 +253,18 @@ public final class SonarScanManager {
     /**
      * Build and send the boundary payload to the player.
      *
-     * <p>Head zone boundaries are computed first because the force-allow 2D footprint
+     * <p>Shrine bypass boundaries are computed first because the bypass 2D footprint
      * is used to filter civilization faces: <b>gold walls must not appear inside or
-     * on top of purple head zone walls</b> (purple has higher visual priority).
+     * on top of purple shrine bypass walls</b> (purple has higher visual priority).
      */
     private static void sendBoundaryPacket(ServerPlayer player, SonarScan scan,
                                            double originX, double originY, double originZ,
                                            SonarType sonarType) {
-        // 1. Compute head zones first — we need the 2D footprint to filter civ faces.
-        HeadZoneResult headResult = computeHeadZoneData(scan);
+        ShrineZoneResult shrineResult = computeShrineZoneData(scan);
 
-        // 2. Build civilization faces, excluding any that touch the force-allow footprint.
-        //    A civ face is between two neighboring VCs; if EITHER VC's (cx, cz) falls inside
-        //    the force-allow 2D footprint, the face is suppressed (purple takes priority).
-        Set<Long> forceAllow2D = headResult.forceAllow2D;
+        Set<Long> shrineBypass2D = shrineResult.shrineBypass2D;
         List<BoundaryFaceData> faces;
-        if (forceAllow2D.isEmpty()) {
+        if (shrineBypass2D.isEmpty()) {
             faces = scan.getAllBoundaries().stream()
                     .map(BoundaryFaceData::fromBoundaryFace)
                     .toList();
@@ -309,7 +273,7 @@ public final class SonarScanManager {
                     .filter(bf -> {
                         long highXZ = packXZ(bf.highSide().getCx(), bf.highSide().getCz());
                         long lowXZ  = packXZ(bf.lowSide().getCx(), bf.lowSide().getCz());
-                        return !forceAllow2D.contains(highXZ) && !forceAllow2D.contains(lowXZ);
+                        return !shrineBypass2D.contains(highXZ) && !shrineBypass2D.contains(lowXZ);
                     })
                     .map(BoundaryFaceData::fromBoundaryFace)
                     .toList();
@@ -322,17 +286,15 @@ public final class SonarScanManager {
         double wallMinY = cy - WALL_HALF_HEIGHT;
         double wallMaxY = cy + WALL_HALF_HEIGHT;
 
-        // Convert force-allow 2D footprint + Y ranges to parallel arrays for the payload.
-        // The client uses this for sonar particle effects (FLAME in head zones with Y check).
-        int headZoneSize = headResult.headZoneYRanges.size();
-        long[] headZone2DArray = new long[headZoneSize];
-        float[] headZoneMinYArray = new float[headZoneSize];
-        float[] headZoneMaxYArray = new float[headZoneSize];
+        int shrineZoneSize = shrineResult.shrineZoneYRanges.size();
+        long[] shrineZone2DArray = new long[shrineZoneSize];
+        float[] shrineZoneMinYArray = new float[shrineZoneSize];
+        float[] shrineZoneMaxYArray = new float[shrineZoneSize];
         int idx = 0;
-        for (var entry : headResult.headZoneYRanges.entrySet()) {
-            headZone2DArray[idx] = entry.getKey();
-            headZoneMinYArray[idx] = entry.getValue()[0];
-            headZoneMaxYArray[idx] = entry.getValue()[1];
+        for (var entry : shrineResult.shrineZoneYRanges.entrySet()) {
+            shrineZone2DArray[idx] = entry.getKey();
+            shrineZoneMinYArray[idx] = entry.getValue()[0];
+            shrineZoneMaxYArray[idx] = entry.getValue()[1];
             idx++;
         }
 
@@ -378,8 +340,8 @@ public final class SonarScanManager {
 
         SonarBoundaryPayload payload = new SonarBoundaryPayload(
                 scan.isPlayerInHigh(), cx, cy, cz, wallMinY, wallMaxY,
-                faces, headResult.faces, headZone2DArray,
-                headZoneMinYArray, headZoneMaxYArray, civHighZone2DArray, sonarType.id());
+                faces, shrineResult.faces, shrineZone2DArray,
+                shrineZoneMinYArray, shrineZoneMaxYArray, civHighZone2DArray, sonarType.id());
 
         CivilPlatform.sendToPlayer(player, payload);
 
@@ -387,139 +349,91 @@ public final class SonarScanManager {
                 originX, originY, originZ, BOOM_DELAY_TICKS, sonarType));
 
         if (CivilMod.DEBUG) {
-            LOGGER.info("[civil-sonar] Sent boundary packet to {}: {} civ faces, {} head faces, wall Y=[{}, {}]",
-                    player.getName().getString(), faces.size(), headResult.faces.size(),
+            LOGGER.info("[civil-sonar] Sent boundary packet to {}: {} civ faces, {} shrine faces, wall Y=[{}, {}]",
+                    player.getName().getString(), faces.size(), shrineResult.faces.size(),
                     String.format("%.0f", wallMinY), String.format("%.0f", wallMaxY));
         }
     }
 
-    // ========== Head zone boundary computation ==========
+    // ========== Shrine bypass boundary computation ==========
 
-    /**
-     * Lightweight voxel chunk coordinate triple for set operations.
-     * Only used within head zone boundary computation.
-     */
     private record VC3(int cx, int cz, int sy) {}
 
-    /**
-     * Result of head zone boundary computation.
-     *
-     * @param faces        boundary faces for client-side rendering
-     * @param forceAllow2D 2D (XZ) footprint of all force-allow VCs, packed as
-     *                     {@link #packXZ(int, int)}. Used to filter civilization faces
-     *                     that overlap with head zones (purple takes priority over gold).
-     * @param headZoneYRanges per (cx,cz) Y range: packed long key → float[]{minY, maxY}.
-     *                        Used for sonar particle Y-aware head zone checks.
-     */
-    private record HeadZoneResult(List<HeadZoneFaceData> faces, Set<Long> forceAllow2D,
-                                  Map<Long, float[]> headZoneYRanges) {
-        static final HeadZoneResult EMPTY = new HeadZoneResult(List.of(), Set.of(), Map.of());
+    private record ShrineZoneResult(List<ShrineFaceData> faces, Set<Long> shrineBypass2D,
+                                    Map<Long, float[]> shrineZoneYRanges) {
+        static final ShrineZoneResult EMPTY = new ShrineZoneResult(List.of(), Set.of(), Map.of());
     }
 
-    /**
-     * Pack two ints (cx, cz) into a single long for fast set operations.
-     */
     private static long packXZ(int cx, int cz) {
         return ((long) cx << 32) | (cz & 0xFFFFFFFFL);
     }
 
-    /**
-     * Compute head zone boundary faces AND the 2D force-allow footprint.
-     *
-     * <p>The 2D footprint is the XZ projection of all force-allow VCs (ignoring Y),
-     * used by {@link #sendBoundaryPacket} to suppress gold civilization faces that
-     * fall inside or on the edge of a head zone.
-     *
-     * <p>Algorithm:
-     * <ol>
-     *   <li>Collect all heads in the current dimension from {@link HeadTracker}.</li>
-     *   <li>For each head within range, expand its 3×3×1 VC force-allow zone.</li>
-     *   <li>Build a set of all force-allow VCs (union of all head zones).</li>
-     *   <li>Project to 2D for civilization face filtering.</li>
-     *   <li>For each force-allow VC, check its 4 XZ neighbors. If a neighbor is NOT
-     *       in the force-allow set, create a boundary face.</li>
-     *   <li>Each face carries per-face vertical extent: head VC height (16 blocks)
-     *       + {@link #HEAD_ZONE_Y_PADDING} blocks padding above and below.</li>
-     * </ol>
-     *
-     * @return head zone faces + 2D footprint; {@link HeadZoneResult#EMPTY} if no heads in range
-     */
-    private static HeadZoneResult computeHeadZoneData(SonarScan scan) {
+    private static ShrineZoneResult computeShrineZoneData(SonarScan scan) {
         ServerLevel world = scan.getWorld();
-        String dim = world.dimension().identifier().toString();
-        HeadTracker registry = CivilServices.getHeadTracker();
-        if (registry == null || !registry.isInitialized()) return HeadZoneResult.EMPTY;
-
-        var allHeads = registry.getHeadsInDimension(dim);
-        if (allHeads.isEmpty()) return HeadZoneResult.EMPTY;
-
-        String dimId = world.dimension().identifier().toString();
-
-        VoxelChunkKey center = scan.getCenter();
-        int maxRange = SonarScan.MAX_RADIUS + 2; // Include heads slightly beyond scan range
-
-        int rangeCX = CivilConfig.headRangeX; // typically 1
-        int rangeCZ = CivilConfig.headRangeZ; // typically 1
-
-        // Build set of all force-allow VCs from nearby heads
-        Set<VC3> forceAllowVCs = new HashSet<>();
-
-        for (HeadTracker.HeadEntry head : allHeads) {
-            if (!HeadTypeRegistry.isEnabled(head.skullType(), dimId)) continue;
-
-            int hcx = head.x() >> 4;
-            int hcz = head.z() >> 4;
-            int hsy = Math.floorDiv(head.y(), 16);
-
-            // Skip heads too far from scan center (Manhattan distance check)
-            if (Math.abs(hcx - center.getCx()) > maxRange + rangeCX
-                    || Math.abs(hcz - center.getCz()) > maxRange + rangeCZ) {
-                continue;
-            }
-
-            // Expand 3×3×1 neighborhood (headRangeX × headRangeZ, headRangeY=0)
-            for (int dx = -rangeCX; dx <= rangeCX; dx++) {
-                for (int dz = -rangeCZ; dz <= rangeCZ; dz++) {
-                    forceAllowVCs.add(new VC3(hcx + dx, hcz + dz, hsy));
-                }
-            }
+        if (!DimensionPolicyRegistry.policyFor(world).headMechanics()) {
+            return ShrineZoneResult.EMPTY;
+        }
+        FarmShrineTracker tracker = CivilServices.getFarmShrineTracker();
+        if (tracker == null || !tracker.isInitialized()) {
+            return ShrineZoneResult.EMPTY;
         }
 
-        if (forceAllowVCs.isEmpty()) return HeadZoneResult.EMPTY;
+        String dim = world.dimension().identifier().toString();
+        VoxelChunkKey center = scan.getCenter();
+        int maxRange = SonarScan.MAX_RADIUS + 2;
 
-        // Build 2D (XZ) footprint for civilization face filtering,
-        // and per-(cx,cz) Y ranges for sonar particle head zone checks.
-        Set<Long> forceAllow2D = new HashSet<>();
-        Map<Long, float[]> headZoneYRanges = new HashMap<>();
-        for (VC3 vc : forceAllowVCs) {
+        int rx = CivilConfig.farmShrineRangeX;
+        int rz = CivilConfig.farmShrineRangeZ;
+        int ry = CivilConfig.farmShrineRangeY;
+
+        Set<VC3> bypassVCs = new HashSet<>();
+        tracker.forEachActivatedShrine(dim, shrine -> {
+            int avcx = shrine.x() >> 4;
+            int avcz = shrine.z() >> 4;
+            int avcy = Math.floorDiv(shrine.y(), 16);
+            if (Math.abs(avcx - center.getCx()) > maxRange + rx
+                    || Math.abs(avcz - center.getCz()) > maxRange + rz) {
+                return;
+            }
+            for (int dx = -rx; dx <= rx; dx++) {
+                for (int dz = -rz; dz <= rz; dz++) {
+                    for (int dy = -ry; dy <= ry; dy++) {
+                        bypassVCs.add(new VC3(avcx + dx, avcz + dz, avcy + dy));
+                    }
+                }
+            }
+        });
+
+        if (bypassVCs.isEmpty()) {
+            return ShrineZoneResult.EMPTY;
+        }
+
+        Set<Long> shrineBypass2D = new HashSet<>();
+        Map<Long, float[]> shrineZoneYRanges = new HashMap<>();
+        for (VC3 vc : bypassVCs) {
             long packedXZ = packXZ(vc.cx, vc.cz);
-            forceAllow2D.add(packedXZ);
-            // Merge Y range: exact VC height [sy*16 .. (sy+1)*16), strict same-sy
+            shrineBypass2D.add(packedXZ);
             float vcMinY = vc.sy * 16.0f;
             float vcMaxY = (vc.sy + 1) * 16.0f;
-            float[] existing = headZoneYRanges.get(packedXZ);
+            float[] existing = shrineZoneYRanges.get(packedXZ);
             if (existing == null) {
-                headZoneYRanges.put(packedXZ, new float[]{vcMinY, vcMaxY});
+                shrineZoneYRanges.put(packedXZ, new float[]{vcMinY, vcMaxY});
             } else {
-                // Multiple heads at same XZ but different Y — expand range
                 existing[0] = Math.min(existing[0], vcMinY);
                 existing[1] = Math.max(existing[1], vcMaxY);
             }
         }
 
-        // XZ neighbor offsets:     +X,      -X,       +Z,      -Z
-        int[][] xzNeighbors =    {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        byte[]  neighborAxes =   {0,       0,       2,       2     }; // X, X, Z, Z
-        boolean[] neighborPos =  {true,    false,   true,    false  };
+        int[][] xzNeighbors = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        byte[] neighborAxes = {0, 0, 2, 2};
+        boolean[] neighborPos = {true, false, true, false};
 
         int filterRange = SonarScan.MAX_RADIUS + 1;
 
-        List<HeadZoneFaceData> faces = new ArrayList<>();
-        // Dedup key — prevents duplicate faces from overlapping zones
+        List<ShrineFaceData> faces = new ArrayList<>();
         Set<Long> dedup = new HashSet<>();
 
-        for (VC3 vc : forceAllowVCs) {
-            // Skip VCs too far from center for rendering
+        for (VC3 vc : bypassVCs) {
             if (Math.abs(vc.cx - center.getCx()) > filterRange
                     || Math.abs(vc.cz - center.getCz()) > filterRange) {
                 continue;
@@ -530,41 +444,37 @@ public final class SonarScanManager {
                 int ncz = vc.cz + xzNeighbors[n][1];
                 VC3 neighbor = new VC3(ncx, ncz, vc.sy);
 
-                if (!forceAllowVCs.contains(neighbor)) {
-                    // Boundary found — this face is on the edge of the force-allow zone.
+                if (!bypassVCs.contains(neighbor)) {
                     byte axis = neighborAxes[n];
                     boolean positive = neighborPos[n];
 
                     double planeCoord;
                     double minU;
-                    if (axis == 0) { // X axis
+                    if (axis == 0) {
                         planeCoord = positive ? (vc.cx + 1) * 16.0 : vc.cx * 16.0;
                         minU = vc.cz * 16.0;
-                    } else { // Z axis
+                    } else {
                         planeCoord = positive ? (vc.cz + 1) * 16.0 : vc.cz * 16.0;
                         minU = vc.cx * 16.0;
                     }
 
-                    // Per-face vertical extent: VC height + padding
-                    double faceMinY = vc.sy * 16.0 - HEAD_ZONE_Y_PADDING;
-                    double faceMaxY = (vc.sy + 1) * 16.0 + HEAD_ZONE_Y_PADDING;
+                    double faceMinY = vc.sy * 16.0 - SHRINE_ZONE_Y_PADDING;
+                    double faceMaxY = (vc.sy + 1) * 16.0 + SHRINE_ZONE_Y_PADDING;
 
-                    // Dedup using combined hash of all face identity fields
                     long dedupKey = dedupHash(axis, planeCoord, minU, vc.sy);
                     if (dedup.add(dedupKey)) {
-                        faces.add(new HeadZoneFaceData(axis, planeCoord, minU, positive,
-                                faceMinY, faceMaxY));
+                        faces.add(new ShrineFaceData(axis, planeCoord, minU, positive, faceMinY, faceMaxY));
                     }
                 }
             }
         }
 
         if (CivilMod.DEBUG && !faces.isEmpty()) {
-            LOGGER.info("[civil-sonar] Computed {} head zone boundary faces from {} force-allow VCs (2D footprint: {} cells)",
-                    faces.size(), forceAllowVCs.size(), forceAllow2D.size());
+            LOGGER.info("[civil-sonar] Computed {} shrine bypass boundary faces from {} VCs (2D footprint: {} cells)",
+                    faces.size(), bypassVCs.size(), shrineBypass2D.size());
         }
 
-        return new HeadZoneResult(faces, forceAllow2D, headZoneYRanges);
+        return new ShrineZoneResult(faces, shrineBypass2D, shrineZoneYRanges);
     }
 
     /**
@@ -594,7 +504,7 @@ public final class SonarScanManager {
     private static final class ScanSession {
         final SonarScan scan;
         final int scanRadius;
-        final boolean playerInHeadZone;
+        final boolean playerInShrineZone;
         final double originX;
         final double originY;
         final double originZ;
@@ -602,11 +512,11 @@ public final class SonarScanManager {
         int ticksElapsed;
         boolean chargePlayed;
 
-        ScanSession(SonarScan scan, int scanRadius, boolean playerInHeadZone,
+        ScanSession(SonarScan scan, int scanRadius, boolean playerInShrineZone,
                     double originX, double originY, double originZ, SonarType type) {
             this.scan = scan;
             this.scanRadius = scanRadius;
-            this.playerInHeadZone = playerInHeadZone;
+            this.playerInShrineZone = playerInShrineZone;
             this.originX = originX;
             this.originY = originY;
             this.originZ = originZ;

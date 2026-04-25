@@ -2,12 +2,10 @@ package civil.mob;
 
 import civil.CivilMod;
 import civil.CivilServices;
-import civil.civilization.HeadTracker;
+import civil.civilization.FarmShrineTracker;
 import civil.civilization.ZonePolicyService;
-import civil.civilization.HeadTracker.HeadEntry;
 import civil.config.CivilConfig;
-import civil.registry.HeadTypeRegistry;
-import civil.registry.HeadTypeRegistry.HeadTypeEntry;
+import civil.registry.DimensionPolicyRegistry;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.core.particles.ParticleTypes;
@@ -37,8 +35,7 @@ import java.util.EnumSet;
  *
  * <p>Flee target selection uses a two-phase approach:
  * <ol>
- *   <li>VC-based head zone search: pure integer arithmetic, finds the nearest
- *       Force Allow zone within a 1-VC-expanded ring. Zero sqrt.</li>
+ *   <li>Nearest activated farm shrine anchor within attract radius (when not inside a bypass box).</li>
  *   <li>8-direction gradient descent: samples civilization scores and picks
  *       the direction with the lowest value.</li>
  * </ol>
@@ -103,12 +100,12 @@ public final class FleeCivilizationGoal extends Goal {
         var civService = CivilServices.getCivilizationService();
         if (civService == null) return false;
 
-        HeadTracker tracker = CivilServices.getHeadTracker();
-        if (tracker != null && tracker.isInitialized()) {
-            HeadTracker.HeadQuery hq = tracker.queryHeads(
-                    world.dimension().identifier().toString(), mob.blockPosition(),
-                    CivilConfig.headRangeX, CivilConfig.headRangeZ, CivilConfig.headRangeY);
-            if (hq.hasNearbyHeads()) return false;
+        if (DimensionPolicyRegistry.policyFor(world.dimension().identifier().toString()).headMechanics()) {
+            FarmShrineTracker shrines = CivilServices.getFarmShrineTracker();
+            if (shrines != null && shrines.isInitialized()) {
+                String dim = world.dimension().identifier().toString();
+                if (shrines.isInsideAnyBypassBox(dim, mob.blockPosition())) return false;
+            }
         }
 
         ZonePolicyService zonePolicyService = CivilServices.getZonePolicyService();
@@ -185,12 +182,15 @@ public final class FleeCivilizationGoal extends Goal {
 
         double score = civService.getScoreAt(world, mob.blockPosition());
 
-        HeadTracker tracker = CivilServices.getHeadTracker();
-        if (tracker != null && tracker.isInitialized()) {
-            HeadTracker.HeadQuery hq = tracker.queryHeads(
-                    world.dimension().identifier().toString(), mob.blockPosition(),
-                    CivilConfig.headRangeX, CivilConfig.headRangeZ, CivilConfig.headRangeY);
-            if (hq.hasNearbyHeads()) { stopReason = "head_zone"; return false; }
+        if (DimensionPolicyRegistry.policyFor(world.dimension().identifier().toString()).headMechanics()) {
+            FarmShrineTracker shrines = CivilServices.getFarmShrineTracker();
+            if (shrines != null && shrines.isInitialized()) {
+                String dim = world.dimension().identifier().toString();
+                if (shrines.isInsideAnyBypassBox(dim, mob.blockPosition())) {
+                    stopReason = "shrine_bypass";
+                    return false;
+                }
+            }
         }
 
         if (mob.getNavigation().isDone() && ticksFleeing > 20) { stopReason = "stuck"; return false; }
@@ -251,58 +251,21 @@ public final class FleeCivilizationGoal extends Goal {
         int mobY = pos.getY();
         int mobZ = pos.getZ();
 
-        BlockPos headTarget = findHeadZoneTarget(world, mobX, mobY, mobZ);
-        if (headTarget != null) return headTarget;
+        BlockPos shrineTarget = findShrineAnchorTarget(world, mobX, mobY, mobZ);
+        if (shrineTarget != null) return shrineTarget;
 
         return findGradientTarget(world, pos, mobX, mobY, mobZ);
     }
 
-    /**
-     * Phase 1: VC-based head zone search.
-     * Finds the nearest Force Allow zone within the search ring (ForceAllow + 1 VC).
-     * Pure integer arithmetic, zero sqrt.
-     */
-    private BlockPos findHeadZoneTarget(ServerLevel world, int mobX, int mobY, int mobZ) {
-        HeadTracker tracker = CivilServices.getHeadTracker();
-        if (tracker == null || !tracker.isInitialized()) return null;
-
-        String dim = world.dimension().identifier().toString();
-        String dimId = world.dimension().identifier().toString();
-
-        int mobCx = mobX >> 4;
-        int mobCz = mobZ >> 4;
-        int mobSy = Math.floorDiv(mobY, 16);
-
-        int searchRangeX = CivilConfig.headRangeX + 1;
-        int searchRangeZ = CivilConfig.headRangeZ + 1;
-        int searchRangeY = CivilConfig.headRangeY + 1;
-
-        BlockPos bestTarget = null;
-        int bestVcDist = Integer.MAX_VALUE;
-
-        for (HeadEntry head : tracker.getHeadsInDimension(dim)) {
-            HeadTypeEntry entry = HeadTypeRegistry.get(head.skullType());
-            if (entry == null || !entry.enabled() || !entry.isActiveIn(dimId)) continue;
-
-            int headCx = head.x() >> 4;
-            int headCz = head.z() >> 4;
-            int headSy = Math.floorDiv(head.y(), 16);
-
-            int dcx = Math.abs(mobCx - headCx);
-            int dcz = Math.abs(mobCz - headCz);
-            int dsy = Math.abs(mobSy - headSy);
-
-            if (dcx <= searchRangeX && dcz <= searchRangeZ && dsy <= searchRangeY) {
-                int vcDist = dcx + dcz + dsy;
-                if (vcDist < bestVcDist) {
-                    bestVcDist = vcDist;
-
-                    bestTarget = new BlockPos(head.x(), head.y(), head.z());
-                }
-            }
+    /** Phase 1: nearest activated shrine anchor within {@link CivilConfig#farmShrineAttractMaxRadius}. */
+    private BlockPos findShrineAnchorTarget(ServerLevel world, int mobX, int mobY, int mobZ) {
+        if (!DimensionPolicyRegistry.policyFor(world.dimension().identifier().toString()).headMechanics()) {
+            return null;
         }
-
-        return bestTarget;
+        FarmShrineTracker tracker = CivilServices.getFarmShrineTracker();
+        if (tracker == null || !tracker.isInitialized()) return null;
+        String dim = world.dimension().identifier().toString();
+        return tracker.findNearestShrineAnchorWithinAttract(dim, new BlockPos(mobX, mobY, mobZ));
     }
 
     /**

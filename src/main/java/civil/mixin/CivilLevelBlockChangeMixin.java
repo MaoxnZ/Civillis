@@ -16,13 +16,22 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Objects;
 
 @Mixin(Level.class)
 public abstract class CivilLevelBlockChangeMixin {
 
+    /**
+     * Per-thread stack of old block states at {@code setBlock} HEAD. Nested {@code setBlock}
+     * (neighbor updates, block entity callbacks, etc.) must not share a single {@link ThreadLocal}
+     * slot: an inner RETURN must not {@code remove()} the outer frame's captured old state.
+     */
     @Unique
-    private static final ThreadLocal<BlockState> civil$oldBlockState = ThreadLocal.withInitial(() -> null);
+    private static final ThreadLocal<Deque<BlockState>> civil$oldStateStack =
+            ThreadLocal.withInitial(ArrayDeque::new);
 
     @Inject(
             method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",
@@ -32,7 +41,7 @@ public abstract class CivilLevelBlockChangeMixin {
     private void civil$captureOldState(BlockPos pos, BlockState state, int flags, int maxUpdateDepth, CallbackInfoReturnable<Boolean> cir) {
         BlockPos safePos = Objects.requireNonNull(pos, "pos");
         if ((Object) this instanceof ServerLevel) {
-            civil$oldBlockState.set(((Level) (Object) this).getBlockState(safePos));
+            civil$oldStateStack.get().push(((Level) (Object) this).getBlockState(safePos));
         }
     }
 
@@ -41,10 +50,17 @@ public abstract class CivilLevelBlockChangeMixin {
             at = @At("RETURN")
     )
     private void civil$onBlockSet(BlockPos pos, BlockState state, int flags, int maxUpdateDepth, CallbackInfoReturnable<Boolean> cir) {
-        if (!cir.getReturnValueZ()) {
+        if (!((Object) this instanceof ServerLevel serverWorld)) {
             return;
         }
-        if (!((Object) this instanceof ServerLevel serverWorld)) {
+
+        Deque<BlockState> stack = civil$oldStateStack.get();
+        BlockState oldState = stack.isEmpty() ? null : stack.pop();
+        if (stack.isEmpty()) {
+            civil$oldStateStack.remove();
+        }
+
+        if (!cir.getReturnValueZ()) {
             return;
         }
 
@@ -65,8 +81,7 @@ public abstract class CivilLevelBlockChangeMixin {
         // is involved in the transition (old or new). Non-civilization-only changes
         // are ignored to avoid unnecessary 4096-block scans.
         ScalableCivilizationService scalableService = CivilServices.getScalableService();
-        BlockState oldStateForCivil = civil$oldBlockState.get();
-        boolean oldIsCivil = oldStateForCivil != null && BlockScanner.isTargetBlock(oldStateForCivil);
+        boolean oldIsCivil = oldState != null && BlockScanner.isTargetBlock(oldState);
         boolean newIsCivil = BlockScanner.isTargetBlock(state);
         if (scalableService != null && (oldIsCivil || newIsCivil)) {
             scalableService.onCivilBlockChanged(serverWorld, pos);
@@ -87,11 +102,9 @@ public abstract class CivilLevelBlockChangeMixin {
         }
 
         // Structure invalidation (uses OLD block state). Delegates to per-structure listeners.
-        BlockState oldState = civil$oldBlockState.get();
-        civil$oldBlockState.remove();
         if (oldState != null) {
             for (StructureBlockChangeListener listener : StructureBlockChangeListeners.LISTENERS) {
-                listener.onBlockRemoved(serverWorld, pos, oldState);
+                listener.onBlockChanged(serverWorld, pos, oldState, state);
             }
         }
     }

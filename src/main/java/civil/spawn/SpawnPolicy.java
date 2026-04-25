@@ -3,7 +3,7 @@ package civil.spawn;
 import civil.CivilMod;
 import civil.CivilServices;
 import civil.civilization.CScore;
-import civil.civilization.HeadTracker;
+import civil.civilization.FarmShrineTracker;
 import civil.civilization.ZonePolicyService;
 import civil.config.CivilConfig;
 import civil.registry.DimensionPolicyRegistry;
@@ -14,7 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 
 /**
- * Fusion Architecture spawn policy — dimension policy (civilization gate first), then heads,
+ * Fusion Architecture spawn policy — dimension policy (civilization gate first), then farm shrines,
  * datapack spawn-gate whitelist, zone policy, then civilization score.
  *
  * <p>{@link DimensionPolicyRegistry} (datapack {@code civil_dimension_policies}) can disable
@@ -24,9 +24,10 @@ import net.minecraft.util.RandomSource;
  *
  * <p>When civilization is on, decision priority is:
  * <ol>
- *   <li>HEAD_NEARBY: enabled heads within VC box → bypass civilization suppression;
- *       conversion handled downstream by Mixin (3+ heads threshold).</li>
- *   <li>HEAD_SUPPRESS: enabled heads exist in wider area but spawn is far → probabilistic block</li>
+ *   <li>SHRINE_NEARBY: spawn inside an activated shrine bypass box → bypass civilization suppression;
+ *       conversion handled downstream by Mixin (probability from head union count).</li>
+ *   <li>SHRINE_SUPPRESS: shrines within attract radius → probabilistic block (no suppression count on
+ *       {@link SpawnDecision}; compact constructor when blocked).</li>
  *   <li>SPAWN_GATE_WHITELIST: datapack {@code civil_spawn_gate_entities} whitelist → allow before zone</li>
  *   <li>ZONE_POLICY: structure rules that allow hostile spawn</li>
  *   <li>LOW/MID/HIGH: civilization score thresholds (result shard O(1) query)</li>
@@ -34,9 +35,6 @@ import net.minecraft.util.RandomSource;
  *
  * <p>{@link SpawnGateEntityRegistry} whitelist is only applied when {@code entityType != null}
  * (e.g. {@link #shouldBlockMonsterSpawn} passes null and does not use whitelist).
- *
- * <p>Head logic queries HeadTracker directly (decoupled from civilization scoring).
- * Civilization score queries the ResultCache via ScalableCivilizationService (O(1)).
  */
 public final class SpawnPolicy {
 
@@ -55,25 +53,16 @@ public final class SpawnPolicy {
             return new SpawnDecision(false, 0.0, SpawnDecision.BRANCH_DIM_NEUTRAL);
         }
 
-        // ===== Stage 1: Head Detection (single O(N) pass via HeadTracker) =====
         if (dimPolicy.headMechanics()) {
-            HeadTracker tracker = CivilServices.getHeadTracker();
-            if (tracker != null && tracker.isInitialized()) {
-                HeadTracker.HeadQuery hq = tracker.queryHeads(
-                        dim, pos,
-                        CivilConfig.headRangeX,
-                        CivilConfig.headRangeZ,
-                        CivilConfig.headRangeY);
-
-                // ① HEAD_NEARBY: any enabled heads in VC box → allow spawn (bypass civilization)
-                if (hq.hasNearbyHeads()) {
-                    return new SpawnDecision(false, 0, SpawnDecision.BRANCH_HEAD_NEARBY,
-                            hq.nearbyHeadCount(), hq.convertPool());
+            FarmShrineTracker shrineTracker = CivilServices.getFarmShrineTracker();
+            if (shrineTracker != null && shrineTracker.isInitialized()) {
+                FarmShrineTracker.ShrineQuery sq = shrineTracker.queryForSpawn(dim, pos);
+                if (sq.insideShrine()) {
+                    return new SpawnDecision(false, 0, SpawnDecision.BRANCH_SHRINE_NEARBY,
+                            sq.conversionHeadCount(), sq.convertPool());
                 }
-
-                // ② HEAD_SUPPRESS: enabled heads exist in wider area but spawn is far
-                if (CivilConfig.headAttractEnabled && hq.proximity().hasHeads()) {
-                    SpawnDecision suppressDecision = checkHeadSuppression(world, pos, hq.proximity());
+                if (sq.hasNearbyShrine()) {
+                    SpawnDecision suppressDecision = checkShrineSuppression(world, pos, sq);
                     if (suppressDecision != null) {
                         return suppressDecision;
                     }
@@ -81,18 +70,15 @@ public final class SpawnPolicy {
             }
         }
 
-        // ===== Stage 2: Spawn gate whitelist (datapack — before zone) =====
         if (entityType != null && SpawnGateEntityRegistry.isWhitelist(entityType)) {
             return new SpawnDecision(false, 0, SpawnDecision.BRANCH_SPAWN_GATE_WHITELIST);
         }
 
-        // ===== Stage 3: Zone policy (structure rules — bypass civilization suppression) =====
         ZonePolicyService zonePolicyService = CivilServices.getZonePolicyService();
         if (zonePolicyService != null && zonePolicyService.allowsHostileSpawn(world, pos, entityType)) {
             return new SpawnDecision(false, 0, SpawnDecision.BRANCH_ZONE_POLICY);
         }
 
-        // ===== Stage 4: Civilization Score (Result Shard O(1)) =====
         CScore cScore = CivilServices.getCivilizationService().getCScoreAt(world, pos);
         double score = cScore.score();
         double thresholdLow = CivilConfig.spawnThresholdLow;
@@ -110,41 +96,36 @@ public final class SpawnPolicy {
         return new SpawnDecision(true, score, SpawnDecision.BRANCH_HIGH);
     }
 
-    /**
-     * Head suppression check using pre-computed proximity from the combined query.
-     * No additional registry traversal needed.
-     */
-    private static SpawnDecision checkHeadSuppression(ServerLevel world, BlockPos pos,
-                                                       HeadTracker.HeadProximity proximity) {
-        double maxRadius = CivilConfig.headAttractMaxRadius;
-
-        if (proximity.nearestDistXZ() > maxRadius) return null;
-        if (proximity.countInRadius() <= 0 || !Double.isFinite(proximity.nearestDist3D())) return null;
-
-        double d = proximity.nearestDist3D();
-        double lambda = CivilConfig.headAttractLambda * (1.0 + Math.log1p(proximity.countInRadius()));
+    private static SpawnDecision checkShrineSuppression(ServerLevel world, BlockPos pos,
+            FarmShrineTracker.ShrineQuery q) {
+        double d = q.suppressNearestDist3d();
+        if (!Double.isFinite(d)) {
+            return null;
+        }
+        int count = q.suppressionUnionHeadCount();
+        double lambda = CivilConfig.farmShrineAttractLambda * (1.0 + Math.log1p(count));
         double suppressChance = 1.0 - Math.exp(-lambda * d / 16.0);
 
         if (world.getRandom().nextDouble() < suppressChance) {
             if (CivilMod.DEBUG) {
                 CivilMod.LOGGER.info(
-                        "[civil] head_attract block pos=({}, {}, {}) dist3D={} distXZ={} chance={} heads={}",
+                        "[civil] shrine_suppress block pos=({}, {}, {}) dist3D={} distXZ={} chance={} unionHeads={}",
                         pos.getX(), pos.getY(), pos.getZ(),
-                        String.format("%.1f", proximity.nearestDist3D()),
-                        String.format("%.1f", proximity.nearestDistXZ()),
+                        String.format("%.1f", d),
+                        String.format("%.1f", q.suppressNearestDistXZ()),
                         String.format("%.3f", suppressChance),
-                        proximity.countInRadius());
+                        count);
             }
-            return new SpawnDecision(true, 0, SpawnDecision.BRANCH_HEAD_SUPPRESS);
+            return new SpawnDecision(true, 0, SpawnDecision.BRANCH_SHRINE_SUPPRESS);
         }
         if (CivilMod.DEBUG) {
             CivilMod.LOGGER.info(
-                    "[civil] head_attract pass pos=({}, {}, {}) dist3D={} distXZ={} chance={} heads={}",
+                    "[civil] shrine_suppress pass pos=({}, {}, {}) dist3D={} distXZ={} chance={} unionHeads={}",
                     pos.getX(), pos.getY(), pos.getZ(),
-                    String.format("%.1f", proximity.nearestDist3D()),
-                    String.format("%.1f", proximity.nearestDistXZ()),
+                    String.format("%.1f", d),
+                    String.format("%.1f", q.suppressNearestDistXZ()),
                     String.format("%.3f", suppressChance),
-                    proximity.countInRadius());
+                    count);
         }
         return null;
     }
