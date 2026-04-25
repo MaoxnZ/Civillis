@@ -1,5 +1,6 @@
 {
   "item.civil.civil_detector": "Civil Detector",
+  "item.civil.civil_map.lore": "The sheet holds civility.",
   "subtitles.civil.detector_default": "Civil Detector: Default",
   "subtitles.civil.detector_low": "Civil Detector: Low",
   "subtitles.civil.detector_medium": "Civil Detector: Medium",
@@ -53,8 +54,23 @@
   "civil.config.sonar.detectorEnabled.tooltip.2": "using the Civil Detector item.",
   "civil.config.sonar.detectorEnabled.tooltip.3": "\u00a77Does not affect bell sonar.",
 
-  "civil.config.ui.zoneTransitionHudEnabled": "Zone Transition HUD",
-  "civil.config.ui.zoneTransitionHudEnabled.tooltip": "Show a short on-screen label when zone semantics change (civilized / wilderness / caution near structures).",
+  "civil.config.subcategory.zoneTransitionHud": "Zone Transition HUD",
+  "civil.config.subcategory.zoneTransitionHud.tooltip.1": "Short text when your zone type changes.",
+  "civil.config.subcategory.zoneTransitionHud.tooltip.2": "\u00a77Text and position can be customized below.",
+
+  "civil.config.ui.zoneTransitionHudEnabled": "Enable Zone Transition HUD",
+  "civil.config.ui.zoneTransitionLabel.civilized": "Zone HUD: Civilized label",
+  "civil.config.ui.zoneTransitionLabel.wilderness": "Zone HUD: Wilderness label",
+  "civil.config.ui.zoneTransitionLabel.caution": "Zone HUD: Caution label",
+  "civil.config.ui.zoneTransitionHudCooldownSeconds": "Minimum interval",
+  "civil.config.slider.zoneTransitionHudCooldown.off": "\u00a77Off",
+  "civil.config.slider.zoneTransitionHudCooldown": "%d s",
+  "civil.config.ui.zoneTransitionHudAnchorOffsetXPercent": "Horizontal offset",
+  "civil.config.ui.zoneTransitionHudAnchorOffsetYPercent": "Vertical offset",
+
+  "civil.hud.zone_transition.civilized": "Civilized",
+  "civil.hud.zone_transition.wilderness": "Wilderness",
+  "civil.hud.zone_transition.caution": "Caution",
 
   "civil.config.sonar.detectorRadius": "Detector Sonar Range",
   "civil.config.sonar.staticRadius": "Bell Sonar Range",

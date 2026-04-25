@@ -1,5 +1,101 @@
 # Changelog
 
+## [1.3.1-release]
+
+### Added
+
+- **JourneyMap & Xaero's Minimap — civilization overlay**: Civil region coloring now
+  shows directly on JourneyMap, and on Xaero's Minimap + World Map (both mods required
+  for Xaero's). Toggle each one independently in the in-game settings GUI.
+- **Zone transition HUD — more control**: You can now set your own text for the
+  Civilized, Wilderness, and Caution messages, add a cooldown so the hint doesn't repeat
+  too often, and move the HUD to a different spot on screen. All under the new Zone
+  Transition HUD section in the settings GUI.
+- **`/civil ring` admin command**: Triggers a sonar pulse at your position — useful for
+  quickly checking how the aura wall looks from a given spot without having to ring a bell.
+  Requires OP.
+- **Spawn gate — entity blacklist / whitelist** *(for modpack & datapack authors)*:
+  You can now explicitly force extra mob types through the spawn gate or exclude them via
+  `data/<namespace>/civil_spawn_gate_entities/`.
+
+### Fixed
+
+- **Dimension policy not fully blocking mob-head mechanics**: In certain setups, a
+  dimension marked as "no civilization" could still trigger mob-head spawn behavior.
+  Fixed — dimension policy now takes full effect before any head logic runs.
+- **Supplementaries map tint conflict** *(1.20.1 and 1.21.1)*: Civil map region coloring
+  was being overridden by Supplementaries' client-side map rendering. Civil tints now
+  display correctly alongside Supplementaries.
+
+### Changed
+
+- **Admin commands now require OP**: `/civil rebuild` and `/civil ring` are no longer
+  usable by regular players; they require game-master permission (OP level 2+, or cheats
+  enabled in single player).
+
+### Note
+
+- **JourneyMap / Xaero's support** is currently available on **1.20.1 and 1.21.1** only.
+- Feedback, bug reports, ideas — join our Discord: [Civillis Official](https://discord.gg/dA7QCPx7zd)
+
+## [1.3.0-release]
+
+### Added
+
+- **Civil maps**: crafted from a filled map and a Civil Detector. An empty map or a locked map will
+  not work. A civil map is easy to spot from its lore (*The sheet holds civility.*) and from the
+  regional tinting on the map.
+- **Civil map tints**: applied at the same time as the vanilla map reveals terrain. Washed-white
+  tint for civilized areas and purple tint for mob-head zones, with clear border lines for both.
+  The regions update when the world changes, for example when you place or remove blocks that feed
+  into civilization scoring.
+- **Cartography table**: civil maps work like vanilla maps: paper to zoom out, glass panes to lock,
+  an empty map to duplicate. Once a normal filled map has been turned into a civil map, that lore
+  stays on the item; everything you pull out of the table is still a civil map.
+
+### Note
+
+- **Dimension policies**: if civilization is off for a dimension, maps there get no civil tints.
+- **Config**: `mapTint.*` in `civil.properties` adjusts tint strength (defaults unchanged).
+- **Supplementaries**: client-side map recoloring in Supplementaries overrides civil map tints.
+  We are aware of this and plan to address it in a future release (compat layer / draw order).
+- Feedback, bug reports, ideas. Join our Discord: [Civillis Official](https://discord.gg/dA7QCPx7zd)
+
+## [1.2.3-release]
+
+### Fixed
+
+- **Deadlock**: Rare deadlock could freeze the server mid-tick. That bug dates back to the
+  first public release; zone recognition (extra chunk work on top) made it show up far
+  more often in normal play. Fixed.
+- **Civilization score in fast exploration**: Sprinting through brand-new chunks could leave
+  local score wrong for a bit — a few timing holes. Closed those.
+- **Civil Detector (Forge & NeoForge)**: Used to land at the bottom of Tools & Utilities via
+  the default add hook, unlike Fabric. Now it sits right after the compass, creative
+  search included.
+
+### Added
+
+- **Block weights for more mods**: More `civil_blocks` datapack entries (storage, decoration,
+  tech, …). Civilization scoring should feel more consistent when you run lots of popular
+  mods together. Modpacks can add or override under `data/<namespace>/civil_blocks/`.
+- **Dimension policies (datapack)**: `civil_dimension_policies` — per-dimension overrides.
+  Civilization (zones + scoring) and mob-head spawn handling can be turned off
+  independently per dimension. Ships with defaults for Minecells; replace or extend via
+  your own datapack if needed.
+
+### Changed
+
+- **Zone transition HUD**: Civilized / Wilderness text fires less often; fewer stray
+  Civilized flashes where nothing really changed. Toggle under Miscellaneous in the
+  in-game settings GUI.
+- **In-game settings GUI**: New icon. Tooltips on a few rows — line breaks and wording only.
+
+### Note
+
+- Thanks to **Mitemi** for block scoring data on popular mods.
+- Feedback, bug reports, ideas — join our Discord: [Civillis Official](https://discord.gg/dA7QCPx7zd)
+
 ## [1.2.2-release]
 
 ### Added

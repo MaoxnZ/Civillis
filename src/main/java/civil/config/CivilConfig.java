@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
@@ -205,6 +206,13 @@ public final class CivilConfig {
     public static int requiredCountEnter = 10;
     /** Samples required before zone HUD treats leaving civilized (hysteresis). */
     public static int requiredCountLeave = 10;
+    /**
+     * Zone HUD receipt strictness ratio in [0, 1].
+     * A prefetch sample increments {@code civilizedCount} only if:
+     * strict = spawnThresholdMid + (1 - spawnThresholdMid) * ratio.
+     * Center sample {@code centerCivilized} still uses {@link #spawnThresholdMid}.
+     */
+    public static double zoneReceiptStrongCivilizedRatio = 0.9999;
     /** Max result shards visited per server tick (global budget, split across active queue owners). */
     public static int resultBudgetPerTick = 1000;
     /** Drop queued prefetch tasks older than this many seconds (epoch TTL). */
@@ -259,8 +267,46 @@ public final class CivilConfig {
     // -- UI / Items --
     /** Zone semantic transition HUD (structure caution / civilized overlay). */
     public static boolean zoneTransitionHudEnabled = true;
+    /**
+     * When non-blank (after {@link #sanitizeZoneTransitionLabel}), overrides lang for the civilized HUD line.
+     * Keys {@code civil.hud.zone_transition.civilized} etc. when left empty.
+     */
+    public static String zoneTransitionLabelCivilized = "";
+    public static String zoneTransitionLabelWilderness = "";
+    public static String zoneTransitionLabelCaution = "";
+    /**
+     * Minimum seconds between starting two zone HUD displays; 0 = no limit. Elapsed time is checked on the
+     * client when a payload arrives; if still within the window the update is skipped (no queue).
+     */
+    public static int zoneTransitionHudCooldownSeconds = 10;
+    /**
+     * HUD anchor (cluster center) offset from screen center along X: percent of <b>full window width</b>.
+     * Right positive, left negative; ±50 puts the anchor on the left/right edge (centered on that edge).
+     */
+    public static int zoneTransitionHudAnchorOffsetXPercent = 0;
+    /**
+     * HUD anchor offset from screen center along Y: percent of <b>full window height</b>.
+     * Up positive, down negative (screen Y increases downward); ±50 puts the anchor on the top/bottom edge center.
+     * Default 30 matches the legacy placement (~20% from top of screen, horizontally centered).
+     */
+    public static int zoneTransitionHudAnchorOffsetYPercent = 30;
     public static int detectorAnimationTicks = 40;
     public static int detectorCooldownTicks = 10;
+
+    // -- Civil map tint (baked into map palette on server) --
+    /** HIGH area fill: lerp strength from terrain toward white [0,255]. */
+    public static int mapTintHighFillAlpha = 65;
+    /**
+     * HIGH region border: uniform parchment→white blend strength [0,255]. Borders ignore underlying
+     * map color so palette quantization stays consistent along edges.
+     */
+    public static int mapTintHighEdgeAlpha = 150;
+    /** MONSTER area fill: lerp strength from terrain toward purple [0,255]. */
+    public static int mapTintMonsterFillAlpha = 60;
+    /**
+     * MONSTER region border: uniform neutral→purple blend strength [0,255] (same rationale as HIGH edges).
+     */
+    public static int mapTintMonsterEdgeAlpha = 145;
 
     // ══════════════════════════════════════════════════════════
     //  Construction
@@ -348,8 +394,8 @@ public final class CivilConfig {
         Path file = dir.resolve(FILE_NAME);
         Properties p = new Properties();
         if (Files.isRegularFile(file)) {
-            try (var is = Files.newInputStream(file)) {
-                p.load(is);
+            try (var reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+                p.load(reader);
             } catch (IOException e) {
                 // Ignore, use default values
             }
@@ -480,12 +526,52 @@ public final class CivilConfig {
         resultEpochTtlSec    = Math.max(0, Math.min(60, parseInt(p.getProperty("prefetch.resultEpochTtlSec"), resultEpochTtlSec)));
         presenceRawEpsilon   = Math.max(0.0, Math.min(1_000_000.0,
                 parseDouble(p.getProperty("prefetch.presenceRawEpsilon"), presenceRawEpsilon)));
+        String zoneRatioRaw = p.getProperty("prefetch.zoneReceiptStrongCivilizedRatio");
+        if (zoneRatioRaw != null) {
+            zoneReceiptStrongCivilizedRatio = Math.max(0.0, Math.min(1.0,
+                    parseDouble(zoneRatioRaw, zoneReceiptStrongCivilizedRatio)));
+        } else {
+            // Backward compatibility: legacy epsilon key -> ratio.
+            double legacyEpsilon = Math.max(0.0, Math.min(1.0,
+                    parseDouble(p.getProperty("prefetch.zoneReceiptStrongCivilizedEpsilon"), 1.0 - zoneReceiptStrongCivilizedRatio)));
+            double denom = 1.0 - spawnThresholdMid;
+            if (denom <= 1e-9) {
+                zoneReceiptStrongCivilizedRatio = 1.0;
+            } else {
+                double strict = 1.0 - legacyEpsilon;
+                zoneReceiptStrongCivilizedRatio = Math.max(0.0, Math.min(1.0,
+                        (strict - spawnThresholdMid) / denom));
+            }
+        }
 
         zoneTransitionHudEnabled = parseBoolean(
                 p.getProperty("ui.zoneTransitionHudEnabled", p.getProperty("ui.zoneTransitionMessageEnabled")),
                 zoneTransitionHudEnabled);
+        if (p.containsKey("ui.zoneTransitionLabel.civilized")) {
+            zoneTransitionLabelCivilized = sanitizeZoneTransitionLabel(p.getProperty("ui.zoneTransitionLabel.civilized"));
+        }
+        if (p.containsKey("ui.zoneTransitionLabel.wilderness")) {
+            zoneTransitionLabelWilderness = sanitizeZoneTransitionLabel(p.getProperty("ui.zoneTransitionLabel.wilderness"));
+        }
+        if (p.containsKey("ui.zoneTransitionLabel.caution")) {
+            zoneTransitionLabelCaution = sanitizeZoneTransitionLabel(p.getProperty("ui.zoneTransitionLabel.caution"));
+        }
+        zoneTransitionHudCooldownSeconds =
+                Math.max(0, Math.min(60, parseInt(p.getProperty("ui.zoneTransitionHudCooldownSeconds"), zoneTransitionHudCooldownSeconds)));
+        zoneTransitionHudAnchorOffsetXPercent =
+                Math.max(-50, Math.min(50, parseInt(p.getProperty("ui.zoneTransitionHudAnchorOffsetXPercent"), zoneTransitionHudAnchorOffsetXPercent)));
+        zoneTransitionHudAnchorOffsetYPercent =
+                Math.max(-50, Math.min(50, parseInt(p.getProperty("ui.zoneTransitionHudAnchorOffsetYPercent"), zoneTransitionHudAnchorOffsetYPercent)));
         detectorAnimationTicks = parseInt(p.getProperty("ui.detectorAnimationTicks"), detectorAnimationTicks);
         detectorCooldownTicks  = parseInt(p.getProperty("ui.detectorCooldownTicks"), detectorCooldownTicks);
+        mapTintHighFillAlpha = Math.max(0, Math.min(255,
+                parseInt(p.getProperty("mapTint.highFillAlpha"), mapTintHighFillAlpha)));
+        mapTintHighEdgeAlpha = Math.max(0, Math.min(255,
+                parseInt(p.getProperty("mapTint.highEdgeAlpha"), mapTintHighEdgeAlpha)));
+        mapTintMonsterFillAlpha = Math.max(0, Math.min(255,
+                parseInt(p.getProperty("mapTint.monsterFillAlpha"), mapTintMonsterFillAlpha)));
+        mapTintMonsterEdgeAlpha = Math.max(0, Math.min(255,
+                parseInt(p.getProperty("mapTint.monsterEdgeAlpha"), mapTintMonsterEdgeAlpha)));
 
         mobFleeEnabled            = parseBoolean(p.getProperty("mobFlee.enabled"), mobFleeEnabled);
         mobFleeCombatFleeRatio    = parseDouble(p.getProperty("mobFlee.combatFleeRatio"), mobFleeCombatFleeRatio);
@@ -633,6 +719,8 @@ public final class CivilConfig {
             sb.append("#prefetch.resultBudgetPerTick=").append(resultBudgetPerTick).append('\n');
             sb.append("#prefetch.resultEpochTtlSec=").append(resultEpochTtlSec).append('\n');
             sb.append("#prefetch.presenceRawEpsilon=").append(presenceRawEpsilon).append('\n');
+            sb.append("#prefetch.zoneReceiptStrongCivilizedRatio=").append(zoneReceiptStrongCivilizedRatio)
+                    .append("   # strict = mid + (1-mid)*ratio; civilizedCount uses strict; center uses spawn.thresholdMid\n");
             sb.append('\n');
 
             sb.append("# ── Mob Flee AI ──\n");
@@ -648,8 +736,20 @@ public final class CivilConfig {
 
             sb.append("# ── Advanced: UI ──\n");
             sb.append("ui.zoneTransitionHudEnabled=").append(zoneTransitionHudEnabled).append('\n');
+            sb.append("ui.zoneTransitionLabel.civilized=").append(zoneTransitionLabelCivilized).append('\n');
+            sb.append("ui.zoneTransitionLabel.wilderness=").append(zoneTransitionLabelWilderness).append('\n');
+            sb.append("ui.zoneTransitionLabel.caution=").append(zoneTransitionLabelCaution).append('\n');
+            sb.append("ui.zoneTransitionHudCooldownSeconds=").append(zoneTransitionHudCooldownSeconds).append('\n');
+            sb.append("ui.zoneTransitionHudAnchorOffsetXPercent=").append(zoneTransitionHudAnchorOffsetXPercent).append('\n');
+            sb.append("ui.zoneTransitionHudAnchorOffsetYPercent=").append(zoneTransitionHudAnchorOffsetYPercent).append('\n');
             sb.append("#ui.detectorAnimationTicks=").append(detectorAnimationTicks).append('\n');
             sb.append("#ui.detectorCooldownTicks=").append(detectorCooldownTicks).append('\n');
+            sb.append('\n');
+            sb.append("# ── Advanced: Civil map tint (0-255; baked server-side) ──\n");
+            sb.append("#mapTint.highFillAlpha=").append(mapTintHighFillAlpha).append('\n');
+            sb.append("#mapTint.highEdgeAlpha=").append(mapTintHighEdgeAlpha).append("  # border: uniform white mix, not terrain-based\n");
+            sb.append("#mapTint.monsterFillAlpha=").append(mapTintMonsterFillAlpha).append('\n');
+            sb.append("#mapTint.monsterEdgeAlpha=").append(mapTintMonsterEdgeAlpha).append("  # border: uniform purple mix\n");
 
             Files.writeString(file, sb.toString());
         } catch (IOException ignored) {
@@ -659,6 +759,15 @@ public final class CivilConfig {
     // ══════════════════════════════════════════════════════════
     //  Helpers
     // ══════════════════════════════════════════════════════════
+
+    /** Normalizes HUD label overrides from GUI or civil.properties (no newlines; max length). */
+    public static String sanitizeZoneTransitionLabel(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String t = raw.replace('\r', ' ').replace('\n', ' ').trim();
+        return t.length() > 128 ? t.substring(0, 128) : t;
+    }
 
     /** Snap detection range to nearest valid step: odd chunk count × 16. */
     static int snapDetectionRange(int blocks) {

@@ -1,169 +1,121 @@
 # Configuration
 
-Civillis works out of the box with no configuration required. Every parameter has a carefully tuned default. This page covers the two ways to customize behavior: the **in-game GUI** and the **raw properties file**.
+Civillis runs with **sane defaults**; you only need this page if you want to tune behavior. There are two layers:
+
+1. **In-game screen** — **Civillis Settings**, one category named **Civilization** (Cloth Config). Safe mappings, live labels on sliders (half-life, block radii, etc.).
+2. **`config/civil.properties`** — raw key/value overrides for advanced use. Commented template is generated on first launch.
 
 ---
 
-## Singleplayer vs Multiplayer Scope
+## Singleplayer vs multiplayer
 
-Civilization logic is server-authoritative. In multiplayer, gameplay-impacting settings are not per-player.
+Civilization logic is **server-authoritative**.
 
-- **Singleplayer / LAN host**: the local config screen changes the same process that runs world logic, so changes affect gameplay immediately.
-- **Dedicated server**: server-side `civil.properties` is the source of truth for civilization scoring, spawn suppression, decay, head attraction, and mob flee behavior.
-- **Client-only changes on a dedicated server**: changing local GUI options does not override server logic.
+| Context | What changes when you edit settings |
+|---------|-------------------------------------|
+| **Singleplayer / LAN host** | The same JVM runs the server; **Civillis Settings** and `civil.properties` on that install affect gameplay. |
+| **Dedicated server** | Only **`civil.properties` on the server** (and any server-side config reload path) define gameplay. Clients changing their local GUI **do not** override the server. |
 
 ---
 
-## In-Game GUI
+## In-game screen: **Civilization**
 
-Install [Mod Menu](https://modrinth.com/mod/modmenu) + [Cloth Config](https://modrinth.com/mod/cloth-config), then open the Civillis settings screen from the mod list.
+**Open the screen**
 
-Settings are organized into one top-level category (**Civilization**) with two expandable subcategories.
+- **Fabric:** [Mod Menu](https://modrinth.com/mod/modmenu) → **Civillis** → **Configure** (requires [Cloth Config](https://modrinth.com/mod/cloth-config)).
+- **NeoForge / Forge:** Mods list → **Civillis** → **Config** (loader-specific entry opens the same Cloth screen).
 
-### Main
+**Layout (matches code order)**  
+There is **one** top-level category. **Two sliders** are always visible at the top. Everything else lives in **collapsible subcategories** (collapsed by default) — expand **Sonar Visualization**, **Decay & Recovery Details**, etc., to see more.
 
-| Setting | Type | Range | Default | Description |
-|---------|------|-------|---------|-------------|
-| Civilization Strength | Slider | 1–10 | 5 | How strongly buildings suppress hostile mob spawning. Higher values lower both spawn thresholds, making it easier to reach full protection |
-| Max. Civilization Radius | Slider | 112–496 blocks (step 32) | 240 blocks | Size of the area scanned around each spawn attempt for nearby civilization |
-| Detector Sonar | Toggle | on / off | on | Whether the Civilization Detector's sonar effects (boundary walls, shockwave particles, sounds) are enabled. Disabling keeps only the basic color/sound feedback |
+If a value was overridden in `civil.properties`, a **warning line** may appear above the affected slider; changing that slider clears the override.
 
-### Decay & Recovery Details
+### Top-level sliders
 
-Controls how protection fades when you leave and recovers when you return. See [Civilization Decay](civilization-decay.md) for mechanics.
+| Setting (in-game label) | Type | Range | Default | What it controls |
+|-------------------------|------|-------|---------|------------------|
+| **Civilization Strength** | Slider | 1–10 | 5 | Moves **both** spawn thresholds together — higher = easier to reach full protection. Slider text includes an estimated “moat” hint beyond a village-like border. |
+| **Max. Civilization Radius** | Slider | 112–496 blocks (step 32) | 240 blocks | Horizontal footprint of the civilization scan around each **spawn attempt** (Y extent stays tied to voxel-chunk height as documented in [How It Works](how-it-works.md)). |
 
-| Setting | Type | Range | Default | Description |
-|---------|------|-------|---------|-------------|
-| Decay Enabled | Toggle | on / off | on | Whether time-based decay is active. When off, settlements stay forever fresh — no need to patrol to maintain protection |
-| Freshness Duration | Slider | 1–48 hours | 6 hours | Grace period before protection starts fading after your last visit |
-| Decay Speed | Slider | 1–10 | 5 | How fast protection fades after the grace period expires. The slider label shows the approximate half-life |
-| Decay Floor | Slider | 0–50% | 25% | Minimum remaining protection even if fully abandoned. At 0% a settlement can decay to nothing; at 50% half the score always remains |
-| Recovery Speed | Slider | 1–10 | 5 | How fast protection recovers when you return. The slider label shows the approximate recovery time |
-| Patrol Influence Range | Slider | 2–8 VC (32–128 blocks) | 4 VC (64 blocks) | How far your presence refreshes nearby shards. Larger values let you restore a wider area by walking through it |
+### Subcategory: **Sonar Visualization**
 
-### Mob Head Attraction
+| Setting | Type | Range | Default | What it controls |
+|---------|------|-------|---------|------------------|
+| **Detector Sonar** | Toggle | on / off | on | When on (and global aura is on), the **Civilization Detector** plays shockwave / walls / extra sounds. Off keeps instant color + sound readout only. Does **not** disable **bell** sonar. |
+| **Detector Sonar Range** | Slider | 3–7 voxel chunks | 5 | Handheld sonar BFS radius (label shows **blocks** = VC × 16). |
+| **Bell Sonar Range** | Slider | 8–12 voxel chunks | 10 | Static bell-on-lodestone BFS radius (label shows blocks). |
 
-Controls how monster skulls attract and redirect spawns. See [Monster Heads](monster-heads.md) for mechanics.
+**Not on this screen:** per-player **bell sonar cooldown** (`sonar.staticCooldownTicks` in `civil.properties`, default **40** ticks). Detector item cooldown uses `ui.detectorCooldownTicks`.
 
-| Setting | Type | Range | Default | Description |
-|---------|------|-------|---------|-------------|
-| Mob Head System | Toggle | on / off | on | Whether mob head gameplay effects (spawn attraction, detector zone display, flee AI awareness) are active. When off, heads are purely decorative — useful for wall displays without affecting spawn behavior |
-| Attraction Strength | Slider | 1–10 | 5 | How strongly skulls suppress distant spawns, concentrating mobs near the heads |
-| Attraction Range | Slider | 48–160 blocks (step 16) | 128 blocks | Maximum horizontal radius within which skulls exert their redirection effect |
+See [Civilization Sonar](sonar/index.md) for gameplay context.
 
-### Mob Flee Behavior
+### Subcategory: **Decay & Recovery Details**
 
-Controls whether hostile mobs retreat from civilized zones after spawning.
+| Setting | Type | Range | Default | What it controls |
+|---------|------|-------|---------|------------------|
+| **Decay Enabled** | Toggle | on / off | on | Master switch for time-based decay. |
+| **Decay Speed** | Slider | 1–10 | 5 | Faster decay after the grace period; slider shows approximate **half-life**. |
+| **Recovery Speed** | Slider | 1–10 | 5 | Faster recovery when you return; slider shows rough **total minutes** to full catch-up. |
+| **Decay Floor** | Slider | 0–50% | 25% | Minimum fraction of score retained after long absence. |
+| **Freshness Duration** | Slider | 1–48 hours | 6 hours | Grace period before decay starts. |
+| **Patrol Influence Range** | Slider | 2–8 VC (32–128 blocks) | 4 VC (64 blocks) | How far your presence refreshes nearby shards. |
 
-| Setting | Type | Range | Default | Description |
-|---------|------|-------|---------|-------------|
-| Mob Flee AI | Toggle | on / off | on | Enables hostile-mob retreat behavior in civilized areas. In highly civilized city centers, mobs may panic and disengage from combat to escape. Thresholds are linked to Civilization Strength |
+Mechanics: [Civilization Decay](civilization-decay.md).
+
+### Subcategory: **Mob Head Attraction**
+
+| Setting | Type | Range | Default | What it controls |
+|---------|------|-------|---------|------------------|
+| **Mob Head System** | Toggle | on / off | on | Master switch for head gameplay (bypass, redirection, conversion, detector tinting, flee awareness). Off = decorative skulls. |
+| **Attraction Strength** | Slider | 1–10 | 5 | Stronger pull / suppression shaping (λ shown on slider). |
+| **Attraction Range** | Slider | 3–10 (×16 blocks) | 8 (**128** blocks) | Max horizontal radius for redirection math. |
+
+Mechanics: [Monster Heads](monster-heads.md).
+
+### Subcategory: **Podium of Undying**
+
+| Setting | Type | Range | Default | What it controls |
+|---------|------|-------|---------|------------------|
+| **Enable Podium of Undying** | Toggle | on / off | on | Feature master switch. |
+| **Max Resurrection Distance** | Slider | 32–256 blocks | 128 blocks | Search radius for a valid podium when a rescue triggers. |
+| **Rescue Cooldown** | Slider | 1–300 seconds | 10 s | Global cooldown between rescues. |
+
+The screen does **not** expose **`undyingAnchor.civRatio`** (minimum civilization fraction at the podium) — that remains a `civil.properties` key only (default **0.8**).
+
+Gameplay: [Podium of Undying](play/podium-of-undying.md).
+
+### Subcategory: **Miscellaneous**
+
+| Setting | Type | Default | What it controls |
+|---------|------|---------|------------------|
+| **Mob Flee AI** | Toggle | on | Hostile mobs retreat from high civilization pressure (linked to **Civilization Strength**). |
+| **Zone Transition HUD** | Toggle | on | Short on-screen labels when crossing civilized / wilderness spans and **Caution** near structure-tinted zones. |
+
+Flee behavior: [Mob Flee AI](mob-flee-ai.md). HUD: [Zone transition HUD](play/zone-transition-hud.md).
 
 ---
 
 ## civil.properties
 
-For fine-grained control, you can edit `config/civil.properties` directly. The file is auto-generated on first launch with all values commented out — the mod uses the GUI-derived internal values unless a raw override is present.
+The file is created under `.minecraft/config/civil.properties` (or `run/config` in dev). Keys are **commented by default**; uncomment to force a raw value. **Saving from the in-game screen** overwrites the matching keys for anything you touched.
 
-!!! warning "Advanced Users Only"
-    Raw parameters bypass the GUI's safety mapping. If things break, delete `civil.properties` and restart — the mod will regenerate it with defaults. Changing a GUI slider will overwrite any raw override for the corresponding parameter.
+!!! warning "Advanced users only"
+    Raw values bypass Cloth’s safety mapping. If behavior explodes, **delete** `civil.properties` and restart to regenerate defaults. See also [Architecture](technical/architecture.md) for how storage and ticks interact with cache keys below.
 
-### File Location
+### Quick reference (grouped)
 
-- **Production:** `.minecraft/config/civil.properties`
-- **Dev environment:** `run/config/civil.properties`
+| Group | Example keys | Notes |
+|-------|----------------|-------|
+| Spawn thresholds | `spawn.thresholdLow`, `spawn.thresholdMid` | Usually driven by **Civilization Strength** slider. |
+| Scoring curve | `scoring.sigmoidMid`, `scoring.sigmoidSteepness`, `scoring.distanceAlphaSq`, `scoring.normalizationFactor` | Per-chunk normalization cap lives here. |
+| Detection ranges (VC) | `range.detectionRadiusX/Y/Z`, `range.coreRadius*`, `range.headRange*` | Low-level box sizes; **Max. Civilization Radius** maps the horizontal detection steps. |
+| Decay / recovery | `decay.*`, `recovery.*` | Mirror **Decay & Recovery** sliders. |
+| Heads | `headAttract.*` | Mirror **Mob Head Attraction** (plus internal λ). |
+| Mob flee | `mobFlee.*` | Fine-tune intervals, panic duration, sample distance. |
+| Podium | `undyingAnchor.enabled`, `undyingAnchor.maxSearchRadius`, `undyingAnchor.globalCooldownSeconds`, `undyingAnchor.civRatio` | GUI covers the first three; **civRatio** is properties-only (rescue score threshold). |
+| Aura / sonar | `aura.enabled`, `sonar.detectorEnabled`, `sonar.detectorRadius`, `sonar.staticRadius`, `sonar.staticCooldownTicks` | Bell still requires `aura.enabled`. |
+| UI / detector | `ui.detectorAnimationTicks`, `ui.detectorCooldownTicks` | Pulse length and item cooldown. |
+| Cache / perf | `cache.l1TtlMs`, `cache.resultTtlMs`, … | See [Performance](technical/performance.md) before tuning. |
+| Diagnostics | `tpsLog.*` | Effective only when **debug** logging is enabled in the build. |
 
-### Parameter Reference
-
-Below is the full list of raw parameters. Values shown are defaults derived from GUI defaults. All are normally commented out; uncomment to override.
-
-#### Spawn Thresholds
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `spawn.thresholdLow` | double | ~0.14 | Civilization score below which spawns are fully allowed |
-| `spawn.thresholdMid` | double | ~0.41 | Score above which spawns are fully blocked. Between low and mid, suppression is probabilistic |
-
-#### Scoring Curve
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `scoring.sigmoidMid` | double | 0.8 | Sigmoid midpoint for the score normalization curve |
-| `scoring.sigmoidSteepness` | double | 3.0 | Sigmoid steepness — higher values create a sharper transition |
-| `scoring.distanceAlphaSq` | double | 0.5 | Distance weighting factor (squared) for blocks farther from the spawn point |
-| `scoring.normalizationFactor` | double | 5.0 | Per-voxel-chunk score cap — a chunk's total block weight is divided by this value and clamped to 1.0. When the sum of block weights in a single 16³ chunk reaches 5.0, the chunk score is maxed out |
-
-#### Detection Ranges (Voxel Chunks)
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `range.detectionRadiusX` | int | 7 | Detection radius along X in voxel chunks (7 VC = 112 blocks per side → 240 block box) |
-| `range.detectionRadiusZ` | int | 7 | Detection radius along Z |
-| `range.detectionRadiusY` | int | 1 | Detection radius along Y (vertical) |
-| `range.coreRadiusX` | int | 1 | Core (inner zone) radius X |
-| `range.coreRadiusZ` | int | 1 | Core radius Z |
-| `range.coreRadiusY` | int | 0 | Core radius Y |
-| `range.headRangeX` | int | 1 | Mob head bypass zone radius X |
-| `range.headRangeZ` | int | 1 | Head bypass zone radius Z |
-| `range.headRangeY` | int | 0 | Head bypass zone radius Y |
-
-#### Decay
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `decay.enabled` | boolean | true | Whether time-based decay is active. When false, settlements stay forever fresh |
-| `decay.gracePeriodHours` | double | 6.0 | Hours before decay begins after your last visit |
-| `decay.lambda` | double | ~0.008 | Exponential decay rate; half-life ≈ ln(2) / λ hours |
-| `decay.minFloor` | double | 0.25 | Minimum score fraction retained after full decay (0.0–1.0) |
-
-#### Recovery
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `recovery.cooldownMs` | long | ~60000 | Minimum milliseconds between recovery steps |
-| `recovery.fraction` | double | ~0.20 | Fraction of the gap recovered per step |
-| `recovery.minMs` | long | ~2266666 | Minimum recovery jump per step (ms). Each recovery step advances presenceTime by at least this amount, preventing the final stretch from dragging out when the remaining gap is small |
-
-#### Head Attraction
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `headAttract.enabled` | boolean | true | Master switch for all mob head gameplay effects (spawn attraction, detector zone, flee AI awareness). When false, heads are purely decorative |
-| `headAttract.nearBlocks` | double | 32.0 | Distance (blocks) within which skulls never suppress spawns |
-| `headAttract.maxRadius` | double | 128.0 | Maximum horizontal attraction radius in blocks |
-| `headAttract.lambda` | double | 0.15 | Attraction decay rate — higher values concentrate mobs more tightly around skulls |
-
-#### Mob Flee AI
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `mobFlee.enabled` | boolean | true | Master switch for flee behavior in civilized areas |
-| `mobFlee.combatFleeRatio` | double | 0.5 | Fraction of the high-pressure interval where combat panic begins |
-| `mobFlee.checkIntervalTicks` | int | 80 | Base interval between flee evaluations per mob (ticks) |
-| `mobFlee.jitterTicks` | int | 40 | Random jitter added to evaluation interval for desynchronization |
-| `mobFlee.panicDurationTicks` | int | 80 | Maximum duration of combat panic bursts (ticks) |
-| `mobFlee.maxDurationTicks` | int | 200 | Maximum duration of non-combat flee movement (ticks) |
-| `mobFlee.speed` | double | 1.0 | Movement speed multiplier while fleeing |
-| `mobFlee.sampleDistance` | int | 14 | Sampling distance (blocks) used to choose flee direction |
-
-#### Cache & Performance
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `cache.l1TtlMs` | long | 300000 | L1 voxel chunk score TTL in milliseconds (5 min) |
-| `cache.resultTtlMs` | long | 3600000 | Result shard TTL in milliseconds (60 min) |
-| `cache.clockPersistTicks` | int | 6000 | How often the server clock is persisted to H2 (in ticks) |
-
-#### Detector & UI
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `ui.detectorAnimationTicks` | int | 40 | Sonar pulse animation length in ticks (2 seconds) |
-| `ui.detectorCooldownTicks` | int | 10 | Cooldown between detector uses in ticks |
-
-#### Diagnostics
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `tpsLog.enabled` | boolean | true | Whether TPS/MSPT is periodically logged to `latest.log`. Only effective when the mod's internal DEBUG flag is also enabled — in production builds this has no effect regardless of the setting |
-| `tpsLog.intervalTicks` | int | 20 | Interval between TPS log entries in server ticks (~1 second). Same DEBUG requirement as above |
+For a **line-by-line** table of types and defaults as shipped in the template, keep reading the generated file on disk or ask on Discord — the wiki avoids duplicating fifty rows that drift every port.

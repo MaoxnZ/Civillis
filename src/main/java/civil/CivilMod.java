@@ -1,5 +1,6 @@
 package civil;
 
+import civil.map.CivilMapPerfTrace;
 import civil.civilization.ServerClock;
 import civil.civilization.BlockScanner;
 import civil.civilization.HeadTracker;
@@ -160,6 +161,7 @@ public class CivilMod {
         if (cacheService != null && cacheService.isInitialized()) {
             cacheService.onServerTick(server);
         }
+        CivilMapPerfTrace.flushServerWindow();
     }
 
     /** CFR: player disconnect — undying-anchor transient state + prefetcher eviction. */

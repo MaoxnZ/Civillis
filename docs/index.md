@@ -2,41 +2,35 @@
 
 **Build more, spawn less.** Hostile mobs naturally avoid civilized areas.
 
-Civillis is a Fabric mod that suppresses hostile mob spawning near player-built structures by computing a real-time civilization score based on block composition. No special items, no commands — just play, and the land responds.
+Civillis is a **gameplay mod** about **how civilization tames the world**: where you build, recognized blocks raise a **civilization score**, and **natural hostile spawning** follows that score — built-up ground suppresses spawns; land that does not score does not.
 
-Roadmap: [View the public Civillis roadmap](https://maoxnz.github.io/Civillis/roadmap/).
+## Versions and loaders
 
----
+Civillis ships **Fabric**, **Forge**, and **NeoForge** builds across **Minecraft 1.20.1 through 1.21.11**. Which loader applies to which patch is in the [changelog port table](https://github.com/MaoxnZ/Civillis/blob/main/CHANGELOG.md). Builds live on [Modrinth](https://modrinth.com/mod/civillis) and [GitHub Releases](https://github.com/MaoxnZ/Civillis/releases).
 
-## Quick Start
+**Future plans (wiki):** [Future plans](future-plans.md).
 
-1. Install [Fabric Loader](https://fabricmc.net/) ≥ 0.15.0 and [Fabric API](https://modrinth.com/mod/fabric-api)
-2. Drop the Civillis jar into your `mods/` folder
-3. Launch the game — civilization protection is active immediately
-
-Optional: install [Mod Menu](https://modrinth.com/mod/modmenu) + [Cloth Config](https://modrinth.com/mod/cloth-config) for the in-game settings GUI.
+**Interactive roadmap:** [Roadmap](https://maoxnz.github.io/Civillis/roadmap/).
 
 ---
 
-## Core Concepts
+## Start playing
 
-- [How It Works](how-it-works.md) — civilization scoring, Max. Civilization Radius, Civilization Strength
-- [Blocks & Scoring](blocks-and-scoring.md) — which blocks count and how much they weigh
-- [Civilization Decay](civilization-decay.md) — how protection fades and recovers
-- [Monster Heads](monster-heads.md) — spawn gate bypass, distant redirection, mob conversion
-- [Mob Flee AI](mob-flee-ai.md) — hostile mob retreat behavior in civilized zones
-- [Civilization Detector](detector.md) — sonar pulse, boundary walls, visual feedback
+New to the mod? Read **[Getting started](play/getting-started.md)** for what Civillis does and where to go next.
 
-## Configuration
+---
 
-- [Configuration Guide](configuration.md) — GUI settings, civil.properties, advanced parameters
+## Browse the wiki
 
-## For Modpack Authors
+| Section | What you will find |
+|---------|-------------------|
+| **Play** | [Civilization model](how-it-works.md), [Civilization Sonar](sonar/index.md), [Monster heads](monster-heads.md), [Mob flee AI](mob-flee-ai.md), [Podium](play/podium-of-undying.md), [Zone HUD](play/zone-transition-hud.md), [Structure spawn rules](play/structure-spawn-rules.md), [Dimension rules](play/dimension-rules.md), [Commands](play/commands.md), [Glossary](glossary.md) |
+| **Customize** | [Configuration](configuration.md), [datapacks](modpack/data-driven.md), [mod compatibility](modpack/compatibility.md) |
+| **Internals** | [Architecture](technical/architecture.md), [performance](technical/performance.md) |
+| **Future plans** | [Wiki notes（draft only）](future-plans.md); shipped work lives on the [Roadmap](https://maoxnz.github.io/Civillis/roadmap/) |
 
-- [Data-Driven Registries](modpack/data-driven.md) — adding blocks and skull types via JSON datapacks
-- [Built-in Compatibility](modpack/compatibility.md) — Farmer's Delight, Supplementaries, Create
+### Quick links
 
-## Technical
-
-- [Architecture Overview](technical/architecture.md) — the shard-based civilization engine
-- [Performance](technical/performance.md) — O(1) queries, delta propagation, benchmarks
+- [How it works](how-it-works.md) — scoring, thresholds, radius, strength
+- [Configuration](configuration.md) — in-game options and `civil.properties`
+- [Data-Driven registries](modpack/data-driven.md) — datapacks: block weights, heads, zone and dimension policies

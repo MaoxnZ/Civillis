@@ -1,6 +1,7 @@
 package civil.mixin;
 
 import civil.CivilMod;
+import civil.registry.SpawnGateEntityRegistry;
 import civil.spawn.SpawnDecision;
 import civil.spawn.SpawnPolicy;
 import net.minecraft.world.entity.Entity;
@@ -43,7 +44,12 @@ public abstract class CivilServerLevelSpawnGateMixin {
             cancellable = true
     )
     private void civil$gateHostileSpawns(Entity entity, CallbackInfoReturnable<Boolean> cir) {
-        if (entity == null || entity.getType().getCategory() != MobCategory.MONSTER) {
+        if (entity == null) {
+            return;
+        }
+        EntityType<?> type = entity.getType();
+        boolean gated = type.getCategory() == MobCategory.MONSTER || SpawnGateEntityRegistry.isBlacklist(type);
+        if (!gated) {
             return;
         }
 

@@ -6,10 +6,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 
-import java.util.Objects;
-
 /**
  * Client HUD for zone semantic transitions.
+ * <p>
+ * Layout uses a screen-centered coordinate system: offset percents are of <b>full</b> width / height;
+ * right and up are positive; the HUD cluster (text + bars) is anchored by its visual center. ±50% places
+ * that center on the corresponding screen edge (e.g. top center at X=0%, Y=+50%).
  */
 @SuppressWarnings("null")
 public final class ZoneTransitionHud {
@@ -26,6 +28,8 @@ public final class ZoneTransitionHud {
     private static final float BAR_CENTER_Y_BIAS_RATIO = -0.15f;
 
     private static long latestEpoch = Long.MIN_VALUE;
+    /** Wall-clock time when we last started a HUD sequence (after cooldown / epoch checks). */
+    private static long lastHudShowStartTimeMs = 0L;
     private static Component currentText = Component.empty();
     private static ZoneSemanticState currentState = ZoneSemanticState.WILDERNESS;
     private static int ticksRemaining = 0;
@@ -39,6 +43,7 @@ public final class ZoneTransitionHud {
      */
     public static void resetForWorldSession() {
         latestEpoch = Long.MIN_VALUE;
+        lastHudShowStartTimeMs = 0L;
         currentText = Component.empty();
         currentState = ZoneSemanticState.WILDERNESS;
         ticksRemaining = 0;
@@ -51,6 +56,21 @@ public final class ZoneTransitionHud {
                         payload.epoch(), payload.stateId());
             }
             return;
+        }
+        int cooldownSec = CivilConfig.zoneTransitionHudCooldownSeconds;
+        if (cooldownSec > 0 && lastHudShowStartTimeMs > 0L) {
+            long elapsed = System.currentTimeMillis() - lastHudShowStartTimeMs;
+            if (elapsed < cooldownSec * 1000L) {
+                if (CivilMod.DEBUG) {
+                    CivilMod.LOGGER.info(
+                            "[zone][client] skip HUD (cooldown): epoch={} stateId={} elapsedMs={} needMs>={}",
+                            payload.epoch(),
+                            payload.stateId(),
+                            elapsed,
+                            cooldownSec * 1000L);
+                }
+                return;
+            }
         }
         if (payload.epoch() < latestEpoch) {
             if (CivilMod.DEBUG) {
@@ -65,8 +85,25 @@ public final class ZoneTransitionHud {
         }
         latestEpoch = payload.epoch();
         currentState = payload.state();
-        currentText = Component.literal(Objects.requireNonNull(currentState.displayText()));
+        currentText = labelForState(currentState);
         ticksRemaining = FADE_IN_TICKS + HOLD_TICKS + FADE_OUT_TICKS;
+        lastHudShowStartTimeMs = System.currentTimeMillis();
+    }
+
+    private static Component labelForState(ZoneSemanticState state) {
+        String override =
+                switch (state) {
+                    case CIVILIZED -> CivilConfig.zoneTransitionLabelCivilized;
+                    case WILDERNESS -> CivilConfig.zoneTransitionLabelWilderness;
+                    case CAUTION -> CivilConfig.zoneTransitionLabelCaution;
+                };
+        if (override != null) {
+            override = override.trim();
+            if (!override.isEmpty()) {
+                return Component.literal(override);
+            }
+        }
+        return Component.translatable(state.translationKey());
     }
 
     public static void tick() {
@@ -97,11 +134,21 @@ public final class ZoneTransitionHud {
         if (alpha <= 0.01f) return;
 
         int width = guiGraphics.guiWidth();
-        int y = (int) (guiGraphics.guiHeight() * 0.20f);
+        int height = guiGraphics.guiHeight();
+        int ox = clampInt(CivilConfig.zoneTransitionHudAnchorOffsetXPercent, -50, 50);
+        int oy = clampInt(CivilConfig.zoneTransitionHudAnchorOffsetYPercent, -50, 50);
+        // Screen center origin: right/up positive. Anchor = HUD cluster center (text + bars), in pixels.
+        int anchorX = Math.round(width * (0.5f + ox / 100.0f));
+        int anchorY = Math.round(height * (0.5f - oy / 100.0f));
+
         Component textComponent = currentText;
         int textWidth = mc.font.width(textComponent);
         int textHeight = mc.font.lineHeight;
-        int x = (width - textWidth) / 2;
+        int barCenterBias = Math.round(textHeight * BAR_CENTER_Y_BIAS_RATIO);
+        barCenterBias = clampInt(barCenterBias, -4, -1);
+
+        int x = anchorX - textWidth / 2;
+        int y = alignBaselineToHudCenterY(anchorY, textHeight, barCenterBias);
 
         int rgb = switch (currentState) {
             case CIVILIZED -> CIV_RGB;
@@ -133,8 +180,6 @@ public final class ZoneTransitionHud {
             case CAUTION -> 0x2A160D;
         };
         int barShadowColor = ((int) (alpha * 120.0f) << 24) | barShadowRgb;
-        int barCenterBias = Math.round(textHeight * BAR_CENTER_Y_BIAS_RATIO);
-        barCenterBias = clampInt(barCenterBias, -4, -1);
         int baseBarY = y + (textHeight - BAR_HEIGHT) / 2 + barCenterBias;
         int leftX = x - BAR_GAP - BAR_WIDTH;
         int rightX = x + textWidth + BAR_GAP;
@@ -164,5 +209,31 @@ public final class ZoneTransitionHud {
 
     private static int clampInt(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    /** Vertical center (integer) of text + decorative bars for a given text baseline. */
+    private static int hudClusterCenterY(int baselineY, int textHeight, int barCenterBias) {
+        int k = (textHeight - BAR_HEIGHT) / 2 + barCenterBias;
+        int baseBarY = baselineY + k;
+        int textTop = baselineY - textHeight;
+        int blockTop = Math.min(textTop, baseBarY);
+        int blockBottom = Math.max(baselineY, baseBarY + BAR_HEIGHT);
+        return (blockTop + blockBottom) / 2;
+    }
+
+    /**
+     * Finds a text baseline such that {@link #hudClusterCenterY} matches {@code targetCenterY}
+     * (iterative — layout is piecewise-linear in baseline).
+     */
+    private static int alignBaselineToHudCenterY(int targetCenterY, int textHeight, int barCenterBias) {
+        int y = targetCenterY;
+        for (int i = 0; i < 10; i++) {
+            int cy = hudClusterCenterY(y, textHeight, barCenterBias);
+            if (cy == targetCenterY) {
+                break;
+            }
+            y += targetCenterY - cy;
+        }
+        return y;
     }
 }

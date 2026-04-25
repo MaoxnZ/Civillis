@@ -1,77 +1,37 @@
 # Mob Flee AI
 
-Mob Flee AI makes hostile mobs behave more naturally inside civilized areas: instead of only being blocked at spawn time, existing mobs can also decide to retreat.
+Mob Flee AI lets **already-spawned** hostile mobs **retreat** from civilized areas. Spawn suppression only affects **new** spawns; flee handles mobs that are already in the world.
 
----
+## What it does
 
-## What It Does
+When enabled, hostiles periodically sample civilization pressure around themselves:
 
-When enabled, hostile mobs periodically evaluate the local civilization level and may choose to flee toward less civilized ground.
+- **Idle flee** — drift outward under moderate pressure
+- **Combat panic** — short bursts under very high pressure (can include mid-combat disengagement in dense city cores)
 
-- In moderately civilized areas, mobs tend to disengage and drift outward
-- In highly civilized city centers, mobs can panic and may even give up fighting to escape
-- This behavior is linked to your Civilization Strength setting, so higher strength generally means stronger flee pressure
+Both scale with **Civilization Strength** the same way spawn thresholds do.
 
-This gives settlements a more believable defensive atmosphere: danger does not just fail to appear, it also struggles to stay.
+## How direction is chosen
 
----
+The mod samples candidate directions, compares civilization pressure along each ray, and prefers moving toward **lower** pressure. Vanilla pathfinding still applies underneath.
 
-## Two Flee Modes
+## Relationship to spawn suppression
 
-Mob Flee AI uses two behavior modes:
+1. **Civilization Strength** — shared with spawn thresholds; sets how “oppressive” high-score zones feel for flee.
+2. **Mob Flee AI** toggle — master switch for whether retreat logic runs at all.
 
-- **Idle flee** — normal retreat movement when civilization pressure is present
-- **Combat panic** — short panic bursts in very high-pressure zones, including potential mid-combat disengagement
+## In-game configuration
 
-Both modes are controlled by the same underlying civilization score, but with different thresholds and durations.
+Open **Civillis Settings** → **Civilization** → expand **Miscellaneous** (requires [Mod Menu](https://modrinth.com/mod/modmenu) + [Cloth Config](https://modrinth.com/mod/cloth-config) on Fabric):
 
----
+| Setting | Type | Default | What it controls |
+|---------|------|---------|------------------|
+| **Mob Flee AI** | Toggle | on | Enables or disables all flee behavior globally. |
 
-## How Direction Is Chosen
+!!! warning "Advanced: civil.properties"
+    Fine-grained tuning uses `mobFlee.*` keys (`checkIntervalTicks`, `panicDurationTicks`, `speed`, `sampleDistance`, …). See the grouped list in [Configuration](configuration.md). Delete `civil.properties` to reset if behavior becomes unstable.
 
-The flee goal samples multiple candidate directions around the mob and compares civilization pressure in each direction. It then prefers routes that move the mob toward lower-pressure space.
+## See also
 
-In practice, this means:
-
-- mobs near borders tend to leak outward first
-- mobs deep in dense city interiors react more aggressively
-- movement still respects normal pathfinding constraints
-
----
-
-## Relationship to Civilization Strength
-
-Mob Flee AI is a behavior layer, not a replacement for spawn suppression:
-
-- **Civilization Strength** (main config slider) controls the spawn thresholds — how easily buildings reach full protection and how strong the flee pressure zones are
-- **Mob Flee AI** controls whether already-present hostile mobs retreat from civilized areas
-
-Together, they produce a smoother "civilized territory" feeling:
-
-1. New hostile spawns are reduced or blocked
-2. Existing hostiles are encouraged to retreat
-
----
-
-## Configuration
-
-### In-Game GUI
-
-`Civillis Settings` → `Civilization` → `Mob Flee Behavior`
-
-- **Mob Flee AI** (toggle): enables/disables flee behavior globally
-
-### Advanced `civil.properties`
-
-You can tune deeper behavior with raw parameters:
-
-- `mobFlee.enabled`
-- `mobFlee.combatFleeRatio`
-- `mobFlee.checkIntervalTicks`
-- `mobFlee.jitterTicks`
-- `mobFlee.panicDurationTicks`
-- `mobFlee.maxDurationTicks`
-- `mobFlee.speed`
-- `mobFlee.sampleDistance`
-
-See [Configuration](configuration.md) for parameter details.
+- [Configuration](configuration.md) — full screen layout and properties overview
+- [How It Works](how-it-works.md) — spawn LOW / MID / HIGH pipeline

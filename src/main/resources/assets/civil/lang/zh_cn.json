@@ -1,5 +1,6 @@
 {
   "item.civil.civil_detector": "文明检测器",
+  "item.civil.civil_map.lore": "纸上有文明的余温。",
   "subtitles.civil.detector_default": "文明检测器：默认",
   "subtitles.civil.detector_low": "文明检测器：低文明",
   "subtitles.civil.detector_medium": "文明检测器：中等文明",
@@ -43,21 +44,36 @@
   "civil.config.slider.headAttractStrength": "%1$d (\u03bb%2$s)",
   "civil.config.slider.headAttractRange": "%1$d \u683c",
 
-  "civil.config.subcategory.sonar": "声纳可视化",
-  "civil.config.subcategory.sonar.tooltip.1": "声纳扫描的边界光墙、",
+  "civil.config.subcategory.sonar": "声呐可视化",
+  "civil.config.subcategory.sonar.tooltip.1": "声呐扫描的边界光墙、",
   "civil.config.subcategory.sonar.tooltip.2": "激波粒子和音效设置。",
-  "civil.config.subcategory.sonar.tooltip.3": "\u00a77探测器声纳与钟声纳互相独立。",
+  "civil.config.subcategory.sonar.tooltip.3": "\u00a77探测器声呐与钟声呐互相独立。",
 
-  "civil.config.sonar.detectorEnabled": "探测器声纳",
+  "civil.config.sonar.detectorEnabled": "探测器声呐",
   "civil.config.sonar.detectorEnabled.tooltip.1": "使用文明检测器时",
-  "civil.config.sonar.detectorEnabled.tooltip.2": "启用声纳可视化效果。",
-  "civil.config.sonar.detectorEnabled.tooltip.3": "\u00a77不影响钟声纳。",
+  "civil.config.sonar.detectorEnabled.tooltip.2": "启用声呐可视化效果。",
+  "civil.config.sonar.detectorEnabled.tooltip.3": "\u00a77不影响钟声呐。",
 
-  "civil.config.ui.zoneTransitionHudEnabled": "区域切换 HUD",
-  "civil.config.ui.zoneTransitionHudEnabled.tooltip": "区域语义变化时在屏幕上显示简短标签（文明/荒野/结构内谨慎等）。",
+  "civil.config.subcategory.zoneTransitionHud": "区域切换 HUD",
+  "civil.config.subcategory.zoneTransitionHud.tooltip.1": "区域切换时显示简短提示。",
+  "civil.config.subcategory.zoneTransitionHud.tooltip.2": "\u00a77文案与位置可在下方自定义。",
 
-  "civil.config.sonar.detectorRadius": "探测器声纳范围",
-  "civil.config.sonar.staticRadius": "钟声纳范围",
+  "civil.config.ui.zoneTransitionHudEnabled": "启用区域切换 HUD",
+  "civil.config.ui.zoneTransitionLabel.civilized": "区域 HUD：文明区域文案",
+  "civil.config.ui.zoneTransitionLabel.wilderness": "区域 HUD：荒野文案",
+  "civil.config.ui.zoneTransitionLabel.caution": "区域 HUD：谨慎文案",
+  "civil.config.ui.zoneTransitionHudCooldownSeconds": "最短间隔",
+  "civil.config.slider.zoneTransitionHudCooldown.off": "\u00a77关闭",
+  "civil.config.slider.zoneTransitionHudCooldown": "%d 秒",
+  "civil.config.ui.zoneTransitionHudAnchorOffsetXPercent": "水平偏移",
+  "civil.config.ui.zoneTransitionHudAnchorOffsetYPercent": "垂直偏移",
+
+  "civil.hud.zone_transition.civilized": "文明区域",
+  "civil.hud.zone_transition.wilderness": "荒野",
+  "civil.hud.zone_transition.caution": "谨慎",
+
+  "civil.config.sonar.detectorRadius": "探测器声呐范围",
+  "civil.config.sonar.staticRadius": "钟声呐范围",
   "civil.config.slider.sonarRadius": "%1$d 格",
 
   "civil.config.override.warning": "\u00a7e\u26a0 检测到 civil.properties 中存在手动自定义值。修改此滑块将覆盖您的自定义配置。",

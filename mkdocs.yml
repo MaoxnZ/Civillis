@@ -6,6 +6,7 @@ repo_name: MaoxnZ/Civillis
 
 theme:
   name: material
+  custom_dir: overrides
   palette:
     - scheme: slate
       primary: indigo
@@ -21,7 +22,6 @@ theme:
         name: Switch to dark mode
   features:
     - navigation.sections
-    - navigation.expand
     - navigation.top
     - search.suggest
     - search.highlight
@@ -29,20 +29,37 @@ theme:
 
 nav:
   - Home: index.md
-  - Player Guide:
-    - How It Works: how-it-works.md
-    - Blocks & Scoring: blocks-and-scoring.md
-    - Civilization Decay: civilization-decay.md
-    - Monster Heads: monster-heads.md
-    - Mob Flee AI: mob-flee-ai.md
-    - Civilization Detector: detector.md
+  - Play:
+    - Getting started: play/getting-started.md
+    - Civilization model:
+        - How It Works: how-it-works.md
+        - Blocks & Scoring: blocks-and-scoring.md
+        - Civilization Decay: civilization-decay.md
+    - Spawn and mobs:
+        - Monster Heads: monster-heads.md
+        - Mob Flee AI: mob-flee-ai.md
+    - Survival and structures:
+        - Podium of Undying: play/podium-of-undying.md
+    - Visualization:
+        - Zone transition HUD: play/zone-transition-hud.md
+        - Civilization Sonar: sonar/index.md
+    - World rules:
+        - Structure spawn rules: play/structure-spawn-rules.md
+        - Dimension rules: play/dimension-rules.md
+    - Operators:
+        - Commands: play/commands.md
+    - Glossary: glossary.md
+  - Customize:
     - Configuration: configuration.md
-  - For Modpack Authors:
     - Data-Driven Registries: modpack/data-driven.md
     - Built-in Compatibility: modpack/compatibility.md
-  - Technical:
+  - Internals:
     - Architecture Overview: technical/architecture.md
     - Performance: technical/performance.md
+  - Future plans: future-plans.md
+
+extra:
+  nav_sidebar_title: Navigation
 
 extra_css:
   - stylesheets/extra.css
