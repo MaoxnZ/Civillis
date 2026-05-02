@@ -6,6 +6,8 @@
   "subtitles.civil.detector_medium": "Civil Detector: Medium",
   "subtitles.civil.detector_high": "Civil Detector: High",
   "subtitles.civil.detector_monster": "Civil Detector: Monster",
+  "subtitles.civil.detector_shrine": "Civil Detector: Shrine",
+  "subtitles.civil.detector_zone": "Civil Detector: Caution zone",
 
   "civil.config.title": "Civillis Settings",
   "civil.config.category.main": "Civilization",
@@ -61,6 +63,7 @@
   "civil.config.ui.zoneTransitionLabel.civilized": "Zone HUD: Civilized label",
   "civil.config.ui.zoneTransitionLabel.wilderness": "Zone HUD: Wilderness label",
   "civil.config.ui.zoneTransitionLabel.caution": "Zone HUD: Caution label",
+  "civil.config.ui.zoneTransitionLabel.shrine": "Zone HUD: Shrine label",
   "civil.config.ui.zoneTransitionHudCooldownSeconds": "Minimum interval",
   "civil.config.slider.zoneTransitionHudCooldown.off": "\u00a77Off",
   "civil.config.slider.zoneTransitionHudCooldown": "%d s",
@@ -70,6 +73,7 @@
   "civil.hud.zone_transition.civilized": "Civilized",
   "civil.hud.zone_transition.wilderness": "Wilderness",
   "civil.hud.zone_transition.caution": "Caution",
+  "civil.hud.zone_transition.shrine": "Shrine",
 
   "civil.config.sonar.detectorRadius": "Detector Sonar Range",
   "civil.config.sonar.staticRadius": "Bell Sonar Range",

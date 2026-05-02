@@ -19,6 +19,7 @@ public final class ModSounds {
     public static SoundEvent DETECTOR_MEDIUM;
     public static SoundEvent DETECTOR_HIGH;
     public static SoundEvent DETECTOR_MONSTER;
+    public static SoundEvent DETECTOR_SHRINE;
 
     /**
      * Whether to prefer mod custom sound effects (civil:detector_*).
@@ -43,8 +44,9 @@ public final class ModSounds {
         DETECTOR_MEDIUM = registerSingle("detector_medium");
         DETECTOR_HIGH = registerSingle("detector_high");
         DETECTOR_MONSTER = registerSingle("detector_monster");
+        DETECTOR_SHRINE = registerSingle("detector_shrine");
         if (CivilMod.DEBUG) {
-            CivilMod.LOGGER.info("[civil] sounds registered (direct): detector_default, detector_low, detector_medium, detector_high, detector_monster");
+            CivilMod.LOGGER.info("[civil] sounds registered (direct): detector + detector_shrine");
         }
     }
 
@@ -102,6 +104,7 @@ public final class ModSounds {
     private static final String BASS = "block.note_block.bass";
     private static final String CHIME = "block.note_block.chime";
     private static final String WOLOLO = "entity.evoker.prepare_wololo";
+    private static final String SCULK_SHRIEKER_SHRIEK = "block.sculk_shrieker.shriek";
 
     /** Vanilla pitch distinguished by state (low/medium use same bass, distinguished by pitch); custom OGG not scaled, use 1.0. */
     private static float vanillaPitchFor(String displayState) {
@@ -109,7 +112,7 @@ public final class ModSounds {
         return switch (displayState) {
             case "low" -> 0.55f;
             case "medium" -> 0.85f;
-            case "high", "monster" -> 1.0f;
+            case "high", "monster", "zone" -> 1.0f;
             default -> 0.65f;
         };
     }
@@ -123,13 +126,15 @@ public final class ModSounds {
             case "low" -> DETECTOR_LOW;
             case "medium" -> DETECTOR_MEDIUM;
             case "high" -> DETECTOR_HIGH;
-            case "monster" -> DETECTOR_MONSTER;
+            case "zone" -> DETECTOR_MONSTER;
+            case "monster" -> DETECTOR_SHRINE;
             default -> DETECTOR_DEFAULT;
         };
         SoundEvent vanilla = switch (displayState == null || "default".equals(displayState) ? "default" : displayState) {
             case "low", "medium" -> getVanillaSound(MC, BASS);
             case "high" -> getVanillaSound(MC, CHIME);
-            case "monster" -> getVanillaSound(MC, WOLOLO);
+            case "zone" -> getVanillaSound(MC, WOLOLO);
+            case "monster" -> getVanillaSound(MC, SCULK_SHRIEKER_SHRIEK);
             default -> getVanillaSound(MC, BASS);
         };
         if (PREFER_MOD_DETECTOR_SOUNDS) {

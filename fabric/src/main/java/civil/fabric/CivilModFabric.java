@@ -77,20 +77,22 @@ public class CivilModFabric implements ModInitializer {
         ServerWorldEvents.LOAD.register(CivilMod::onWorldLoad);
         ServerWorldEvents.UNLOAD.register(CivilMod::onWorldUnload);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            var ra = server.registryAccess();
             BlockWeightLoader.reload(server.getResourceManager());
             HeadTypeLoader.reload(server.getResourceManager());
-            ZonePolicyLoader.reload(server.getResourceManager());
-            DimensionPolicyLoader.reload(server.getResourceManager());
+            ZonePolicyLoader.reload(server.getResourceManager(), ra);
+            DimensionPolicyLoader.reload(server.getResourceManager(), ra);
             SpawnGateEntityLoader.reload(server.getResourceManager());
             CivilMod.onHeadTypesReloaded();
         });
         ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resourceManager, success) -> {
             if (!success) return;
             // Resource manager is up-to-date at END_DATA_PACK_RELOAD; resolve tags here.
+            var ra = server.registryAccess();
             BlockWeightLoader.reload(server.getResourceManager());
             HeadTypeLoader.reload(server.getResourceManager());
-            ZonePolicyLoader.reload(server.getResourceManager());
-            DimensionPolicyLoader.reload(server.getResourceManager());
+            ZonePolicyLoader.reload(server.getResourceManager(), ra);
+            DimensionPolicyLoader.reload(server.getResourceManager(), ra);
             SpawnGateEntityLoader.reload(server.getResourceManager());
             CivilMod.onHeadTypesReloaded();
         });

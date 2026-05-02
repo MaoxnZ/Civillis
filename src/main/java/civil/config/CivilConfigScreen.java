@@ -248,7 +248,7 @@ public final class CivilConfigScreen {
         decay.add(eb.startIntSlider(
                         Component.translatable("civil.config.simple.patrolRange"),
                         CivilConfig.simplePatrolRange, 2, 8)
-                .setDefaultValue(4)
+                .setDefaultValue(3)
                 .setTextGetter(val -> {
                     int blocks = val * 16;
                     return Component.translatable("civil.config.slider.patrolRange", blocks);
@@ -365,6 +365,12 @@ public final class CivilConfigScreen {
                         CivilConfig.zoneTransitionLabelCaution)
                 .setDefaultValue("")
                 .setSaveConsumer(v -> CivilConfig.zoneTransitionLabelCaution = CivilConfig.sanitizeZoneTransitionLabel(v))
+                .build());
+        zoneHud.add(eb.startStrField(
+                        Component.translatable("civil.config.ui.zoneTransitionLabel.shrine"),
+                        CivilConfig.zoneTransitionLabelShrine)
+                .setDefaultValue("")
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionLabelShrine = CivilConfig.sanitizeZoneTransitionLabel(v))
                 .build());
 
         zoneHud.add(eb.startIntSlider(

@@ -8,27 +8,100 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
+import java.util.function.IntSupplier;
+import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 /**
  * Centralized tunable parameters for the Civil mod.
  *
  * <p>Two layers of configuration:
  * <ol>
- *   <li><b>Simple params</b> ({@code simple.*}): 6 user-friendly values shown in the GUI.
- *       Forward-mapped to internal params via {@link #computeInternalFromSimple()}.</li>
- *   <li><b>Raw params</b> (e.g. {@code decay.lambda}): advanced overrides. If present
- *       in properties AND different from computed values, they take priority.
- *       The GUI warns the user when raw overrides are detected.</li>
+ *   <li><b>Simple</b> ({@code simple.*}): values edited in the Cloth GUI, forward-mapped to internal params via
+ *       {@link #computeInternalFromSimple()}.</li>
+ *   <li><b>Advanced</b> ({@code advanced.*}): file-only tuning and manual overrides of computed internals.
+ *       Uncomment a line in {@code civil.properties} to apply it.</li>
  * </ol>
  *
- * <p>Load order: simple → compute → raw override.
- * Save writes both simple and computed raw values.
+ * <p>Load order: optional schema migration resetting {@code simple.*} fields → {@link #loadSimpleFromProperties}
+ * → snapshot → {@link #computeInternalFromSimple()} → {@link #loadAdvancedFromProperties} → raw-override detection.
+ *
+ * <p><b>Advanced “activation”:</b> Only uncommented {@code advanced.*} lines are loaded by {@link Properties}.
+ * {@link #refreshAdvancedKeyActiveFlags} records which keys were present; {@link #save()} keeps those keys
+ * uncommented on rewrite so manual edits are not stripped.
  */
 public final class CivilConfig {
 
     private static final String FILE_NAME = "civil.properties";
     private static final Logger LOGGER = LoggerFactory.getLogger("civil");
+
+    /** Last-released mod version string stored when {@link #save()} runs; drives simple-settings migration. */
+    private static final String KEY_CONFIG_SIMPLE_SCHEMA_VERSION = "config.simpleSchemaVersion";
+    /**
+     * When {@code true}, simple GUI keys are not reset when {@link #KEY_CONFIG_SIMPLE_SCHEMA_VERSION} differs from the
+     * current jar. Uncomment this line in civil.properties to enable (default absent/false).
+     */
+    private static final String KEY_SIMPLE_PERSIST_ACROSS_SCHEMA = "simple.persistAcrossSchema";
+
+    /** Keys that appeared as uncommented {@code advanced.*} entries in the last loaded file (see {@link #load}). */
+    private static final Set<String> advancedKeysActiveInFile = new HashSet<>();
+
+    @FunctionalInterface
+    private interface EntryWriter {
+        String value();
+    }
+
+    @FunctionalInterface
+    private interface EntryLoader {
+        void load(Properties p, String key);
+    }
+
+    @FunctionalInterface
+    private interface IntSetter {
+        void set(int value);
+    }
+
+    @FunctionalInterface
+    private interface LongSetter {
+        void set(long value);
+    }
+
+    @FunctionalInterface
+    private interface DoubleSetter {
+        void set(double value);
+    }
+
+    @FunctionalInterface
+    private interface BooleanSetter {
+        void set(boolean value);
+    }
+
+    @FunctionalInterface
+    private interface IntValueParser {
+        int parse(String raw, int current);
+    }
+
+    @FunctionalInterface
+    private interface LongValueParser {
+        long parse(String raw, long current);
+    }
+
+    @FunctionalInterface
+    private interface DoubleValueParser {
+        double parse(String raw, double current);
+    }
+
+    private record ConfigEntry(String key, EntryWriter writer, EntryLoader loader) {
+    }
+
+    private record ConfigSection(String title, ConfigEntry[] entries) {
+    }
 
     // ══════════════════════════════════════════════════════════
     //  User-facing simple params (GUI sliders)
@@ -55,8 +128,8 @@ public final class CivilConfig {
     /** Detection range: box side in blocks, range [112, 496] step 32, default 240. */
     public static int simpleDetectionRange = 240;
 
-    /** Patrol influence range: 2-8 slider (VC radius), val×16 = blocks. Default 4 → 64 blocks. */
-    public static int simplePatrolRange = 4;
+    /** Patrol influence range: 2-8 slider (VC radius), val×16 = blocks. Default 3 → 48 blocks. */
+    public static int simplePatrolRange = 3;
 
     /** Farm shrine suppression strength: 1 (weak) to 10 (strong), default 5. Maps to farmShrineAttractLambda. */
     public static int simpleShrineSuppressStrength = 5;
@@ -201,8 +274,8 @@ public final class CivilConfig {
 
     // -- Patrol Influence (player presence keeping area alive) --
     /** Patrol radius (voxel chunks). User slider sets X/Z together; Y defaults to 1. */
-    public static int patrolRadiusX = 4;
-    public static int patrolRadiusZ = 4;
+    public static int patrolRadiusX = 3;
+    public static int patrolRadiusZ = 3;
     public static int patrolRadiusY = 1;
 
     // -- Result prefetch queue (CFR 1.2.2: round-robin + epoch receipts) --
@@ -274,6 +347,8 @@ public final class CivilConfig {
     public static String zoneTransitionLabelCivilized = "";
     public static String zoneTransitionLabelWilderness = "";
     public static String zoneTransitionLabelCaution = "";
+    /** When non-blank, overrides lang for the farm-shrine (bypass) HUD line. */
+    public static String zoneTransitionLabelShrine = "";
     /**
      * Minimum seconds between starting two zone HUD displays; 0 = no limit. Elapsed time is checked on the
      * client when a payload arrives; if still within the window the update is skipped (no queue).
@@ -307,6 +382,188 @@ public final class CivilConfig {
      * MONSTER region border: uniform neutral→purple blend strength [0,255] (same rationale as HIGH edges).
      */
     public static int mapTintMonsterEdgeAlpha = 145;
+    /** ZONE (structure caution) fill: lerp strength toward orange [0, 255]. */
+    public static int mapTintZoneFillAlpha = 62;
+    /** ZONE region border: uniform neutral → orange [0, 255]. */
+    public static int mapTintZoneEdgeAlpha = 140;
+
+    private static final ConfigSection[] SIMPLE_SECTIONS = new ConfigSection[] {
+            section("Spawn & detection",
+                    intEntry("simple.spawn.suppressionStrength", () -> simpleSpawnSuppression,
+                            v -> simpleSpawnSuppression = Math.max(1, Math.min(10, v))),
+                    intEntry("simple.detection.rangeBlocks", () -> simpleDetectionRange,
+                            v -> simpleDetectionRange = snapDetectionRange(v))),
+            section("Sonar",
+                    boolEntry("simple.sonar.detectorEnabled", () -> detectorSonarEnabled,
+                            v -> detectorSonarEnabled = v),
+                    intEntry("simple.sonar.detectorRadius", () -> sonarDetectorRadius,
+                            v -> sonarDetectorRadius = Math.max(3, Math.min(7, v))),
+                    intEntry("simple.sonar.staticRadius", () -> sonarStaticRadius,
+                            v -> sonarStaticRadius = Math.max(8, Math.min(12, v)))),
+            section("Decay",
+                    boolEntry("simple.decay.enabled", () -> decayEnabled,
+                            v -> decayEnabled = v),
+                    intEntry("simple.decay.speed", () -> simpleDecaySpeed,
+                            v -> simpleDecaySpeed = Math.max(1, Math.min(10, v))),
+                    intEntry("simple.decay.floor", () -> simpleDecayFloor,
+                            v -> simpleDecayFloor = Math.max(0, Math.min(50, v))),
+                    intEntry("simple.recovery.speed", () -> simpleRecoverySpeed,
+                            v -> simpleRecoverySpeed = Math.max(1, Math.min(10, v))),
+                    intEntry("simple.decay.freshnessHours", () -> simpleFreshnessDuration,
+                            v -> simpleFreshnessDuration = Math.max(1, Math.min(48, v))),
+                    intEntry("simple.patrol.rangeVchunks", () -> simplePatrolRange,
+                            v -> simplePatrolRange = Math.max(2, Math.min(8, v)))),
+            section("Farm shrine",
+                    intEntry("simple.farmShrine.suppressStrength", () -> simpleShrineSuppressStrength,
+                            v -> simpleShrineSuppressStrength = Math.max(1, Math.min(10, v))),
+                    intEntry("simple.farmShrine.suppressRange", () -> simpleShrineSuppressRange,
+                            v -> simpleShrineSuppressRange = Math.max(3, Math.min(10, v)))),
+            section("Undying anchor",
+                    boolEntry("simple.undying.enabled", () -> undyingAnchorEnabled,
+                            v -> undyingAnchorEnabled = v),
+                    intEntry("simple.undying.maxSearchRadiusBlocks", () -> undyingAnchorMaxSearchRadius,
+                            v -> undyingAnchorMaxSearchRadius = snapUndyingAnchorMaxSearchRadiusBlocks(v)),
+                    intEntry("simple.undying.globalCooldownSeconds", () -> undyingAnchorGlobalCooldownSeconds,
+                            v -> undyingAnchorGlobalCooldownSeconds = Math.max(1, Math.min(300, v)))),
+            section("Zone HUD",
+                    boolEntry("simple.zoneHud.transitionEnabled", () -> zoneTransitionHudEnabled,
+                            v -> zoneTransitionHudEnabled = v),
+                    stringEntry("simple.zoneHud.label.civilized", () -> zoneTransitionLabelCivilized,
+                            v -> zoneTransitionLabelCivilized = sanitizeZoneTransitionLabel(v)),
+                    stringEntry("simple.zoneHud.label.wilderness", () -> zoneTransitionLabelWilderness,
+                            v -> zoneTransitionLabelWilderness = sanitizeZoneTransitionLabel(v)),
+                    stringEntry("simple.zoneHud.label.caution", () -> zoneTransitionLabelCaution,
+                            v -> zoneTransitionLabelCaution = sanitizeZoneTransitionLabel(v)),
+                    stringEntry("simple.zoneHud.label.shrine", () -> zoneTransitionLabelShrine,
+                            v -> zoneTransitionLabelShrine = sanitizeZoneTransitionLabel(v)),
+                    intEntry("simple.zoneHud.cooldownSeconds", () -> zoneTransitionHudCooldownSeconds,
+                            v -> zoneTransitionHudCooldownSeconds = Math.max(0, Math.min(60, v))),
+                    intEntry("simple.zoneHud.anchorOffsetXPercent", () -> zoneTransitionHudAnchorOffsetXPercent,
+                            v -> zoneTransitionHudAnchorOffsetXPercent = Math.max(-50, Math.min(50, v))),
+                    intEntry("simple.zoneHud.anchorOffsetYPercent", () -> zoneTransitionHudAnchorOffsetYPercent,
+                            v -> zoneTransitionHudAnchorOffsetYPercent = Math.max(-50, Math.min(50, v)))),
+            section("Mob flee",
+                    boolEntry("simple.mobFlee.enabled", () -> mobFleeEnabled,
+                            v -> mobFleeEnabled = v)),
+    };
+
+    private static final ConfigSection[] ADVANCED_SECTIONS = new ConfigSection[] {
+            section("Diagnostics / effects",
+                    boolEntry("advanced.diagnostics.tps.enabled", () -> tpsLogEnabled,
+                            v -> tpsLogEnabled = v),
+                    intEntry("advanced.diagnostics.tps.intervalTicks", () -> tpsLogIntervalTicks,
+                            v -> tpsLogIntervalTicks = Math.max(1, Math.min(1000, v))),
+                    boolEntry("advanced.aura.enabled", () -> auraEffectEnabled,
+                            v -> auraEffectEnabled = v),
+                    doubleEntry("advanced.undying.civRatio", () -> undyingAnchorCivRatio,
+                            v -> undyingAnchorCivRatio = Math.max(0.0, Math.min(1.0, v))),
+                    intEntry("advanced.sonar.staticCooldownTicks", () -> sonarStaticCooldownTicks,
+                            v -> sonarStaticCooldownTicks = v)),
+            section("Decay & recovery overrides",
+                    doubleEntry("advanced.decay.gracePeriodHours", () -> gracePeriodHours,
+                            v -> gracePeriodHours = v),
+                    doubleEntry("advanced.decay.lambda", () -> decayLambda,
+                            v -> decayLambda = v),
+                    doubleEntry("advanced.decay.minFloor", () -> minDecayFloor,
+                            v -> minDecayFloor = v),
+                    longEntry("advanced.recovery.cooldownMs", () -> recoveryCooldownMs,
+                            v -> recoveryCooldownMs = v),
+                    doubleEntry("advanced.recovery.fraction", () -> recoveryFraction,
+                            v -> recoveryFraction = v),
+                    longEntry("advanced.recovery.minMs", () -> minRecoveryMs,
+                            v -> minRecoveryMs = v)),
+            section("Spawn thresholds",
+                    doubleEntry("advanced.spawn.thresholdLow", () -> spawnThresholdLow,
+                            v -> spawnThresholdLow = v),
+                    doubleEntry("advanced.spawn.thresholdMid", () -> spawnThresholdMid,
+                            v -> spawnThresholdMid = v)),
+            section("Scoring",
+                    doubleEntry("advanced.scoring.sigmoidMid", () -> sigmoidMid,
+                            v -> sigmoidMid = v),
+                    doubleEntry("advanced.scoring.sigmoidSteepness", () -> sigmoidSteepness,
+                            v -> sigmoidSteepness = v),
+                    doubleEntry("advanced.scoring.distanceAlphaSq", () -> distanceAlphaSq,
+                            v -> distanceAlphaSq = v),
+                    doubleEntry("advanced.scoring.normalizationFactor", () -> normalizationFactor,
+                            v -> normalizationFactor = v)),
+            section("Detection / influence ranges (voxel chunks)",
+                    intEntry("advanced.range.detectionRadiusX", () -> detectionRadiusX,
+                            v -> detectionRadiusX = v),
+                    intEntry("advanced.range.detectionRadiusZ", () -> detectionRadiusZ,
+                            v -> detectionRadiusZ = v),
+                    intEntry("advanced.range.detectionRadiusY", () -> detectionRadiusY,
+                            v -> detectionRadiusY = v),
+                    intEntry("advanced.range.coreRadiusX", () -> coreRadiusX,
+                            v -> coreRadiusX = v),
+                    intEntry("advanced.range.coreRadiusZ", () -> coreRadiusZ,
+                            v -> coreRadiusZ = v),
+                    intEntry("advanced.range.coreRadiusY", () -> coreRadiusY,
+                            v -> coreRadiusY = v),
+                    intEntry("advanced.range.farmShrineRangeX", () -> farmShrineRangeX,
+                            v -> farmShrineRangeX = v),
+                    intEntry("advanced.range.farmShrineRangeZ", () -> farmShrineRangeZ,
+                            v -> farmShrineRangeZ = v),
+                    intEntry("advanced.range.farmShrineRangeY", () -> farmShrineRangeY,
+                            v -> farmShrineRangeY = v)),
+            section("Farm shrine attract (physics)",
+                    doubleEntry("advanced.farmShrine.attractMaxRadius", () -> farmShrineAttractMaxRadius,
+                            v -> farmShrineAttractMaxRadius = v),
+                    doubleEntry("advanced.farmShrine.attractLambda", () -> farmShrineAttractLambda,
+                            v -> farmShrineAttractLambda = v)),
+            section("Cache & performance",
+                    longEntry("advanced.cache.l1TtlMs", () -> l1TtlMs,
+                            v -> l1TtlMs = v),
+                    longEntry("advanced.cache.resultTtlMs", () -> resultTtlMs,
+                            v -> resultTtlMs = v),
+                    intEntry("advanced.cache.clockPersistTicks", () -> clockPersistTicks,
+                            v -> clockPersistTicks = v)),
+            section("Result prefetch (zone HUD epoch pipeline)",
+                    intEntry("advanced.prefetch.requiredCountEnter", () -> requiredCountEnter,
+                            v -> requiredCountEnter = Math.max(1, Math.min(256, v))),
+                    intEntry("advanced.prefetch.requiredCountLeave", () -> requiredCountLeave,
+                            v -> requiredCountLeave = Math.max(1, Math.min(256, v))),
+                    intEntry("advanced.prefetch.resultBudgetPerTick", () -> resultBudgetPerTick,
+                            v -> resultBudgetPerTick = Math.max(0, Math.min(200000, v))),
+                    intEntry("advanced.prefetch.resultEpochTtlSec", () -> resultEpochTtlSec,
+                            v -> resultEpochTtlSec = Math.max(0, Math.min(60, v))),
+                    doubleEntry("advanced.prefetch.presenceRawEpsilon", () -> presenceRawEpsilon,
+                            v -> presenceRawEpsilon = Math.max(0.0, Math.min(1_000_000.0, v))),
+                    doubleEntry("advanced.prefetch.zoneReceiptStrongCivilizedRatio", () -> zoneReceiptStrongCivilizedRatio,
+                            v -> zoneReceiptStrongCivilizedRatio = Math.max(0.0, Math.min(1.0, v)))),
+            section("Mob flee (parameters other than simple toggle)",
+                    doubleEntry("advanced.mobFlee.combatFleeRatio", () -> mobFleeCombatFleeRatio,
+                            v -> mobFleeCombatFleeRatio = v),
+                    intEntry("advanced.mobFlee.checkIntervalTicks", () -> mobFleeCheckIntervalTicks,
+                            v -> mobFleeCheckIntervalTicks = v),
+                    intEntry("advanced.mobFlee.jitterTicks", () -> mobFleeJitterTicks,
+                            v -> mobFleeJitterTicks = v),
+                    intEntry("advanced.mobFlee.panicDurationTicks", () -> mobFleePanicDurationTicks,
+                            v -> mobFleePanicDurationTicks = v),
+                    intEntry("advanced.mobFlee.maxDurationTicks", () -> mobFleeMaxDurationTicks,
+                            v -> mobFleeMaxDurationTicks = v),
+                    doubleEntry("advanced.mobFlee.speed", () -> mobFleeSpeed,
+                            v -> mobFleeSpeed = v),
+                    intEntry("advanced.mobFlee.sampleDistance", () -> mobFleeSampleDistance,
+                            v -> mobFleeSampleDistance = v)),
+            section("Detector item timing",
+                    intEntry("advanced.ui.detectorAnimationTicks", () -> detectorAnimationTicks,
+                            v -> detectorAnimationTicks = v),
+                    intEntry("advanced.ui.detectorCooldownTicks", () -> detectorCooldownTicks,
+                            v -> detectorCooldownTicks = v)),
+            section("Civil map tint (0-255; baked server-side)",
+                    intEntry("advanced.mapTint.highFillAlpha", () -> mapTintHighFillAlpha,
+                            v -> mapTintHighFillAlpha = Math.max(0, Math.min(255, v))),
+                    intEntry("advanced.mapTint.highEdgeAlpha", () -> mapTintHighEdgeAlpha,
+                            v -> mapTintHighEdgeAlpha = Math.max(0, Math.min(255, v))),
+                    intEntry("advanced.mapTint.monsterFillAlpha", () -> mapTintMonsterFillAlpha,
+                            v -> mapTintMonsterFillAlpha = Math.max(0, Math.min(255, v))),
+                    intEntry("advanced.mapTint.monsterEdgeAlpha", () -> mapTintMonsterEdgeAlpha,
+                            v -> mapTintMonsterEdgeAlpha = Math.max(0, Math.min(255, v))),
+                    intEntry("advanced.mapTint.zoneFillAlpha", () -> mapTintZoneFillAlpha,
+                            v -> mapTintZoneFillAlpha = Math.max(0, Math.min(255, v))),
+                    intEntry("advanced.mapTint.zoneEdgeAlpha", () -> mapTintZoneEdgeAlpha,
+                            v -> mapTintZoneEdgeAlpha = Math.max(0, Math.min(255, v)))),
+    };
 
     // ══════════════════════════════════════════════════════════
     //  Construction
@@ -327,7 +584,7 @@ public final class CivilConfig {
     // ══════════════════════════════════════════════════════════
 
     /**
-     * Compute internal params from the 8 simple user-facing values.
+     * Compute internal params from {@code simple.*} values mapped by the Cloth GUI.
      * <p>Groups with active raw overrides are skipped to preserve the user's
      * manual configuration. During {@link #load()} Phase 3, all override flags
      * are false so everything is computed; the GUI save flow calls
@@ -400,59 +657,32 @@ public final class CivilConfig {
                 // Ignore, use default values
             }
         }
+        refreshAdvancedKeyActiveFlags(p);
 
-        // ── Phase 1: Diagnostics (standalone) ──
-        tpsLogEnabled = parseBoolean(p.getProperty("tpsLog.enabled"), true);
-        tpsLogIntervalTicks = parseInt(p.getProperty("tpsLog.intervalTicks"), 20);
-        tpsLogIntervalTicks = Math.max(1, Math.min(1000, tpsLogIntervalTicks));
+        String diskSimpleSchema = p.getProperty(KEY_CONFIG_SIMPLE_SCHEMA_VERSION);
+        boolean persistSimpleAcrossSchema = parseBoolean(p.getProperty(KEY_SIMPLE_PERSIST_ACROSS_SCHEMA), false);
+        String currentJarVersion = CivilPlatform.getReleasedModVersion();
 
-        // ── Phase 2: Load simple params ──
-        simpleFreshnessDuration = parseInt(p.getProperty("simple.freshnessDuration"), simpleFreshnessDuration);
-        simpleFreshnessDuration = Math.max(1, Math.min(48, simpleFreshnessDuration));
+        boolean needResetSimple;
+        if (diskSimpleSchema == null) {
+            needResetSimple = true;
+        } else if (diskSimpleSchema.equals(currentJarVersion)) {
+            needResetSimple = false;
+        } else {
+            needResetSimple = !persistSimpleAcrossSchema;
+        }
 
-        decayEnabled = parseBoolean(p.getProperty("decay.enabled"), decayEnabled);
-
-        simpleDecaySpeed = parseInt(p.getProperty("simple.decaySpeed"), simpleDecaySpeed);
-        simpleDecaySpeed = Math.max(1, Math.min(10, simpleDecaySpeed));
-
-        simpleDecayFloor = parseInt(p.getProperty("simple.decayFloor"), simpleDecayFloor);
-        simpleDecayFloor = Math.max(0, Math.min(50, simpleDecayFloor));
-
-        simpleRecoverySpeed = parseInt(p.getProperty("simple.recoverySpeed"), simpleRecoverySpeed);
-        simpleRecoverySpeed = Math.max(1, Math.min(10, simpleRecoverySpeed));
-
-        simpleSpawnSuppression = parseInt(p.getProperty("simple.spawnSuppression"), simpleSpawnSuppression);
-        simpleSpawnSuppression = Math.max(1, Math.min(10, simpleSpawnSuppression));
-
-        simpleDetectionRange = parseInt(p.getProperty("simple.detectionRange"), simpleDetectionRange);
-        // Snap to nearest valid step (odd chunk count): 112, 144, 176, ..., 496
-        simpleDetectionRange = snapDetectionRange(simpleDetectionRange);
-
-        simpleShrineSuppressStrength = parseInt(p.getProperty("simple.shrineSuppressStrength",
-                p.getProperty("simple.headAttractStrength")), simpleShrineSuppressStrength);
-        simpleShrineSuppressStrength = Math.max(1, Math.min(10, simpleShrineSuppressStrength));
-
-        simpleShrineSuppressRange = parseInt(p.getProperty("simple.shrineSuppressRange",
-                p.getProperty("simple.headAttractRange")), simpleShrineSuppressRange);
-        simpleShrineSuppressRange = Math.max(3, Math.min(10, simpleShrineSuppressRange));
-
-        simplePatrolRange = parseInt(p.getProperty("simple.patrolRange"), simplePatrolRange);
-        simplePatrolRange = Math.max(2, Math.min(8, simplePatrolRange));
-
-        auraEffectEnabled = parseBoolean(p.getProperty("aura.enabled"), auraEffectEnabled);
-        undyingAnchorEnabled = parseBoolean(p.getProperty("undyingAnchor.enabled"),
-                parseBoolean(p.getProperty("respawnAnchor.enabled"), undyingAnchorEnabled));
-        undyingAnchorCivRatio = Math.max(0.0, Math.min(1.0,
-                parseDouble(p.getProperty("undyingAnchor.civRatio"), undyingAnchorCivRatio)));
-        undyingAnchorGlobalCooldownSeconds = Math.max(1, Math.min(300,
-                parseInt(p.getProperty("undyingAnchor.globalCooldownSeconds"), undyingAnchorGlobalCooldownSeconds)));
-        undyingAnchorMaxSearchRadius = snapUndyingAnchorMaxSearchRadiusBlocks(
-                parseInt(p.getProperty("undyingAnchor.maxSearchRadius"), undyingAnchorMaxSearchRadius));
-
-        detectorSonarEnabled  = parseBoolean(p.getProperty("sonar.detectorEnabled"), detectorSonarEnabled);
-        sonarDetectorRadius   = Math.max(3, Math.min(7,  parseInt(p.getProperty("sonar.detectorRadius"), sonarDetectorRadius)));
-        sonarStaticRadius     = Math.max(8, Math.min(12, parseInt(p.getProperty("sonar.staticRadius"),   sonarStaticRadius)));
-        sonarStaticCooldownTicks = parseInt(p.getProperty("sonar.staticCooldownTicks"), sonarStaticCooldownTicks);
+        if (needResetSimple) {
+            LOGGER.info(
+                    "[civil] Applying built-in GUI simple defaults (schema migration: diskSchema={} current={} persist={})",
+                    diskSimpleSchema,
+                    currentJarVersion,
+                    persistSimpleAcrossSchema);
+            resetSimpleParamsToBuiltInDefaults();
+            applySimpleParamClamps();
+        } else {
+            loadSimpleFromProperties(p);
+        }
 
         // Snapshot simple values for change detection in GUI save flow
         loadedSimpleFreshness           = simpleFreshnessDuration;
@@ -467,7 +697,6 @@ public final class CivilConfig {
         // Reset override flags (important if load() is called more than once)
         java.util.Arrays.fill(rawOverrides, false);
 
-        // ── Phase 3: Forward-compute internal params from simple ──
         computeInternalFromSimple();
 
         // Save computed values for override detection
@@ -484,112 +713,9 @@ public final class CivilConfig {
         double compFarmShrineAttractLambda = farmShrineAttractLambda;
         double compFarmShrineAttractMaxRad = farmShrineAttractMaxRadius;
 
-        // ── Phase 4: Load raw overrides (advanced users) ──
-        gracePeriodHours   = parseDouble(p.getProperty("decay.gracePeriodHours"), gracePeriodHours);
-        decayLambda        = parseDouble(p.getProperty("decay.lambda"), decayLambda);
-        minDecayFloor      = parseDouble(p.getProperty("decay.minFloor"), minDecayFloor);
-        recoveryCooldownMs = parseLong(p.getProperty("recovery.cooldownMs"), recoveryCooldownMs);
-        recoveryFraction   = parseDouble(p.getProperty("recovery.fraction"), recoveryFraction);
-        minRecoveryMs      = parseLong(p.getProperty("recovery.minMs"), minRecoveryMs);
-        spawnThresholdLow  = parseDouble(p.getProperty("spawn.thresholdLow"), spawnThresholdLow);
-        spawnThresholdMid  = parseDouble(p.getProperty("spawn.thresholdMid"), spawnThresholdMid);
+        loadAdvancedFromProperties(p);
 
-        sigmoidMid         = parseDouble(p.getProperty("scoring.sigmoidMid"), sigmoidMid);
-        sigmoidSteepness   = parseDouble(p.getProperty("scoring.sigmoidSteepness"), sigmoidSteepness);
-        distanceAlphaSq    = parseDouble(p.getProperty("scoring.distanceAlphaSq"), distanceAlphaSq);
-        normalizationFactor = parseDouble(p.getProperty("scoring.normalizationFactor"), normalizationFactor);
-
-        detectionRadiusX   = parseInt(p.getProperty("range.detectionRadiusX"), detectionRadiusX);
-        detectionRadiusZ   = parseInt(p.getProperty("range.detectionRadiusZ"), detectionRadiusZ);
-        detectionRadiusY   = parseInt(p.getProperty("range.detectionRadiusY"), detectionRadiusY);
-        coreRadiusX        = parseInt(p.getProperty("range.coreRadiusX"), coreRadiusX);
-        coreRadiusZ        = parseInt(p.getProperty("range.coreRadiusZ"), coreRadiusZ);
-        coreRadiusY        = parseInt(p.getProperty("range.coreRadiusY"), coreRadiusY);
-        farmShrineRangeX = parseInt(p.getProperty("range.farmShrineRangeX",
-                p.getProperty("range.headRangeX")), farmShrineRangeX);
-        farmShrineRangeZ = parseInt(p.getProperty("range.farmShrineRangeZ",
-                p.getProperty("range.headRangeZ")), farmShrineRangeZ);
-        farmShrineRangeY = parseInt(p.getProperty("range.farmShrineRangeY",
-                p.getProperty("range.headRangeY")), farmShrineRangeY);
-
-        if (p.containsKey("headAttract.enabled")) {
-            // Silently ignore legacy master toggle (farm shrine mechanics follow dimension headMechanics()).
-        }
-        farmShrineAttractMaxRadius = parseDouble(p.getProperty("farmShrine.attractMaxRadius",
-                p.getProperty("headAttract.maxRadius")), farmShrineAttractMaxRadius);
-        farmShrineAttractLambda = parseDouble(p.getProperty("farmShrine.attractLambda",
-                p.getProperty("headAttract.lambda")), farmShrineAttractLambda);
-        if (p.containsKey("headAttract.nearBlocks")) {
-            LOGGER.warn("[civil] Config key 'headAttract.nearBlocks' is deprecated and ignored.");
-        }
-
-        l1TtlMs            = parseLong(p.getProperty("cache.l1TtlMs"), l1TtlMs);
-        resultTtlMs        = parseLong(p.getProperty("cache.resultTtlMs"), resultTtlMs);
-        clockPersistTicks  = parseInt(p.getProperty("cache.clockPersistTicks"), clockPersistTicks);
-
-        requiredCountEnter   = Math.max(1, Math.min(256, parseInt(p.getProperty("prefetch.requiredCountEnter"), requiredCountEnter)));
-        requiredCountLeave   = Math.max(1, Math.min(256, parseInt(p.getProperty("prefetch.requiredCountLeave"), requiredCountLeave)));
-        resultBudgetPerTick  = Math.max(0, Math.min(200000, parseInt(p.getProperty("prefetch.resultBudgetPerTick"), resultBudgetPerTick)));
-        resultEpochTtlSec    = Math.max(0, Math.min(60, parseInt(p.getProperty("prefetch.resultEpochTtlSec"), resultEpochTtlSec)));
-        presenceRawEpsilon   = Math.max(0.0, Math.min(1_000_000.0,
-                parseDouble(p.getProperty("prefetch.presenceRawEpsilon"), presenceRawEpsilon)));
-        String zoneRatioRaw = p.getProperty("prefetch.zoneReceiptStrongCivilizedRatio");
-        if (zoneRatioRaw != null) {
-            zoneReceiptStrongCivilizedRatio = Math.max(0.0, Math.min(1.0,
-                    parseDouble(zoneRatioRaw, zoneReceiptStrongCivilizedRatio)));
-        } else {
-            // Backward compatibility: legacy epsilon key -> ratio.
-            double legacyEpsilon = Math.max(0.0, Math.min(1.0,
-                    parseDouble(p.getProperty("prefetch.zoneReceiptStrongCivilizedEpsilon"), 1.0 - zoneReceiptStrongCivilizedRatio)));
-            double denom = 1.0 - spawnThresholdMid;
-            if (denom <= 1e-9) {
-                zoneReceiptStrongCivilizedRatio = 1.0;
-            } else {
-                double strict = 1.0 - legacyEpsilon;
-                zoneReceiptStrongCivilizedRatio = Math.max(0.0, Math.min(1.0,
-                        (strict - spawnThresholdMid) / denom));
-            }
-        }
-
-        zoneTransitionHudEnabled = parseBoolean(
-                p.getProperty("ui.zoneTransitionHudEnabled", p.getProperty("ui.zoneTransitionMessageEnabled")),
-                zoneTransitionHudEnabled);
-        if (p.containsKey("ui.zoneTransitionLabel.civilized")) {
-            zoneTransitionLabelCivilized = sanitizeZoneTransitionLabel(p.getProperty("ui.zoneTransitionLabel.civilized"));
-        }
-        if (p.containsKey("ui.zoneTransitionLabel.wilderness")) {
-            zoneTransitionLabelWilderness = sanitizeZoneTransitionLabel(p.getProperty("ui.zoneTransitionLabel.wilderness"));
-        }
-        if (p.containsKey("ui.zoneTransitionLabel.caution")) {
-            zoneTransitionLabelCaution = sanitizeZoneTransitionLabel(p.getProperty("ui.zoneTransitionLabel.caution"));
-        }
-        zoneTransitionHudCooldownSeconds =
-                Math.max(0, Math.min(60, parseInt(p.getProperty("ui.zoneTransitionHudCooldownSeconds"), zoneTransitionHudCooldownSeconds)));
-        zoneTransitionHudAnchorOffsetXPercent =
-                Math.max(-50, Math.min(50, parseInt(p.getProperty("ui.zoneTransitionHudAnchorOffsetXPercent"), zoneTransitionHudAnchorOffsetXPercent)));
-        zoneTransitionHudAnchorOffsetYPercent =
-                Math.max(-50, Math.min(50, parseInt(p.getProperty("ui.zoneTransitionHudAnchorOffsetYPercent"), zoneTransitionHudAnchorOffsetYPercent)));
-        detectorAnimationTicks = parseInt(p.getProperty("ui.detectorAnimationTicks"), detectorAnimationTicks);
-        detectorCooldownTicks  = parseInt(p.getProperty("ui.detectorCooldownTicks"), detectorCooldownTicks);
-        mapTintHighFillAlpha = Math.max(0, Math.min(255,
-                parseInt(p.getProperty("mapTint.highFillAlpha"), mapTintHighFillAlpha)));
-        mapTintHighEdgeAlpha = Math.max(0, Math.min(255,
-                parseInt(p.getProperty("mapTint.highEdgeAlpha"), mapTintHighEdgeAlpha)));
-        mapTintMonsterFillAlpha = Math.max(0, Math.min(255,
-                parseInt(p.getProperty("mapTint.monsterFillAlpha"), mapTintMonsterFillAlpha)));
-        mapTintMonsterEdgeAlpha = Math.max(0, Math.min(255,
-                parseInt(p.getProperty("mapTint.monsterEdgeAlpha"), mapTintMonsterEdgeAlpha)));
-
-        mobFleeEnabled            = parseBoolean(p.getProperty("mobFlee.enabled"), mobFleeEnabled);
-        mobFleeCombatFleeRatio    = parseDouble(p.getProperty("mobFlee.combatFleeRatio"), mobFleeCombatFleeRatio);
-        mobFleeCheckIntervalTicks = parseInt(p.getProperty("mobFlee.checkIntervalTicks"), mobFleeCheckIntervalTicks);
-        mobFleeJitterTicks        = parseInt(p.getProperty("mobFlee.jitterTicks"), mobFleeJitterTicks);
-        mobFleePanicDurationTicks = parseInt(p.getProperty("mobFlee.panicDurationTicks"), mobFleePanicDurationTicks);
-        mobFleeMaxDurationTicks   = parseInt(p.getProperty("mobFlee.maxDurationTicks"), mobFleeMaxDurationTicks);
-        mobFleeSpeed              = parseDouble(p.getProperty("mobFlee.speed"), mobFleeSpeed);
-        mobFleeSampleDistance     = parseInt(p.getProperty("mobFlee.sampleDistance"), mobFleeSampleDistance);
-
-        // ── Phase 5: Detect raw overrides ──
+        // Detect raw overrides relative to simple-computed internals
         rawOverrides[PARAM_FRESHNESS]   = !approxEq(gracePeriodHours, compGracePeriod);
         rawOverrides[PARAM_DECAY_SPEED] = !approxEq(decayLambda, compDecayLambda);
         rawOverrides[PARAM_DECAY_FLOOR] = !approxEq(minDecayFloor, compMinDecayFloor);
@@ -603,10 +729,87 @@ public final class CivilConfig {
         rawOverrides[PARAM_SHRINE_SUPPRESS] = !approxEq(farmShrineAttractLambda, compFarmShrineAttractLambda)
                                         || !approxEq(farmShrineAttractMaxRadius, compFarmShrineAttractMaxRad);
 
-        // ── Phase 6: Write default file if not present ──
-        if (!Files.isRegularFile(file)) {
+        if (!Files.isRegularFile(file) || needResetSimple) {
             save();
         }
+    }
+
+    /** Load {@code simple.*} keys from disk (skipped when schema migration resets simple fields). */
+    private static void loadSimpleFromProperties(Properties p) {
+        loadSections(p, SIMPLE_SECTIONS);
+    }
+
+    /** Same literals as static field initializers for every Cloth-controlled field in this class. */
+    private static void resetSimpleParamsToBuiltInDefaults() {
+        simpleFreshnessDuration = 6;
+        decayEnabled = true;
+        simpleDecaySpeed = 5;
+        simpleDecayFloor = 25;
+        simpleRecoverySpeed = 5;
+        simpleSpawnSuppression = 5;
+        simpleDetectionRange = 240;
+        simpleShrineSuppressStrength = 5;
+        simpleShrineSuppressRange = 8;
+        simplePatrolRange = 3;
+
+        detectorSonarEnabled = true;
+        sonarDetectorRadius = 5;
+        sonarStaticRadius = 10;
+
+        undyingAnchorEnabled = true;
+        undyingAnchorMaxSearchRadius = 128;
+        undyingAnchorGlobalCooldownSeconds = 10;
+
+        zoneTransitionHudEnabled = true;
+        zoneTransitionLabelCivilized = "";
+        zoneTransitionLabelWilderness = "";
+        zoneTransitionLabelCaution = "";
+        zoneTransitionLabelShrine = "";
+        zoneTransitionHudCooldownSeconds = 10;
+        zoneTransitionHudAnchorOffsetXPercent = 0;
+        zoneTransitionHudAnchorOffsetYPercent = 30;
+
+        mobFleeEnabled = true;
+    }
+
+    private static void applySimpleParamClamps() {
+        simpleFreshnessDuration = Math.max(1, Math.min(48, simpleFreshnessDuration));
+        simpleDecaySpeed = Math.max(1, Math.min(10, simpleDecaySpeed));
+        simpleDecayFloor = Math.max(0, Math.min(50, simpleDecayFloor));
+        simpleRecoverySpeed = Math.max(1, Math.min(10, simpleRecoverySpeed));
+        simpleSpawnSuppression = Math.max(1, Math.min(10, simpleSpawnSuppression));
+        simpleDetectionRange = snapDetectionRange(simpleDetectionRange);
+        simpleShrineSuppressStrength = Math.max(1, Math.min(10, simpleShrineSuppressStrength));
+        simpleShrineSuppressRange = Math.max(3, Math.min(10, simpleShrineSuppressRange));
+        simplePatrolRange = Math.max(2, Math.min(8, simplePatrolRange));
+
+        sonarDetectorRadius = Math.max(3, Math.min(7, sonarDetectorRadius));
+        sonarStaticRadius = Math.max(8, Math.min(12, sonarStaticRadius));
+        undyingAnchorGlobalCooldownSeconds = Math.max(1, Math.min(300, undyingAnchorGlobalCooldownSeconds));
+        undyingAnchorMaxSearchRadius = snapUndyingAnchorMaxSearchRadiusBlocks(undyingAnchorMaxSearchRadius);
+        zoneTransitionHudCooldownSeconds = Math.max(0, Math.min(60, zoneTransitionHudCooldownSeconds));
+        zoneTransitionHudAnchorOffsetXPercent = Math.max(-50, Math.min(50, zoneTransitionHudAnchorOffsetXPercent));
+        zoneTransitionHudAnchorOffsetYPercent = Math.max(-50, Math.min(50, zoneTransitionHudAnchorOffsetYPercent));
+    }
+
+    /** Load {@code advanced.*} after {@link #computeInternalFromSimple()} so overrides apply on top of mapping. */
+    private static void loadAdvancedFromProperties(Properties p) {
+        loadSections(p, ADVANCED_SECTIONS);
+    }
+
+    /** Remember which {@code advanced.*} keys were uncommented in the loaded file so {@link #save()} preserves them. */
+    private static void refreshAdvancedKeyActiveFlags(Properties p) {
+        advancedKeysActiveInFile.clear();
+        for (String k : p.stringPropertyNames()) {
+            if (k.startsWith("advanced.")) {
+                advancedKeysActiveInFile.add(k);
+            }
+        }
+    }
+
+    /** Prefix for an advanced property line: empty if that key was active on disk, otherwise {@code #}. */
+    private static String advLinePrefix(String advKey) {
+        return advancedKeysActiveInFile.contains(advKey) ? "" : "#";
     }
 
     // ══════════════════════════════════════════════════════════
@@ -614,10 +817,9 @@ public final class CivilConfig {
     // ══════════════════════════════════════════════════════════
 
     /**
-     * Save current values to civil.properties.
-     * <p>Simple params are always written. Raw params that have active overrides
-     * are written uncommented (preserving the user's manual configuration);
-     * all other raw params are written commented as reference.
+     * Write {@code civil.properties} in one pass: {@code simple.*} lines are active (no leading {@code #} on key lines).
+     * {@code advanced.*} lines default to commented reference values; keys the user left uncommented on disk stay
+     * uncommented across saves ({@link #advancedKeysActiveInFile}).
      */
     public static void save() {
         Path dir = CivilPlatform.getConfigDir();
@@ -626,134 +828,18 @@ public final class CivilConfig {
             Files.createDirectories(dir);
             StringBuilder sb = new StringBuilder();
             sb.append("# Civil mod configuration\n");
-            sb.append("# Simple settings are used by the in-game GUI.\n");
-            sb.append("# Advanced (raw) settings override simple-computed values if uncommented.\n\n");
+            sb.append("# simple.* : in-game GUI (written uncommented).\n");
+            sb.append("# advanced.* : optional tuning (default lines commented; remove leading # to apply).\n\n");
 
-            sb.append("# ── Diagnostics ──\n");
-            sb.append("tpsLog.enabled=").append(tpsLogEnabled).append('\n');
-            sb.append("tpsLog.intervalTicks=").append(tpsLogIntervalTicks).append('\n');
+            sb.append("# ── Simple (GUI) ──\n");
+            sb.append("# Stored release version for simple-settings migration (differs from jar => reset simple.* unless opt-out below).\n");
+            sb.append(KEY_CONFIG_SIMPLE_SCHEMA_VERSION).append('=').append(CivilPlatform.getReleasedModVersion()).append('\n');
+            sb.append("# Remove leading # on the next line to opt out of simple migration when updating the mod jar.\n");
+            sb.append('#').append(KEY_SIMPLE_PERSIST_ACROSS_SCHEMA).append("=true\n");
             sb.append('\n');
-
-            sb.append("# ── Simple Settings (GUI) ──\n");
-            sb.append("simple.freshnessDuration=").append(simpleFreshnessDuration).append('\n');
-            sb.append("decay.enabled=").append(decayEnabled).append('\n');
-            sb.append("simple.decaySpeed=").append(simpleDecaySpeed).append('\n');
-            sb.append("simple.decayFloor=").append(simpleDecayFloor).append('\n');
-            sb.append("simple.recoverySpeed=").append(simpleRecoverySpeed).append('\n');
-            sb.append("simple.spawnSuppression=").append(simpleSpawnSuppression).append('\n');
-            sb.append("simple.detectionRange=").append(simpleDetectionRange).append('\n');
-            sb.append("simple.shrineSuppressStrength=").append(simpleShrineSuppressStrength).append('\n');
-            sb.append("simple.shrineSuppressRange=").append(simpleShrineSuppressRange).append('\n');
-            sb.append("simple.patrolRange=").append(simplePatrolRange).append('\n');
-            sb.append('\n');
-
-            sb.append("# ── Aura Visualization ──\n");
-            sb.append("aura.enabled=").append(auraEffectEnabled).append('\n');
-            sb.append("# Civil undying anchor save (teleport + totem on near-death)\n");
-            sb.append("undyingAnchor.enabled=").append(undyingAnchorEnabled).append('\n');
-            sb.append("# 0.8 = 80%% toward full score from greenLine; see getUndyingAnchorCivRequired()\n");
-            sb.append("undyingAnchor.civRatio=").append(undyingAnchorCivRatio).append('\n');
-            sb.append("undyingAnchor.globalCooldownSeconds=").append(undyingAnchorGlobalCooldownSeconds).append('\n');
-            sb.append("undyingAnchor.maxSearchRadius=").append(undyingAnchorMaxSearchRadius).append('\n');
-            sb.append('\n');
-
-            sb.append("# ── Sonar System ──\n");
-            sb.append("sonar.detectorEnabled=").append(detectorSonarEnabled).append('\n');
-            sb.append("sonar.detectorRadius=").append(sonarDetectorRadius).append('\n');
-            sb.append("sonar.staticRadius=").append(sonarStaticRadius).append('\n');
-            sb.append("#sonar.staticCooldownTicks=").append(sonarStaticCooldownTicks).append('\n');
-            sb.append('\n');
-
-            // Raw overrides: uncommented if active, commented otherwise
-            String pFresh  = rawOverrides[PARAM_FRESHNESS]   ? "" : "#";
-            String pDecay  = rawOverrides[PARAM_DECAY_SPEED] ? "" : "#";
-            String pFloor  = rawOverrides[PARAM_DECAY_FLOOR] ? "" : "#";
-            String pRecov  = rawOverrides[PARAM_RECOVERY]    ? "" : "#";
-            String pSpawn  = rawOverrides[PARAM_SPAWN]       ? "" : "#";
-            String pRange  = rawOverrides[PARAM_RANGE]       ? "" : "#";
-            String pShrine = rawOverrides[PARAM_SHRINE_SUPPRESS] ? "" : "#";
-
-            sb.append("# ── Advanced: Decay & Recovery (uncomment to override) ──\n");
-            sb.append(pFresh).append("decay.gracePeriodHours=").append(gracePeriodHours).append('\n');
-            sb.append(pDecay).append("decay.lambda=").append(decayLambda).append('\n');
-            sb.append(pFloor).append("decay.minFloor=").append(minDecayFloor).append('\n');
-            sb.append(pRecov).append("recovery.cooldownMs=").append(recoveryCooldownMs).append('\n');
-            sb.append(pRecov).append("recovery.fraction=").append(recoveryFraction).append('\n');
-            sb.append(pRecov).append("recovery.minMs=").append(minRecoveryMs).append('\n');
-            sb.append('\n');
-
-            sb.append("# ── Advanced: Spawn Thresholds ──\n");
-            sb.append(pSpawn).append("spawn.thresholdLow=").append(spawnThresholdLow).append('\n');
-            sb.append(pSpawn).append("spawn.thresholdMid=").append(spawnThresholdMid).append('\n');
-            sb.append('\n');
-
-            sb.append("# ── Advanced: Scoring ──\n");
-            sb.append("#scoring.sigmoidMid=").append(sigmoidMid).append('\n');
-            sb.append("#scoring.sigmoidSteepness=").append(sigmoidSteepness).append('\n');
-            sb.append("#scoring.distanceAlphaSq=").append(distanceAlphaSq).append('\n');
-            sb.append("#scoring.normalizationFactor=").append(normalizationFactor).append('\n');
-            sb.append('\n');
-
-            sb.append("# ── Advanced: Detection Ranges (voxel chunks) ──\n");
-            sb.append(pRange).append("range.detectionRadiusX=").append(detectionRadiusX).append('\n');
-            sb.append(pRange).append("range.detectionRadiusZ=").append(detectionRadiusZ).append('\n');
-            sb.append("#range.detectionRadiusY=").append(detectionRadiusY).append('\n');
-            sb.append("#range.coreRadiusX=").append(coreRadiusX).append('\n');
-            sb.append("#range.coreRadiusZ=").append(coreRadiusZ).append('\n');
-            sb.append("#range.coreRadiusY=").append(coreRadiusY).append('\n');
-            sb.append("#range.farmShrineRangeX=").append(farmShrineRangeX).append('\n');
-            sb.append("#range.farmShrineRangeZ=").append(farmShrineRangeZ).append('\n');
-            sb.append("#range.farmShrineRangeY=").append(farmShrineRangeY).append('\n');
-            sb.append('\n');
-
-            sb.append("# ── Advanced: Farm shrine spawn suppression ──\n");
-            sb.append(pShrine).append("farmShrine.attractMaxRadius=").append(farmShrineAttractMaxRadius).append('\n');
-            sb.append(pShrine).append("farmShrine.attractLambda=").append(farmShrineAttractLambda).append('\n');
-            sb.append('\n');
-
-            sb.append("# ── Advanced: Cache & Performance ──\n");
-            sb.append("#cache.l1TtlMs=").append(l1TtlMs).append('\n');
-            sb.append("#cache.resultTtlMs=").append(resultTtlMs).append('\n');
-            sb.append("#cache.clockPersistTicks=").append(clockPersistTicks).append('\n');
-            sb.append('\n');
-
-            sb.append("# ── Advanced: Result prefetch (zone HUD epoch pipeline) ──\n");
-            sb.append("#prefetch.requiredCountEnter=").append(requiredCountEnter).append('\n');
-            sb.append("#prefetch.requiredCountLeave=").append(requiredCountLeave).append('\n');
-            sb.append("#prefetch.resultBudgetPerTick=").append(resultBudgetPerTick).append('\n');
-            sb.append("#prefetch.resultEpochTtlSec=").append(resultEpochTtlSec).append('\n');
-            sb.append("#prefetch.presenceRawEpsilon=").append(presenceRawEpsilon).append('\n');
-            sb.append("#prefetch.zoneReceiptStrongCivilizedRatio=").append(zoneReceiptStrongCivilizedRatio)
-                    .append("   # strict = mid + (1-mid)*ratio; civilizedCount uses strict; center uses spawn.thresholdMid\n");
-            sb.append('\n');
-
-            sb.append("# ── Mob Flee AI ──\n");
-            sb.append("mobFlee.enabled=").append(mobFleeEnabled).append('\n');
-            sb.append("#mobFlee.combatFleeRatio=").append(mobFleeCombatFleeRatio).append('\n');
-            sb.append("#mobFlee.checkIntervalTicks=").append(mobFleeCheckIntervalTicks).append('\n');
-            sb.append("#mobFlee.jitterTicks=").append(mobFleeJitterTicks).append('\n');
-            sb.append("#mobFlee.panicDurationTicks=").append(mobFleePanicDurationTicks).append('\n');
-            sb.append("#mobFlee.maxDurationTicks=").append(mobFleeMaxDurationTicks).append('\n');
-            sb.append("#mobFlee.speed=").append(mobFleeSpeed).append('\n');
-            sb.append("#mobFlee.sampleDistance=").append(mobFleeSampleDistance).append('\n');
-            sb.append('\n');
-
-            sb.append("# ── Advanced: UI ──\n");
-            sb.append("ui.zoneTransitionHudEnabled=").append(zoneTransitionHudEnabled).append('\n');
-            sb.append("ui.zoneTransitionLabel.civilized=").append(zoneTransitionLabelCivilized).append('\n');
-            sb.append("ui.zoneTransitionLabel.wilderness=").append(zoneTransitionLabelWilderness).append('\n');
-            sb.append("ui.zoneTransitionLabel.caution=").append(zoneTransitionLabelCaution).append('\n');
-            sb.append("ui.zoneTransitionHudCooldownSeconds=").append(zoneTransitionHudCooldownSeconds).append('\n');
-            sb.append("ui.zoneTransitionHudAnchorOffsetXPercent=").append(zoneTransitionHudAnchorOffsetXPercent).append('\n');
-            sb.append("ui.zoneTransitionHudAnchorOffsetYPercent=").append(zoneTransitionHudAnchorOffsetYPercent).append('\n');
-            sb.append("#ui.detectorAnimationTicks=").append(detectorAnimationTicks).append('\n');
-            sb.append("#ui.detectorCooldownTicks=").append(detectorCooldownTicks).append('\n');
-            sb.append('\n');
-            sb.append("# ── Advanced: Civil map tint (0-255; baked server-side) ──\n");
-            sb.append("#mapTint.highFillAlpha=").append(mapTintHighFillAlpha).append('\n');
-            sb.append("#mapTint.highEdgeAlpha=").append(mapTintHighEdgeAlpha).append("  # border: uniform white mix, not terrain-based\n");
-            sb.append("#mapTint.monsterFillAlpha=").append(mapTintMonsterFillAlpha).append('\n');
-            sb.append("#mapTint.monsterEdgeAlpha=").append(mapTintMonsterEdgeAlpha).append("  # border: uniform purple mix\n");
+            writeSections(sb, SIMPLE_SECTIONS, false);
+            sb.append("# ── Advanced ──\n");
+            writeSections(sb, ADVANCED_SECTIONS, true);
 
             Files.writeString(file, sb.toString());
         } catch (IOException ignored) {
@@ -763,6 +849,103 @@ public final class CivilConfig {
     // ══════════════════════════════════════════════════════════
     //  Helpers
     // ══════════════════════════════════════════════════════════
+
+    private static ConfigSection section(String title, ConfigEntry... entries) {
+        return new ConfigSection(title, entries);
+    }
+
+    private static ConfigEntry boolEntry(String key, BooleanSupplier getter, BooleanSetter setter) {
+        return new ConfigEntry(
+                key,
+                () -> Boolean.toString(getter.getAsBoolean()),
+                (p, k) -> {
+                    String raw = p.getProperty(k);
+                    if (raw != null) {
+                        setter.set(parseBoolean(raw, getter.getAsBoolean()));
+                    }
+                });
+    }
+
+    private static ConfigEntry intEntry(String key, IntSupplier getter, IntSetter setter) {
+        return intEntry(key, getter, setter, CivilConfig::parseInt);
+    }
+
+    private static ConfigEntry intEntry(String key, IntSupplier getter, IntSetter setter, IntValueParser parser) {
+        return new ConfigEntry(
+                key,
+                () -> Integer.toString(getter.getAsInt()),
+                (p, k) -> {
+                    String raw = p.getProperty(k);
+                    if (raw != null) {
+                        setter.set(parser.parse(raw, getter.getAsInt()));
+                    }
+                });
+    }
+
+    private static ConfigEntry longEntry(String key, LongSupplier getter, LongSetter setter) {
+        return longEntry(key, getter, setter, CivilConfig::parseLong);
+    }
+
+    private static ConfigEntry longEntry(String key, LongSupplier getter, LongSetter setter, LongValueParser parser) {
+        return new ConfigEntry(
+                key,
+                () -> Long.toString(getter.getAsLong()),
+                (p, k) -> {
+                    String raw = p.getProperty(k);
+                    if (raw != null) {
+                        setter.set(parser.parse(raw, getter.getAsLong()));
+                    }
+                });
+    }
+
+    private static ConfigEntry doubleEntry(String key, DoubleSupplier getter, DoubleSetter setter) {
+        return doubleEntry(key, getter, setter, CivilConfig::parseDouble);
+    }
+
+    private static ConfigEntry doubleEntry(String key, DoubleSupplier getter, DoubleSetter setter, DoubleValueParser parser) {
+        return new ConfigEntry(
+                key,
+                () -> Double.toString(getter.getAsDouble()),
+                (p, k) -> {
+                    String raw = p.getProperty(k);
+                    if (raw != null) {
+                        setter.set(parser.parse(raw, getter.getAsDouble()));
+                    }
+                });
+    }
+
+    private static ConfigEntry stringEntry(String key, Supplier<String> getter, Consumer<String> setter) {
+        return new ConfigEntry(
+                key,
+                getter::get,
+                (p, k) -> {
+                    String raw = p.getProperty(k);
+                    if (raw != null) {
+                        setter.accept(raw);
+                    }
+                });
+    }
+
+    private static void loadSections(Properties p, ConfigSection[] sections) {
+        for (ConfigSection section : sections) {
+            for (ConfigEntry entry : section.entries()) {
+                entry.loader().load(p, entry.key());
+            }
+        }
+    }
+
+    private static void writeSections(StringBuilder sb, ConfigSection[] sections, boolean advanced) {
+        for (ConfigSection section : sections) {
+            sb.append("# ").append(section.title()).append('\n');
+            for (ConfigEntry entry : section.entries()) {
+                if (advanced) {
+                    sb.append(advLinePrefix(entry.key()));
+                }
+                sb.append(entry.key()).append('=').append(entry.writer().value()).append('\n');
+            }
+            sb.append('\n');
+        }
+    }
 
     /** Normalizes HUD label overrides from GUI or civil.properties (no newlines; max length). */
     public static String sanitizeZoneTransitionLabel(String raw) {

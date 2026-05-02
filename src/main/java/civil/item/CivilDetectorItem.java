@@ -7,9 +7,10 @@ import civil.ModSounds;
 import civil.aura.SonarScanManager;
 import civil.aura.SonarType;
 import civil.component.ModComponents;
+import civil.civilization.CivilRegionClassifier;
+import civil.civilization.CivilRegionKind;
 import civil.civilization.CScore;
-import civil.civilization.FarmShrineTracker;
-import civil.registry.DimensionPolicyRegistry;
+import civil.civilization.VoxelChunkKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -73,8 +74,9 @@ public class CivilDetectorItem extends Item {
             // Play sound effect by detection state: get sound + pitch at once (vanilla uses pitch to distinguish, custom OGG uses 1.0)
             ModSounds.DetectorPlayback playback = ModSounds.getDetectorPlayback(displayState);
             if (playback.sound() != null) {
+                float volume = ("monster".equals(displayState) || "zone".equals(displayState)) ? 0.7f : 1.0f;
                 serverWorld.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        playback.sound(), SoundSource.BLOCKS, 1.0f, playback.pitch());
+                        playback.sound(), SoundSource.BLOCKS, volume, playback.pitch());
                 if (CivilMod.DEBUG) {
                     CivilMod.LOGGER.info("[civil] detector sound played: displayState={}", displayState);
                 }
@@ -109,20 +111,16 @@ public class CivilDetectorItem extends Item {
      * does not fold mob heads into the fusion score.
      */
     private static String scoreToDisplayState(CScore cScore, ServerLevel world, BlockPos pos) {
+        CivilRegionKind kind = CivilRegionClassifier.classify(world, VoxelChunkKey.from(pos)).kind();
+        if (kind == CivilRegionKind.SHRINE) {
+            return "monster";
+        }
+        if (kind == CivilRegionKind.ZONE) {
+            return "zone";
+        }
         if (cScore == null) {
             return "default";
         }
-
-        if (DimensionPolicyRegistry.policyFor(world).headMechanics()) {
-            FarmShrineTracker shrines = CivilServices.getFarmShrineTracker();
-            if (shrines != null && shrines.isInitialized()) {
-                String dim = world.dimension().identifier().toString();
-                if (shrines.isInsideAnyBypassBox(dim, pos)) {
-                    return "monster";
-                }
-            }
-        }
-
         double score = cScore.score();
         if (score < CivilConfig.spawnThresholdLow) {
             return "low";

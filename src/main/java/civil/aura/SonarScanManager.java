@@ -3,8 +3,10 @@ package civil.aura;
 import civil.CivilMod;
 import civil.CivilServices;
 import civil.ModSounds;
+import civil.civilization.CivilRegionClassifier;
 import civil.civilization.FarmShrineTracker;
 import civil.civilization.VoxelChunkKey;
+import civil.civilization.ZonePolicyService;
 import civil.config.CivilConfig;
 import civil.CivilPlatform;
 import civil.registry.DimensionPolicyRegistry;
@@ -154,25 +156,27 @@ public final class SonarScanManager {
 
     public static void startScan(ServerPlayer player, ServerLevel serverWorld,
                                  net.minecraft.core.BlockPos origin, SonarType type) {
-        int scanRadius = type.getRadius();
-        SonarScan.MAX_RADIUS = scanRadius;
+        startScan(player, serverWorld, origin, type, type.getRadius());
+    }
+
+    public static void startScan(ServerPlayer player, ServerLevel serverWorld,
+                                 net.minecraft.core.BlockPos origin, SonarType type, int scanRadius) {
+        scanRadius = Math.max(1, scanRadius);
 
         long worldTick = serverWorld.getGameTime();
-        SonarScan scan = new SonarScan(serverWorld, origin, worldTick);
-
-        boolean playerInShrineZone = isPositionInShrineZone(serverWorld, origin);
+        SonarScan scan = new SonarScan(serverWorld, origin, worldTick, scanRadius);
 
         double originX = origin.getX() + 0.5;
         double originY = origin.getY() + 0.5;
         double originZ = origin.getZ() + 0.5;
 
-        ScanSession session = new ScanSession(scan, scanRadius, playerInShrineZone,
-                originX, originY, originZ, type);
+        ScanSession session = new ScanSession(scan, scanRadius, originX, originY, originZ, type);
         ACTIVE_SCANS.put(player.getUUID(), session);
 
         if (CivilMod.DEBUG) {
-            LOGGER.info("[civil-sonar] Started {} scan for player {} (inHigh={}, inShrineZone={}, radius={})",
-                    type.name(), player.getName().getString(), scan.isPlayerInHigh(), playerInShrineZone, scanRadius);
+            var rk = CivilRegionClassifier.classify(serverWorld, VoxelChunkKey.from(origin)).kind();
+            LOGGER.info("[civil-sonar] Started {} scan for player {} (inHigh={}, regionKind={}, radius={})",
+                    type.name(), player.getName().getString(), scan.isPlayerInHigh(), rk, scanRadius);
         }
     }
 
@@ -190,22 +194,10 @@ public final class SonarScanManager {
         return true;
     }
 
-    private static boolean isPositionInShrineZone(ServerLevel world, net.minecraft.core.BlockPos pos) {
-        if (!DimensionPolicyRegistry.policyFor(world).headMechanics()) {
-            return false;
-        }
-        FarmShrineTracker tracker = CivilServices.getFarmShrineTracker();
-        if (tracker == null || !tracker.isInitialized()) {
-            return false;
-        }
-        String dim = world.dimension().identifier().toString();
-        return tracker.isInsideAnyBypassBox(dim, pos);
-    }
-
     /**
      * Tick a single scan session.
      *
-     * <p>The shockwave always fires at tick {@code scanRadius} (= MAX_RADIUS at scan start),
+     * <p>The shockwave always fires at tick {@code scanRadius} (captured at scan start),
      * making the "detector click → shockwave" delay consistent for any given config.
      * Larger detection ranges naturally produce longer charge-up periods, which feels
      * intuitive — scanning a bigger area takes more time.
@@ -231,9 +223,10 @@ public final class SonarScanManager {
                         chargeSound, SoundSource.PLAYERS,
                         type.chargeVolume(), type.chargePitch());
             }
+            byte regId = CivilRegionClassifier.classify(
+                    world, VoxelChunkKey.from(player.blockPosition())).kind().id();
             CivilPlatform.sendToPlayer(player,
-                    new SonarChargePayload(session.originX, session.originY, session.originZ,
-                            session.scan.isPlayerInHigh(), session.playerInShrineZone, type.id()));
+                    new SonarChargePayload(session.originX, session.originY, session.originZ, regId, type.id()));
         }
 
         // Advance BFS one ring (if still running — small envelopes finish early)
@@ -260,11 +253,17 @@ public final class SonarScanManager {
     private static void sendBoundaryPacket(ServerPlayer player, SonarScan scan,
                                            double originX, double originY, double originZ,
                                            SonarType sonarType) {
+        byte playerReg = CivilRegionClassifier.classify(
+                (ServerLevel) player.level(), VoxelChunkKey.from(player.blockPosition())).kind().id();
         ShrineZoneResult shrineResult = computeShrineZoneData(scan);
+        EnvelopeResult zoneResult = computeZonePolicyData(
+                scan.getWorld(), scan.getCenter(), scan.getMaxRadius() + 1, shrineResult.shrineBypass2D);
+        zoneResult = suppressZoneFacesOverlappingShrine(zoneResult, shrineResult);
 
         Set<Long> shrineBypass2D = shrineResult.shrineBypass2D;
+        Set<Long> zonePolicy2D = zoneResult.envelope2DToY.keySet();
         List<BoundaryFaceData> faces;
-        if (shrineBypass2D.isEmpty()) {
+        if (shrineBypass2D.isEmpty() && zonePolicy2D.isEmpty()) {
             faces = scan.getAllBoundaries().stream()
                     .map(BoundaryFaceData::fromBoundaryFace)
                     .toList();
@@ -273,7 +272,10 @@ public final class SonarScanManager {
                     .filter(bf -> {
                         long highXZ = packXZ(bf.highSide().getCx(), bf.highSide().getCz());
                         long lowXZ  = packXZ(bf.lowSide().getCx(), bf.lowSide().getCz());
-                        return !shrineBypass2D.contains(highXZ) && !shrineBypass2D.contains(lowXZ);
+                        return !shrineBypass2D.contains(highXZ)
+                                && !shrineBypass2D.contains(lowXZ)
+                                && !zonePolicy2D.contains(highXZ)
+                                && !zonePolicy2D.contains(lowXZ);
                     })
                     .map(BoundaryFaceData::fromBoundaryFace)
                     .toList();
@@ -318,7 +320,7 @@ public final class SonarScanManager {
         // would incorrectly revert to SOUL_FIRE_FLAME when crossing into unscanned territory.
         // Heuristic: unvisited VCs within range are most likely the opposite of playerInHigh.
         VoxelChunkKey center = scan.getCenter();
-        int maxR = SonarScan.MAX_RADIUS;
+        int maxR = scan.getMaxRadius();
         for (int dx = -maxR; dx <= maxR; dx++) {
             for (int dz = -maxR; dz <= maxR; dz++) {
                 if (Math.abs(dx) + Math.abs(dz) > maxR) continue;
@@ -338,10 +340,23 @@ public final class SonarScanManager {
         int cidx = 0;
         for (long v : civHigh2DSet) civHighZone2DArray[cidx++] = v;
 
+        int zzoneSize = zoneResult.envelope2DToY.size();
+        long[] zone2DArray = new long[zzoneSize];
+        float[] zoneMinY = new float[zzoneSize];
+        float[] zoneMaxY = new float[zzoneSize];
+        int zidx = 0;
+        for (var e : zoneResult.envelope2DToY.entrySet()) {
+            zone2DArray[zidx] = e.getKey();
+            zoneMinY[zidx] = e.getValue()[0];
+            zoneMaxY[zidx] = e.getValue()[1];
+            zidx++;
+        }
+
         SonarBoundaryPayload payload = new SonarBoundaryPayload(
-                scan.isPlayerInHigh(), cx, cy, cz, wallMinY, wallMaxY,
+                playerReg, cx, cy, cz, wallMinY, wallMaxY,
                 faces, shrineResult.faces, shrineZone2DArray,
-                shrineZoneMinYArray, shrineZoneMaxYArray, civHighZone2DArray, sonarType.id());
+                shrineZoneMinYArray, shrineZoneMaxYArray, zoneResult.faces, zone2DArray, zoneMinY, zoneMaxY,
+                civHighZone2DArray, sonarType.id());
 
         CivilPlatform.sendToPlayer(player, payload);
 
@@ -349,8 +364,8 @@ public final class SonarScanManager {
                 originX, originY, originZ, BOOM_DELAY_TICKS, sonarType));
 
         if (CivilMod.DEBUG) {
-            LOGGER.info("[civil-sonar] Sent boundary packet to {}: {} civ faces, {} shrine faces, wall Y=[{}, {}]",
-                    player.getName().getString(), faces.size(), shrineResult.faces.size(),
+            LOGGER.info("[civil-sonar] Sent boundary to {}: civF={} shrineF={} zoneF={} Y=[{}, {}]",
+                    player.getName().getString(), faces.size(), shrineResult.faces.size(), zoneResult.faces.size(),
                     String.format("%.0f", wallMinY), String.format("%.0f", wallMaxY));
         }
     }
@@ -362,6 +377,93 @@ public final class SonarScanManager {
     private record ShrineZoneResult(List<ShrineFaceData> faces, Set<Long> shrineBypass2D,
                                     Map<Long, float[]> shrineZoneYRanges) {
         static final ShrineZoneResult EMPTY = new ShrineZoneResult(List.of(), Set.of(), Map.of());
+    }
+
+    private record EnvelopeResult(List<ShrineFaceData> faces, Map<Long, float[]> envelope2DToY) {
+        static final EnvelopeResult EMPTY = new EnvelopeResult(List.of(), Map.of());
+    }
+
+    private static EnvelopeResult computeZonePolicyData(
+            ServerLevel world, VoxelChunkKey center, int filterRange, Set<Long> shrineBypass2D) {
+        ZonePolicyService zps = CivilServices.getZonePolicyService();
+        if (zps == null || !DimensionPolicyRegistry.policyFor(world).civilization()) {
+            return EnvelopeResult.EMPTY;
+        }
+        Set<VC3> zoneVcs = new HashSet<>();
+        for (int dx = -filterRange; dx <= filterRange; dx++) {
+            for (int dz = -filterRange; dz <= filterRange; dz++) {
+                for (int dsy = -1; dsy <= 1; dsy++) {
+                    int cx = center.getCx() + dx;
+                    int cz = center.getCz() + dz;
+                    int sy = center.getSy() + dsy;
+                    if (shrineBypass2D.contains(packXZ(cx, cz))) {
+                        continue;
+                    }
+                    VoxelChunkKey vc = new VoxelChunkKey(cx, cz, sy);
+                    if (!vc.isValidIn(world)) {
+                        continue;
+                    }
+                    if (zps.treatAsNonCivilized(world, vc)) {
+                        zoneVcs.add(new VC3(cx, cz, sy));
+                    }
+                }
+            }
+        }
+        if (zoneVcs.isEmpty()) {
+            return EnvelopeResult.EMPTY;
+        }
+        Map<Long, float[]> yRanges = new HashMap<>();
+        for (VC3 v : zoneVcs) {
+            long packed = packXZ(v.cx, v.cz);
+            float y0 = v.sy * 16.0f;
+            float y1 = (v.sy + 1) * 16.0f;
+            float[] existing = yRanges.get(packed);
+            if (existing == null) {
+                yRanges.put(packed, new float[] {y0, y1});
+            } else {
+                existing[0] = Math.min(existing[0], y0);
+                existing[1] = Math.max(existing[1], y1);
+            }
+        }
+        int[][] xzNeigh = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        byte[] neighborAxes = {0, 0, 2, 2};
+        boolean[] neighborPos = {true, false, true, false};
+        List<ShrineFaceData> outFaces = new ArrayList<>();
+        Set<Long> dedup = new HashSet<>();
+        for (VC3 vc : zoneVcs) {
+            if (Math.abs(vc.cx - center.getCx()) > filterRange
+                    || Math.abs(vc.cz - center.getCz()) > filterRange) {
+                continue;
+            }
+            for (int n = 0; n < 4; n++) {
+                int ncx = vc.cx + xzNeigh[n][0];
+                int ncz = vc.cz + xzNeigh[n][1];
+                VC3 neighbor = new VC3(ncx, ncz, vc.sy);
+                if (!zoneVcs.contains(neighbor)) {
+                    byte axis = neighborAxes[n];
+                    boolean positive = neighborPos[n];
+                    double planeCoord;
+                    double minU;
+                    if (axis == 0) {
+                        planeCoord = positive ? (vc.cx + 1) * 16.0 : vc.cx * 16.0;
+                        minU = vc.cz * 16.0;
+                    } else {
+                        planeCoord = positive ? (vc.cz + 1) * 16.0 : vc.cz * 16.0;
+                        minU = vc.cx * 16.0;
+                    }
+                    double fMinY = vc.sy * 16.0 - SHRINE_ZONE_Y_PADDING;
+                    double fMaxY = (vc.sy + 1) * 16.0 + SHRINE_ZONE_Y_PADDING;
+                    long dedupKey = dedupHash(axis, planeCoord, minU, vc.sy);
+                    if (dedup.add(dedupKey)) {
+                        outFaces.add(new ShrineFaceData(axis, planeCoord, minU, positive, fMinY, fMaxY));
+                    }
+                }
+            }
+        }
+        if (CivilMod.DEBUG && !outFaces.isEmpty()) {
+            LOGGER.info("[civil-sonar] zone policy: {} faces, 2D cells {}", outFaces.size(), yRanges.size());
+        }
+        return new EnvelopeResult(outFaces, yRanges);
     }
 
     private static long packXZ(int cx, int cz) {
@@ -380,7 +482,7 @@ public final class SonarScanManager {
 
         String dim = world.dimension().identifier().toString();
         VoxelChunkKey center = scan.getCenter();
-        int maxRange = SonarScan.MAX_RADIUS + 2;
+        int maxRange = scan.getMaxRadius() + 2;
 
         int rx = CivilConfig.farmShrineRangeX;
         int rz = CivilConfig.farmShrineRangeZ;
@@ -428,7 +530,7 @@ public final class SonarScanManager {
         byte[] neighborAxes = {0, 0, 2, 2};
         boolean[] neighborPos = {true, false, true, false};
 
-        int filterRange = SonarScan.MAX_RADIUS + 1;
+        int filterRange = scan.getMaxRadius() + 1;
 
         List<ShrineFaceData> faces = new ArrayList<>();
         Set<Long> dedup = new HashSet<>();
@@ -490,6 +592,41 @@ public final class SonarScanManager {
     }
 
     /**
+     * Enforces shrine > zone visual priority by removing zone faces that are coplanar
+     * with any shrine face. Keep this in the data layer so renderer order/alpha cannot
+     * re-introduce overlap artifacts.
+     */
+    private static EnvelopeResult suppressZoneFacesOverlappingShrine(
+            EnvelopeResult zoneResult, ShrineZoneResult shrineResult) {
+        if (zoneResult.faces.isEmpty() || shrineResult.faces.isEmpty()) {
+            return zoneResult;
+        }
+        Set<Long> shrineFaceKeys = new HashSet<>(shrineResult.faces.size() * 2);
+        for (ShrineFaceData sf : shrineResult.faces) {
+            shrineFaceKeys.add(faceOverlapKey(sf.axis(), sf.planeCoord(), sf.minU(), sf.faceMinY()));
+        }
+        List<ShrineFaceData> filtered = new ArrayList<>(zoneResult.faces.size());
+        for (ShrineFaceData zf : zoneResult.faces) {
+            long key = faceOverlapKey(zf.axis(), zf.planeCoord(), zf.minU(), zf.faceMinY());
+            if (!shrineFaceKeys.contains(key)) {
+                filtered.add(zf);
+            }
+        }
+        if (filtered.size() == zoneResult.faces.size()) {
+            return zoneResult;
+        }
+        return new EnvelopeResult(List.copyOf(filtered), zoneResult.envelope2DToY);
+    }
+
+    private static long faceOverlapKey(byte axis, double planeCoord, double minU, double faceMinY) {
+        long a = axis;
+        long p = Double.doubleToLongBits(planeCoord);
+        long u = Double.doubleToLongBits(minU);
+        long y = Double.doubleToLongBits(faceMinY);
+        return a ^ (p * 31) ^ (u * 997) ^ (y * 65537);
+    }
+
+    /**
      * Check if a player currently has an active scan.
      */
     public static boolean hasActiveScan(UUID playerId) {
@@ -498,13 +635,11 @@ public final class SonarScanManager {
 
     /**
      * Internal session state wrapper.
-     * Captures the scan radius at creation time so the deadline is stable even if
-     * the global MAX_RADIUS config changes mid-scan.
+     * Captures the scan radius at creation time so the deadline is stable.
      */
     private static final class ScanSession {
         final SonarScan scan;
         final int scanRadius;
-        final boolean playerInShrineZone;
         final double originX;
         final double originY;
         final double originZ;
@@ -512,11 +647,10 @@ public final class SonarScanManager {
         int ticksElapsed;
         boolean chargePlayed;
 
-        ScanSession(SonarScan scan, int scanRadius, boolean playerInShrineZone,
+        ScanSession(SonarScan scan, int scanRadius,
                     double originX, double originY, double originZ, SonarType type) {
             this.scan = scan;
             this.scanRadius = scanRadius;
-            this.playerInShrineZone = playerInShrineZone;
             this.originX = originX;
             this.originY = originY;
             this.originZ = originZ;

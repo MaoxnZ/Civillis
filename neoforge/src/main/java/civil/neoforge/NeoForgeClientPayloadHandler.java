@@ -35,7 +35,7 @@ final class NeoForgeClientPayloadHandler {
         if (player != null) {
             SonarShockwaveEffect.startCharge(
                     payload.centerX(), payload.centerY(), payload.centerZ(),
-                    payload.playerInHigh(), payload.playerInShrineZone(),
+                    payload.regionKindId(),
                     SonarType.fromId(payload.sonarType()));
         }
     }
@@ -46,10 +46,12 @@ final class NeoForgeClientPayloadHandler {
         if (player != null) {
             Map<Long, float[]> shrineZoneYMap = buildShrineZoneYMap(
                     payload.shrineZone2D(), payload.shrineZoneMinY(), payload.shrineZoneMaxY());
+            Map<Long, float[]> policyZoneYMap = buildShrineZoneYMap(
+                    payload.zoneZone2D(), payload.zoneZoneMinY(), payload.zoneZoneMaxY());
             Set<Long> civHighZone2DSet = buildLongSet(payload.civHighZone2D());
 
             SonarShockwaveEffect.startRing(
-                    payload.playerInHigh(), shrineZoneYMap, civHighZone2DSet,
+                    shrineZoneYMap, policyZoneYMap, civHighZone2DSet,
                     SonarType.fromId(payload.sonarType()));
         }
     }

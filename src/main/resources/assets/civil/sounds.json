@@ -18,5 +18,9 @@
   "detector_monster": {
     "subtitle": "subtitles.civil.detector_monster",
     "sounds": [{ "name": "civil:detector_monster", "stream": false }]
+  },
+  "detector_shrine": {
+    "subtitle": "subtitles.civil.detector_shrine",
+    "sounds": [{ "name": "civil:detector_shrine", "stream": false }]
   }
 }

@@ -1,0 +1,18 @@
+{
+  "replace": false,
+  "entries": [
+    {
+      "id": "betterdungeons_all",
+      "structures": [
+        "betterdungeons:skeleton_dungeon",
+        "betterdungeons:small_dungeon",
+        "betterdungeons:small_nether_dungeon",
+        "betterdungeons:spider_dungeon",
+        "betterdungeons:zombie_dungeon"
+      ],
+      "rules": {
+        "allow_hostile_spawn": true
+      }
+    }
+  ]
+}

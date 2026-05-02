@@ -26,6 +26,13 @@
         }
       },
       {
+        "when": "zone",
+        "model": {
+          "type": "minecraft:model",
+          "model": "civil:item/civil_detector_zone"
+        }
+      },
+      {
         "when": "monster",
         "model": {
           "type": "minecraft:model",

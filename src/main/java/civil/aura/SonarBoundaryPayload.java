@@ -9,20 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Server-to-client packet carrying protection zone boundary data.
- *
- * <p>Sent once when a sonar scan completes. Contains all vertical boundary
- * faces (X and Z axes only) discovered by the 2D BFS, the scan center,
- * wall vertical extent, and whether the player started inside a HIGH zone.
- *
- * <p>Also carries farm shrine bypass boundary faces with per-face vertical extents
- * for rendering amethyst-colored envelopes, and the 2D (XZ) footprint of all bypass
- * VCs for sonar particle effects.
- *
- * <p>The client uses this data to render translucent wall quads via {@link AuraWallRenderer}.
+ * Server-to-client: sonar scan boundary; civilization faces, farm shrine faces, and structure-policy zone faces.
  */
 public record SonarBoundaryPayload(
-        boolean playerInHigh,
+        byte playerRegionKindId,
         double centerX,
         double centerY,
         double centerZ,
@@ -33,6 +23,10 @@ public record SonarBoundaryPayload(
         long[] shrineZone2D,
         float[] shrineZoneMinY,
         float[] shrineZoneMaxY,
+        List<ShrineFaceData> zoneFaces,
+        long[] zoneZone2D,
+        float[] zoneZoneMinY,
+        float[] zoneZoneMaxY,
         long[] civHighZone2D,
         byte sonarType
 ) implements CustomPacketPayload {
@@ -44,7 +38,7 @@ public record SonarBoundaryPayload(
             StreamCodec.ofMember(SonarBoundaryPayload::encode, SonarBoundaryPayload::decode);
 
     private static void encode(SonarBoundaryPayload payload, RegistryFriendlyByteBuf buf) {
-        buf.writeBoolean(payload.playerInHigh);
+        buf.writeByte(payload.playerRegionKindId);
         buf.writeDouble(payload.centerX);
         buf.writeDouble(payload.centerY);
         buf.writeDouble(payload.centerZ);
@@ -64,6 +58,16 @@ public record SonarBoundaryPayload(
             buf.writeFloat(payload.shrineZoneMinY[i]);
             buf.writeFloat(payload.shrineZoneMaxY[i]);
         }
+        buf.writeVarInt(payload.zoneFaces.size());
+        for (ShrineFaceData zf : payload.zoneFaces) {
+            zf.write(buf);
+        }
+        buf.writeVarInt(payload.zoneZone2D.length);
+        for (int i = 0; i < payload.zoneZone2D.length; i++) {
+            buf.writeLong(payload.zoneZone2D[i]);
+            buf.writeFloat(payload.zoneZoneMinY[i]);
+            buf.writeFloat(payload.zoneZoneMaxY[i]);
+        }
         buf.writeVarInt(payload.civHighZone2D.length);
         for (long v : payload.civHighZone2D) {
             buf.writeLong(v);
@@ -72,7 +76,7 @@ public record SonarBoundaryPayload(
     }
 
     private static SonarBoundaryPayload decode(RegistryFriendlyByteBuf buf) {
-        boolean playerInHigh = buf.readBoolean();
+        byte kindId = buf.readByte();
         double cx = buf.readDouble();
         double cy = buf.readDouble();
         double cz = buf.readDouble();
@@ -97,14 +101,29 @@ public record SonarBoundaryPayload(
             shrineZoneMinY[i] = buf.readFloat();
             shrineZoneMaxY[i] = buf.readFloat();
         }
+        int zfCount = buf.readVarInt();
+        List<ShrineFaceData> zoneFaces = new ArrayList<>(zfCount);
+        for (int i = 0; i < zfCount; i++) {
+            zoneFaces.add(ShrineFaceData.read(buf));
+        }
+        int zzCount = buf.readVarInt();
+        long[] zoneZone2D = new long[zzCount];
+        float[] zoneZoneMinY = new float[zzCount];
+        float[] zoneZoneMaxY = new float[zzCount];
+        for (int i = 0; i < zzCount; i++) {
+            zoneZone2D[i] = buf.readLong();
+            zoneZoneMinY[i] = buf.readFloat();
+            zoneZoneMaxY[i] = buf.readFloat();
+        }
         int chCount = buf.readVarInt();
         long[] civHighZone2D = new long[chCount];
         for (int i = 0; i < chCount; i++) {
             civHighZone2D[i] = buf.readLong();
         }
         byte sonarType = buf.readByte();
-        return new SonarBoundaryPayload(playerInHigh, cx, cy, cz, wMinY, wMaxY,
-                faces, shrineFaces, shrineZone2D, shrineZoneMinY, shrineZoneMaxY, civHighZone2D, sonarType);
+        return new SonarBoundaryPayload(kindId, cx, cy, cz, wMinY, wMaxY, faces, shrineFaces,
+                shrineZone2D, shrineZoneMinY, shrineZoneMaxY, zoneFaces, zoneZone2D,
+                zoneZoneMinY, zoneZoneMaxY, civHighZone2D, sonarType);
     }
 
     @Override

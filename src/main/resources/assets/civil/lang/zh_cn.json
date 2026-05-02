@@ -6,6 +6,8 @@
   "subtitles.civil.detector_medium": "文明检测器：中等文明",
   "subtitles.civil.detector_high": "文明检测器：高文明",
   "subtitles.civil.detector_monster": "文明检测器：怪物头",
+  "subtitles.civil.detector_shrine": "文明检测器：祭坛",
+  "subtitles.civil.detector_zone": "文明检测器：谨慎区",
 
   "civil.config.title": "Civillis 设置",
   "civil.config.category.main": "文明参数",
@@ -61,6 +63,7 @@
   "civil.config.ui.zoneTransitionLabel.civilized": "区域 HUD：文明区域文案",
   "civil.config.ui.zoneTransitionLabel.wilderness": "区域 HUD：荒野文案",
   "civil.config.ui.zoneTransitionLabel.caution": "区域 HUD：谨慎文案",
+  "civil.config.ui.zoneTransitionLabel.shrine": "区域 HUD：祭坛文案",
   "civil.config.ui.zoneTransitionHudCooldownSeconds": "最短间隔",
   "civil.config.slider.zoneTransitionHudCooldown.off": "\u00a77关闭",
   "civil.config.slider.zoneTransitionHudCooldown": "%d 秒",
@@ -70,6 +73,7 @@
   "civil.hud.zone_transition.civilized": "文明区域",
   "civil.hud.zone_transition.wilderness": "荒野",
   "civil.hud.zone_transition.caution": "谨慎",
+  "civil.hud.zone_transition.shrine": "祭坛",
 
   "civil.config.sonar.detectorRadius": "探测器声呐范围",
   "civil.config.sonar.staticRadius": "钟声呐范围",

@@ -4,9 +4,13 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.world.level.Level;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +48,10 @@ public final class DimensionPolicyLoader {
     private DimensionPolicyLoader() {
     }
 
-    public static void reload(ResourceManager manager) {
+    /**
+     * @param registryAccess used to drop {@code dimension} entries not in {@link Registries#DIMENSION}.
+     */
+    public static void reload(ResourceManager manager, RegistryAccess registryAccess) {
         Map<Identifier, Resource> resources = manager.listResources(
                 DATA_PATH, id -> id.getPath().endsWith(".json"));
 
@@ -70,10 +77,16 @@ public final class DimensionPolicyLoader {
                 if (!root.has("entries")) continue;
                 JsonArray entries = root.getAsJsonArray("entries");
 
+                var dimensionLookup = registryAccess.lookupOrThrow(Registries.DIMENSION);
                 for (JsonElement elem : entries) {
                     JsonObject obj = elem.getAsJsonObject();
                     String dimSpec = obj.get("dimension").getAsString();
                     Identifier dimId = Identifier.parse(dimSpec);
+                    ResourceKey<Level> dKey = ResourceKey.create(Registries.DIMENSION, dimId);
+                    if (dimensionLookup.get(dKey).isEmpty()) {
+                        LOGGER.warn("[civil-registry] Unknown dimension '{}' in {}, skipping", dimSpec, fileId);
+                        continue;
+                    }
                     String dimKey = dimId.toString();
 
                     boolean civilization = !obj.has("civilization") || obj.get("civilization").getAsBoolean();

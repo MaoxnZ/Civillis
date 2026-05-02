@@ -1,0 +1,40 @@
+{
+  "replace": false,
+  "entries": [
+    {
+      "id": "dungeons_arise_all",
+      "structures": [
+        "dungeons_arise:abandoned_temple",
+        "dungeons_arise:aviary",
+        "dungeons_arise:bandit_towers",
+        "dungeons_arise:bandit_village",
+        "dungeons_arise:ceryneian_hind",
+        "dungeons_arise:coliseum",
+        "dungeons_arise:foundry",
+        "dungeons_arise:heavenly_challenger",
+        "dungeons_arise:heavenly_conqueror",
+        "dungeons_arise:heavenly_rider",
+        "dungeons_arise:illager_campsite",
+        "dungeons_arise:illager_corsair",
+        "dungeons_arise:illager_fort",
+        "dungeons_arise:illager_galley",
+        "dungeons_arise:illager_windmill",
+        "dungeons_arise:infested_temple",
+        "dungeons_arise:jungle_tree_house",
+        "dungeons_arise:mining_system",
+        "dungeons_arise:mushroom_house",
+        "dungeons_arise:mushroom_mines",
+        "dungeons_arise:plague_asylum",
+        "dungeons_arise:scorched_mines",
+        "dungeons_arise:shiraz_palace",
+        "dungeons_arise:small_blimp",
+        "dungeons_arise:thornborn_towers",
+        "dungeons_arise:typhon",
+        "dungeons_arise:undead_pirate_ship"
+      ],
+      "rules": {
+        "allow_hostile_spawn": true
+      }
+    }
+  ]
+}

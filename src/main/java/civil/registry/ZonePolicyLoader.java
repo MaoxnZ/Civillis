@@ -6,11 +6,15 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.level.levelgen.structure.Structure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +37,11 @@ public final class ZonePolicyLoader {
 
     private ZonePolicyLoader() {}
 
-    public static void reload(ResourceManager manager) {
+    /**
+     * @param registryAccess used to filter {@code structures} to ids present in {@link Registries#STRUCTURE}
+     *         (unknown ids are skipped with a warning, like {@code allow_mobs} and {@link BlockWeightLoader}).
+     */
+    public static void reload(ResourceManager manager, RegistryAccess registryAccess) {
         ArrayList<ZonePolicyRegistry.ZonePolicyRule> accumulated = new ArrayList<>();
 
         Map<Identifier, Resource> resources = manager.listResources(
@@ -63,12 +71,21 @@ public final class ZonePolicyLoader {
                     LinkedHashSet<Identifier> structures = new LinkedHashSet<>();
                     if (obj.has("structures") && obj.get("structures").isJsonArray()) {
                         JsonArray structuresArr = obj.getAsJsonArray("structures");
+                        var structureLookup = registryAccess.lookupOrThrow(Registries.STRUCTURE);
                         for (JsonElement se : structuresArr) {
+                            String raw = se.getAsString();
                             try {
-                                structures.add(Identifier.parse(se.getAsString()));
+                                Identifier id = Identifier.parse(raw);
+                                ResourceKey<Structure> sKey = ResourceKey.create(Registries.STRUCTURE, id);
+                                if (structureLookup.get(sKey).isEmpty()) {
+                                    LOGGER.warn("[civil-registry] Unknown structure '{}' in {} (rule={}), skipping",
+                                            raw, fileId, ruleId);
+                                    continue;
+                                }
+                                structures.add(id);
                             } catch (Exception ex) {
                                 LOGGER.warn("[civil-registry] Invalid structure id '{}' in {} (rule={}), skipping",
-                                        se.getAsString(), fileId, ruleId);
+                                        raw, fileId, ruleId);
                             }
                         }
                     }

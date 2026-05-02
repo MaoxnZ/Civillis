@@ -5,6 +5,8 @@ import civil.CivilPlatform;
 import civil.CivilServices;
 import civil.config.CivilConfig;
 import civil.civilization.ServerClock;
+import civil.civilization.CivilRegionClassifier;
+import civil.civilization.CivilRegionKind;
 import civil.civilization.VoxelChunkKey;
 import civil.civilization.ZonePolicyService;
 import civil.civilization.ZoneSemanticState;
@@ -34,6 +36,8 @@ public final class PlayerAwarePrefetcher {
     private static final long WARM_IDLE_SECONDS = 10L;
     private static final long WARM_IDLE_ENQUEUE_SEC = 1L;
     private static final long STATIC_ENQUEUE_SEC = 30L;
+    /** Skip prefetch enqueue when Chebyshev block step from last tick exceeds this (teleport / elytra dive, etc.). */
+    private static final int PREFETCH_ENQUEUE_MAX_BLOCK_STEP = 2;
 
     private final Map<UUID, PlayerState> playerStates = new HashMap<>();
     private final Map<UUID, ArrayDeque<PrefetchTask>> resultQueuesByPlayer = new HashMap<>();
@@ -81,7 +85,17 @@ public final class PlayerAwarePrefetcher {
                         : warmIdle ? WARM_IDLE_ENQUEUE_SEC : STATIC_ENQUEUE_SEC;
                 boolean shouldEnqueue = state.lastResultEnqueueSec == 0L
                         || nowSec - state.lastResultEnqueueSec >= intervalSec;
-                if (shouldEnqueue) {
+                int blockStepCheb = 0;
+                boolean tooFastBlockStep = false;
+                if (!dimChanged && state.lastTickBlockPos != null) {
+                    BlockPos prev = state.lastTickBlockPos;
+                    int dx = Math.abs(pos.getX() - prev.getX());
+                    int dy = Math.abs(pos.getY() - prev.getY());
+                    int dz = Math.abs(pos.getZ() - prev.getZ());
+                    blockStepCheb = Math.max(dx, Math.max(dy, dz));
+                    tooFastBlockStep = blockStepCheb > PREFETCH_ENQUEUE_MAX_BLOCK_STEP;
+                }
+                if (shouldEnqueue && !tooFastBlockStep) {
                     boolean firstSeen = state.lastResultEnqueueSec == 0L;
                     EnqueueStats enqueueStats = this.enqueueArea(currentEpoch, dim, center, playerId,
                             resultRadiusX, resultRadiusZ, resultRadiusY, this.resultDedupe);
@@ -99,15 +113,46 @@ public final class PlayerAwarePrefetcher {
                                 currentEpoch, playerId, dim, center, reason, enqueueStats.produced, enqueueStats.trimmed, queueSize,
                                 moved, warmIdle, idleSec, intervalSec);
                     }
+                } else if (CivilMod.DEBUG && shouldEnqueue && tooFastBlockStep) {
+                    CivilMod.LOGGER.info(
+                            "[zone][enqueue] skip tooFastBlockStep epoch={} player={} dim={} vc={} chebStep={} cap={}",
+                            currentEpoch, playerId, dim, center, blockStepCheb, PREFETCH_ENQUEUE_MAX_BLOCK_STEP);
                 }
                 this.applyFastCautionTransition(server, currentEpoch, world, dim, center, state, playerId, dimChanged);
                 state.lastSeenVC = center;
                 state.lastDim = dim;
+                state.lastTickBlockPos = pos.immutable();
             }
         }
         this.consumeResultQueue(currentEpoch, worldByDim, resultCache, civilizationService,
                 CivilConfig.resultBudgetPerTick, CivilConfig.resultEpochTtlSec);
         this.flushResultReceipts(currentEpoch, server);
+    }
+
+    private static ZoneSemanticState resolveZoneHudState(ServerLevel world, VoxelChunkKey vc, ZoneSemanticState base) {
+        ZoneSemanticState override = resolveFastOverrideState(world, vc);
+        return override != null ? override : base;
+    }
+
+    private static ZoneSemanticState resolveFastOverrideState(ServerLevel world, VoxelChunkKey vc) {
+        CivilRegionKind k = CivilRegionClassifier.classify(world, vc).kind();
+        return switch (k) {
+            case SHRINE -> ZoneSemanticState.SHRINE;
+            case ZONE -> ZoneSemanticState.CAUTION;
+            default -> null;
+        };
+    }
+
+    private static boolean baseStateMatchesCurrentVc(ServerLevel world, VoxelChunkKey vc, ZoneSemanticState base) {
+        if (base == null) {
+            return false;
+        }
+        CivilRegionKind k = CivilRegionClassifier.classify(world, vc).kind();
+        return switch (base) {
+            case CIVILIZED -> k == CivilRegionKind.HIGH;
+            case WILDERNESS -> k == CivilRegionKind.NONE;
+            case CAUTION, SHRINE -> false;
+        };
     }
 
     private int applyFastCautionTransition(MinecraftServer server, long epoch, ServerLevel world, String dim,
@@ -117,27 +162,36 @@ public final class PlayerAwarePrefetcher {
         if (!vcChangedForHud) {
             return 0;
         }
-        boolean cautionNow = false;
-        ZonePolicyService zonePolicyService = CivilServices.getZonePolicyService();
-        if (zonePolicyService != null) {
-            cautionNow = zonePolicyService.treatAsNonCivilized(world, center);
-        }
-        state.fastCaution = cautionNow;
+        ZoneSemanticState previousOverride = state.fastOverrideState;
+        ZoneSemanticState overrideNow = resolveFastOverrideState(world, center);
+        state.fastOverrideState = overrideNow;
         state.lastHudVc = center;
         if (!state.zoneInitialized) {
             if (CivilMod.DEBUG) {
-                CivilMod.LOGGER.info("[zone][fast] skip send: zone not initialized yet player={} dim={} vc={} cautionNow={}",
-                        playerId, dim, center, cautionNow);
+                CivilMod.LOGGER.info("[zone][fast] skip send: zone not initialized yet player={} dim={} vc={} overrideNow={}",
+                        playerId, dim, center, overrideNow);
             }
             return 0;
         }
         ZoneSemanticState oldState = state.zoneState;
         ZoneSemanticState baseState = state.baseState;
-        state.zoneState = newState = cautionNow ? ZoneSemanticState.CAUTION : baseState;
+        if (overrideNow == null
+                && (previousOverride != null || state.suppressedOverrideExitBase)
+                && !baseStateMatchesCurrentVc(world, center, baseState)) {
+            state.zoneState = null;
+            state.suppressedOverrideExitBase = true;
+            if (CivilMod.DEBUG) {
+                CivilMod.LOGGER.info("[zone][fast] suppress override->base HUD player={} epoch={} oldState={} base={} vc={}",
+                        playerId, epoch, oldState, baseState, center);
+            }
+            return 0;
+        }
+        state.suppressedOverrideExitBase = false;
+        state.zoneState = newState = overrideNow != null ? overrideNow : baseState;
         if (newState == null || newState == oldState) {
             if (CivilMod.DEBUG) {
-                CivilMod.LOGGER.info("[zone][fast] no state change player={} epoch={} state={} cautionNow={} base={}",
-                        playerId, epoch, newState, cautionNow, baseState);
+                CivilMod.LOGGER.info("[zone][fast] no state change player={} epoch={} state={} overrideNow={} base={}",
+                        playerId, epoch, newState, overrideNow, baseState);
             }
             return 0;
         }
@@ -149,8 +203,8 @@ public final class PlayerAwarePrefetcher {
             return 0;
         }
         if (CivilMod.DEBUG) {
-            CivilMod.LOGGER.info("[zone][fast] SEND epoch={} {} -> {} (cautionNow={} base={}) player={}",
-                    epoch, oldState, newState, cautionNow, baseState, playerId);
+            CivilMod.LOGGER.info("[zone][fast] SEND epoch={} {} -> {} (overrideNow={} base={}) player={}",
+                    epoch, oldState, newState, overrideNow, baseState, playerId);
         }
         CivilPlatform.sendToPlayer(player, new ZoneTransitionPayload(epoch, newState.id()));
         return 1;
@@ -414,25 +468,44 @@ public final class PlayerAwarePrefetcher {
                 ZoneSemanticState oldBase = state.baseState;
                 ZoneSemanticState candidateBase = enter ? ZoneSemanticState.CIVILIZED
                         : leave ? ZoneSemanticState.WILDERNESS : oldBase;
+                ServerPlayer livePlayer = server.getPlayerList().getPlayer(playerId);
+                ServerLevel currentWorld = livePlayer != null && livePlayer.level() instanceof ServerLevel sl
+                        ? sl
+                        : worldByDim.get(state.lastDim);
+                VoxelChunkKey currentVc = livePlayer != null
+                        ? VoxelChunkKey.from(livePlayer.blockPosition())
+                        : state.lastHudVc;
+                ZoneSemanticState currentOverride = currentWorld != null && currentVc != null
+                        ? resolveFastOverrideState(currentWorld, currentVc)
+                        : null;
                 state.baseState = candidateBase;
-                boolean cautionForCompose = state.zoneInitialized ? state.fastCaution : inCautionByZonePolicy;
-                ZoneSemanticState newState = cautionForCompose ? ZoneSemanticState.CAUTION : candidateBase;
+                boolean suppressOverrideExitBase = currentOverride == null
+                        && state.suppressedOverrideExitBase
+                        && currentWorld != null
+                        && currentVc != null
+                        && !baseStateMatchesCurrentVc(currentWorld, currentVc, candidateBase);
+                ZoneSemanticState newState = suppressOverrideExitBase
+                        ? null
+                        : currentOverride != null ? currentOverride : candidateBase;
                 if (CivilMod.DEBUG) {
                     CivilMod.LOGGER.info(
-                            "[zone][receipt] keyEpoch={} currentEpoch={} player={} samples={} civCount={} centerCiv={} enter={} leave={} enterTh={} leaveTh={} oldBase={} candidateBase={} cautionCompose={} newState={} oldState={} zoneInit={}",
+                            "[zone][receipt] keyEpoch={} currentEpoch={} player={} samples={} civCount={} centerCiv={} enter={} leave={} enterTh={} leaveTh={} oldBase={} candidateBase={} inCautionPolicy={} currentVc={} currentOverride={} suppressExitBase={} newState={} oldState={} zoneInit={}",
                             key.epoch(), currentEpoch, playerId, agg.sampleCount, agg.civilizedCount, agg.centerCivilized,
-                            enter, leave, enterThreshold, leaveThreshold, oldBase, candidateBase, cautionForCompose,
-                            newState, oldState, state.zoneInitialized);
+                            enter, leave, enterThreshold, leaveThreshold, oldBase, candidateBase, inCautionByZonePolicy,
+                            currentVc, currentOverride, suppressOverrideExitBase, newState, oldState, state.zoneInitialized);
                 }
                 if (!state.zoneInitialized) {
-                    state.fastCaution = inCautionByZonePolicy;
+                    state.fastOverrideState = newState == candidateBase ? null : newState;
                     state.zoneInitialized = true;
                     if (CivilMod.DEBUG) {
-                        CivilMod.LOGGER.info("[zone][receipt] first init newState={} inCautionPolicy={} player={}",
-                                newState, inCautionByZonePolicy, playerId);
+                        CivilMod.LOGGER.info("[zone][receipt] first init newState={} override={} inCautionPolicy={} player={}",
+                                newState, state.fastOverrideState, inCautionByZonePolicy, playerId);
                     }
                 }
                 state.zoneState = newState;
+                if (!suppressOverrideExitBase) {
+                    state.suppressedOverrideExitBase = false;
+                }
                 if (newState != null && newState != oldState) {
                     ServerPlayer player = server.getPlayerList().getPlayer(playerId);
                     if (player != null) {
@@ -504,12 +577,14 @@ public final class PlayerAwarePrefetcher {
     private static final class PlayerState {
         VoxelChunkKey lastSeenVC;
         VoxelChunkKey lastHudVc;
+        BlockPos lastTickBlockPos;
         long lastResultEnqueueSec;
         long lastMovementSec;
         String lastDim;
         ZoneSemanticState zoneState;
         ZoneSemanticState baseState;
-        boolean fastCaution;
+        ZoneSemanticState fastOverrideState;
+        boolean suppressedOverrideExitBase;
         boolean zoneInitialized;
     }
 

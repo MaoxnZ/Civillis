@@ -21,6 +21,7 @@ public final class ZoneTransitionHud {
     private static final int CIV_RGB = 0xEAF4FF;
     private static final int WILD_RGB = 0x8ECFFF;
     private static final int CAUTION_RGB = 0xFFB78F;
+    private static final int SHRINE_RGB = 0xD4A0FF;
     private static final int BAR_WIDTH = 2;
     private static final int BAR_HEIGHT = 12;
     private static final int BAR_GAP = 8;
@@ -96,6 +97,7 @@ public final class ZoneTransitionHud {
                     case CIVILIZED -> CivilConfig.zoneTransitionLabelCivilized;
                     case WILDERNESS -> CivilConfig.zoneTransitionLabelWilderness;
                     case CAUTION -> CivilConfig.zoneTransitionLabelCaution;
+                    case SHRINE -> CivilConfig.zoneTransitionLabelShrine;
                 };
         if (override != null) {
             override = override.trim();
@@ -154,6 +156,7 @@ public final class ZoneTransitionHud {
             case CIVILIZED -> CIV_RGB;
             case WILDERNESS -> WILD_RGB;
             case CAUTION -> CAUTION_RGB;
+            case SHRINE -> SHRINE_RGB;
         };
         int color = ((int) (alpha * 255.0f) << 24) | rgb;
         guiGraphics.drawString(mc.font, textComponent, x, y, color, true);
@@ -178,6 +181,7 @@ public final class ZoneTransitionHud {
             case CIVILIZED -> 0x0C1526;
             case WILDERNESS -> 0x0D1A2A;
             case CAUTION -> 0x2A160D;
+            case SHRINE -> 0x1A0C26;
         };
         int barShadowColor = ((int) (alpha * 120.0f) << 24) | barShadowRgb;
         int baseBarY = y + (textHeight - BAR_HEIGHT) / 2 + barCenterBias;

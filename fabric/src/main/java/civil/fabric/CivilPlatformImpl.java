@@ -1,5 +1,6 @@
 package civil.fabric;
 
+import civil.CivilMod;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -22,6 +23,13 @@ public final class CivilPlatformImpl {
 
     public static boolean isModLoaded(String modId) {
         return FabricLoader.getInstance().isModLoaded(modId);
+    }
+
+    public static String getReleasedModVersion() {
+        return FabricLoader.getInstance()
+                .getModContainer(CivilMod.MOD_ID)
+                .map(c -> c.getMetadata().getVersion().getFriendlyString())
+                .orElse("unknown");
     }
 
     public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {

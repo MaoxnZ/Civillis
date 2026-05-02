@@ -19,7 +19,9 @@ public final class CivilMapBakeEdgePixels {
             MapItemSavedData data,
             CivilMapTintPaddingState padding,
             MapTintProbe probe) {
-        if (band != CivilMapTintPalette.HIGH && band != CivilMapTintPalette.MONSTER) {
+        if (band != CivilMapTintPalette.HIGH
+                && band != CivilMapTintPalette.MONSTER
+                && band != CivilMapTintPalette.ZONE) {
             return false;
         }
         return neighborContributes(x, y, x - 1, y, band, data, padding, probe)

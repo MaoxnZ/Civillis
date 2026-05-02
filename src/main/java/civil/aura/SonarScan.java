@@ -3,8 +3,11 @@ package civil.aura;
 import civil.CivilMod;
 import civil.CivilServices;
 import civil.civilization.CScore;
+import civil.civilization.FarmShrineTracker;
 import civil.civilization.VoxelChunkKey;
+import civil.civilization.ZonePolicyService;
 import civil.config.CivilConfig;
+import civil.registry.DimensionPolicyRegistry;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -34,12 +37,8 @@ public final class SonarScan {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("civil-sonar");
 
-    /**
-     * Maximum BFS radius in voxel chunks (2D XZ Manhattan distance).
-     * Dynamically linked to the user-configurable detection range so that the
-     * protection aura visually matches the player's "detection distance" setting.
-     */
-    public static int MAX_RADIUS = 7;
+    /** Fallback radius when no per-scan value is passed (e.g. constructor without radius). */
+    private static final int DEFAULT_MAX_RADIUS = 7;
 
     // 6 face-adjacent neighbor offsets: +X, -X, +Z, -Z, +Y, -Y
     private static final int[][] FACE_NEIGHBORS = {
@@ -65,6 +64,8 @@ public final class SonarScan {
     private final VoxelChunkKey center;
     private final boolean playerInHigh;
     private final double threshold;
+    /** Maximum BFS radius in voxel chunks (Manhattan), fixed for this scan instance. */
+    private final int maxRadius;
 
     /** Current BFS ring distance (0 = center chunk, incremented each tick). */
     private int currentRing;
@@ -100,22 +101,17 @@ public final class SonarScan {
      * @param worldTick the current world tick (for linger timing)
      */
     public SonarScan(ServerLevel world, BlockPos playerPos, long worldTick) {
+        this(world, playerPos, worldTick, DEFAULT_MAX_RADIUS);
+    }
+
+    public SonarScan(ServerLevel world, BlockPos playerPos, long worldTick, int maxRadius) {
         this.world = world;
         this.center = VoxelChunkKey.from(playerPos);
         this.threshold = CivilConfig.spawnThresholdMid;
         this.startTick = worldTick;
+        this.maxRadius = Math.max(1, maxRadius);
 
-        // Determine player's current score to decide BFS direction
-        double playerScore = 0.0;
-        try {
-            CScore cScore = CivilServices.getCivilizationService().getCScoreAt(world, playerPos);
-            playerScore = cScore.score();
-        } catch (Exception e) {
-            if (CivilMod.DEBUG) {
-                LOGGER.warn("[civil-sonar] Failed to get player score: {}", e.getMessage());
-            }
-        }
-        this.playerInHigh = playerScore >= threshold;
+        this.playerInHigh = computeIsCivHighForBfs(world, this.center, playerPos);
 
         // Initialize BFS
         this.visited = new HashMap<>();
@@ -132,8 +128,8 @@ public final class SonarScan {
         lastTickScanned.add(center);
 
         if (CivilMod.DEBUG) {
-            LOGGER.info("[civil-sonar] Scan started: center={} playerInHigh={} threshold={}",
-                    center, playerInHigh, String.format("%.4f", threshold));
+            LOGGER.info("[civil-sonar] Scan started: center={} playerInHigh={} threshold={} radius={}",
+                    center, playerInHigh, String.format("%.4f", threshold), this.maxRadius);
         }
     }
 
@@ -190,7 +186,7 @@ public final class SonarScan {
                 int dist = Math.abs(neighbor.getCx() - center.getCx())
                          + Math.abs(neighbor.getCz() - center.getCz())
                          + Math.abs(neighbor.getSy() - center.getSy());
-                if (dist > MAX_RADIUS) continue;
+                if (dist > maxRadius) continue;
 
                 // Skip out-of-dimension
                 if (!neighbor.isValidIn(world)) continue;
@@ -220,7 +216,7 @@ public final class SonarScan {
         this.frontier = nextFrontier;
         this.currentRing++;
 
-        if (nextFrontier.isEmpty() || currentRing > MAX_RADIUS) {
+        if (nextFrontier.isEmpty() || currentRing > maxRadius) {
             finished = true;
             if (CivilMod.DEBUG) {
                 LOGGER.info("[civil-sonar] Scan finished: ring={} visited={} boundaries={}",
@@ -234,22 +230,53 @@ public final class SonarScan {
     // ========== Helpers ==========
 
     /**
-     * Check if a chunk's aggregated score qualifies as HIGH (≥ threshold).
+     * HIGH (civil) side for BFS: score ≥ mid, not structure zone, not shrine bypass
+     * (shrine layer + zone policy match {@link civil.civilization.CivilRegionClassifier}).
+     */
+    private static boolean computeIsCivHighForBfs(ServerLevel world, VoxelChunkKey key, BlockPos pos) {
+        if (!DimensionPolicyRegistry.policyFor(world).civilization()) {
+            return false;
+        }
+        if (DimensionPolicyRegistry.policyFor(world).headMechanics()) {
+            FarmShrineTracker t = CivilServices.getFarmShrineTracker();
+            if (t != null
+                    && t.isInitialized()
+                    && t.isInsideAnyBypassBox(world.dimension().identifier().toString(), pos)) {
+                return false;
+            }
+        }
+        ZonePolicyService zps = CivilServices.getZonePolicyService();
+        if (zps != null && zps.treatAsNonCivilized(world, key)) {
+            return false;
+        }
+        try {
+            if (CivilServices.getCivilizationService() == null) {
+                return false;
+            }
+            CScore cScore = CivilServices.getCivilizationService().getCScoreAt(world, pos);
+            return cScore.score() >= CivilConfig.spawnThresholdMid;
+        } catch (Exception e) {
+            if (CivilMod.DEBUG) {
+                LOGGER.warn("[civil-sonar] Failed to get player score: {}", e.getMessage());
+            }
+            return false;
+        }
+    }
+
+    /**
+     * @see #computeIsCivHighForBfs
      */
     private boolean isChunkHigh(VoxelChunkKey key) {
         try {
-            // Use center block of the voxel chunk for score query
             BlockPos centerBlock = new BlockPos(
                     key.getCx() * 16 + 8,
                     key.getSy() * 16 + 8,
                     key.getCz() * 16 + 8);
-            CScore score = CivilServices.getCivilizationService().getCScoreAt(world, centerBlock);
-            return score.score() >= threshold;
+            return computeIsCivHighForBfs(world, key, centerBlock);
         } catch (Exception e) {
             if (CivilMod.DEBUG) {
                 LOGGER.warn("[civil-sonar] Score check failed for {}: {}", key, e.getMessage());
             }
-            // Conservative: treat failures as same-side to avoid false boundaries
             return playerInHigh;
         }
     }
@@ -295,6 +322,10 @@ public final class SonarScan {
 
     public int getCurrentRing() {
         return currentRing;
+    }
+
+    public int getMaxRadius() {
+        return maxRadius;
     }
 
     public long getStartTick() {

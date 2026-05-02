@@ -6,7 +6,8 @@ package civil.civilization;
 public enum ZoneSemanticState {
     CIVILIZED(0, "civil.hud.zone_transition.civilized"),
     WILDERNESS(1, "civil.hud.zone_transition.wilderness"),
-    CAUTION(2, "civil.hud.zone_transition.caution");
+    CAUTION(2, "civil.hud.zone_transition.caution"),
+    SHRINE(3, "civil.hud.zone_transition.shrine");
 
     private final int id;
     private final String translationKey;
@@ -30,6 +31,7 @@ public enum ZoneSemanticState {
             case 0 -> CIVILIZED;
             case 1 -> WILDERNESS;
             case 2 -> CAUTION;
+            case 3 -> SHRINE;
             default -> WILDERNESS;
         };
     }

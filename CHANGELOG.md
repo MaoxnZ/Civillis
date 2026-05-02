@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.3.3-release]
+
+### Added
+
+- **Adventure structures**: Hostile spawns are now allowed in more major adventure structures,
+  including Pillager Outposts, YUNG's Better structures, Cataclysm, When Dungeons Arise,
+  Twilight Forest, Incendium, and more.
+- **Zone visualization**: Dangerous adventure zones now show in orange across sonar pulses,
+  Civil Detector feedback, civil maps, and supported minimap overlays.
+- **Podium of Spawning HUD**: Shrine pockets now get their own HUD state. Civil Detector and
+  sonar scans use a shriek cue with purple-toned particle effects when they find one.
+
+### Changed
+
+- **Civil Detector feedback**: Right-click scanning now uses clearer item states — orange for
+  danger zones, blue for wilderness, and swamp green for civilization borders.
+- **Config defaults**: GUI settings now refresh to each release's intended defaults after
+  updating. If you really want to keep old GUI values, uncomment
+  `simple.persistAcrossSchema=true` in `civil.properties`; future saves still write the current
+  release marker cleanly.
+
+### Fixed
+
+- **Fast exploration performance**: Civillis now keeps less background work in flight while
+  you move quickly, making exploration smoother while preserving the sense of discovery.
+- **Minimap overlay freshness** *(1.20.1 and 1.21.1 only)*: Supported minimap overlays now
+  follow layered zone changes more reliably instead of lagging behind certain updates.
+
+### Note
+
+- Thanks to Stick Boy for reworking part of the Civil Detector textures.
+- Feedback, bug reports, ideas — join our Discord: [Civillis Official](https://discord.gg/dA7QCPx7zd)
+
 ## [1.3.2-release]
 
 ### Added

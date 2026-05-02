@@ -115,6 +115,8 @@ public class CivilModNeoForge {
             SOUNDS.register("detector_high", () -> ModSounds.buildSoundEvent("detector_high"));
     private static final DeferredHolder<SoundEvent, SoundEvent> SOUND_MONSTER =
             SOUNDS.register("detector_monster", () -> ModSounds.buildSoundEvent("detector_monster"));
+    private static final DeferredHolder<SoundEvent, SoundEvent> SOUND_SHRINE =
+            SOUNDS.register("detector_shrine", () -> ModSounds.buildSoundEvent("detector_shrine"));
 
     // ── Deferred Holders (items) ────────────────────────────────────────
     private static final DeferredHolder<Item, Item> CIVIL_DETECTOR =
@@ -175,6 +177,7 @@ public class CivilModNeoForge {
         ModSounds.DETECTOR_MEDIUM = SOUND_MEDIUM.get();
         ModSounds.DETECTOR_HIGH = SOUND_HIGH.get();
         ModSounds.DETECTOR_MONSTER = SOUND_MONSTER.get();
+        ModSounds.DETECTOR_SHRINE = SOUND_SHRINE.get();
         ModItems.setCivilDetector(CIVIL_DETECTOR.get());
         ModRecipeSerializers.bindDetectorMapUpgrade(DETECTOR_MAP_UPGRADE_SERIALIZER.get());
         CivilMod.LOGGER.debug("Common fields populated from deferred holders (NeoForge)");
@@ -209,10 +212,11 @@ public class CivilModNeoForge {
     private void onServerAboutToStart(ServerAboutToStartEvent event) {
         MinecraftServer server = event.getServer();
         ResourceManager manager = server.getResourceManager();
+        var ra = server.registryAccess();
         BlockWeightLoader.reload(manager);
         HeadTypeLoader.reload(manager);
-        ZonePolicyLoader.reload(manager);
-        DimensionPolicyLoader.reload(manager);
+        ZonePolicyLoader.reload(manager, ra);
+        DimensionPolicyLoader.reload(manager, ra);
         SpawnGateEntityLoader.reload(manager);
         CivilMod.onHeadTypesReloaded();
     }
@@ -220,10 +224,11 @@ public class CivilModNeoForge {
     private void onDatapackSync(OnDatapackSyncEvent event) {
         MinecraftServer server = event.getPlayerList().getServer();
         ResourceManager manager = server.getResourceManager();
+        var ra = server.registryAccess();
         BlockWeightLoader.reload(manager);
         HeadTypeLoader.reload(manager);
-        ZonePolicyLoader.reload(manager);
-        DimensionPolicyLoader.reload(manager);
+        ZonePolicyLoader.reload(manager, ra);
+        DimensionPolicyLoader.reload(manager, ra);
         SpawnGateEntityLoader.reload(manager);
         CivilMod.onHeadTypesReloaded();
     }

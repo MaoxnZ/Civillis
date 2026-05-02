@@ -1,5 +1,6 @@
 package civil.neoforge;
 
+import civil.CivilMod;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -23,6 +24,13 @@ public final class CivilPlatformImpl {
 
     public static boolean isModLoaded(String modId) {
         return ModList.get().isLoaded(modId);
+    }
+
+    public static String getReleasedModVersion() {
+        return ModList.get()
+                .getModContainerById(CivilMod.MOD_ID)
+                .map(c -> c.getModInfo().getVersion().toString())
+                .orElse("unknown");
     }
 
     public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {

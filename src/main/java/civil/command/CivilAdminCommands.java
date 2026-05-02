@@ -1,6 +1,7 @@
 package civil.command;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import civil.CivilMod;
 import civil.aura.SonarScanManager;
 import civil.aura.SonarType;
@@ -14,11 +15,9 @@ import static net.minecraft.commands.Commands.literal;
 
 /**
  * Admin commands for Civil.
- *
- * <p>All subcommands require permission level {@link Commands#LEVEL_GAMEMASTERS} (2) or higher
- * ({@link Commands#hasPermission(int)}): dedicated-server operators, integrated single-player with
- * cheats enabled (host is typically level 4), and the dedicated console / RCON when configured with
- * sufficient permission.
+ * <p>
+ * {@code rebuild} requires permission level 4 ({@link Commands#LEVEL_OWNERS});
+ * {@code ring} requires level 2 ({@link Commands#LEVEL_GAMEMASTERS}) or higher.
  */
 public final class CivilAdminCommands {
 
@@ -26,11 +25,15 @@ public final class CivilAdminCommands {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(literal("civil")
-                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .then(literal("rebuild")
+                        .requires(Commands.hasPermission(Commands.LEVEL_OWNERS))
                         .executes(ctx -> executeRebuild(ctx.getSource())))
                 .then(literal("ring")
-                        .executes(ctx -> executeRing(ctx.getSource()))));
+                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .executes(ctx -> executeRing(ctx.getSource(), SonarType.STATIC.getRadius()))
+                        .then(Commands.argument("radius", IntegerArgumentType.integer(3, 64))
+                                .executes(ctx -> executeRing(ctx.getSource(),
+                                        IntegerArgumentType.getInteger(ctx, "radius"))))));
     }
 
     private static int executeRebuild(CommandSourceStack source) {
@@ -49,7 +52,7 @@ public final class CivilAdminCommands {
      * Does not apply bell cooldown (admin/debug). Ignores {@code auraEffectEnabled} so admins can
      * preview or debug when the global aura toggle is off.
      */
-    private static int executeRing(CommandSourceStack source) {
+    private static int executeRing(CommandSourceStack source, int radius) {
         if (!(source.getEntity() instanceof ServerPlayer player)) {
             source.sendFailure(Component.literal("[Civil] This command can only be run by a player."));
             return 0;
@@ -58,8 +61,9 @@ public final class CivilAdminCommands {
             source.sendFailure(Component.literal("[Civil] Expected a server level."));
             return 0;
         }
-        SonarScanManager.startScan(player, level, player.blockPosition(), SonarType.STATIC);
-        source.sendSuccess(() -> Component.literal("[Civil] Static sonar triggered at your position."), true);
+        SonarScanManager.startScan(player, level, player.blockPosition(), SonarType.STATIC, radius);
+        source.sendSuccess(() -> Component.literal(
+                "[Civil] Static sonar triggered at your position (radius=" + radius + " VC)."), true);
         return 1;
     }
 }

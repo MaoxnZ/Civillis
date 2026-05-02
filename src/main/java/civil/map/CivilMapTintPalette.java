@@ -1,20 +1,16 @@
 package civil.map;
 
-import civil.CivilServices;
-import civil.config.CivilConfig;
-import civil.civilization.CScore;
-import civil.civilization.FarmShrineTracker;
+import civil.civilization.CivilRegionClassifier;
 import civil.registry.DimensionPolicyRegistry;
-import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 
 /**
  * Encodes civil map tint bands as bytes for network + client blending.
  * <p>
- * Map overlay policy (simple): only {@link #HIGH} (white tint) and {@link #MONSTER} (purple tint) are sent;
- * all other cases use {@link #UNKNOWN} (no overlay). {@link #MONSTER} indicates an activated farm shrine
- * bypass box covering the sampled position (when head mechanics are enabled). Legacy bytes
- * {@link #LOW} / {@link #MEDIUM} / {@link #DIM_DISABLED} may still exist in old saves; the client ignores them for blending.
+ * Blended overlay bands: {@link #HIGH}, {@link #MONSTER} (shrine), {@link #ZONE}; all other cases use
+ * {@link #UNKNOWN} (no overlay). {@link #MONSTER} indicates an activated farm shrine
+ * bypass box. {@link #ZONE} indicates structure zone policy (caution / non-civilized VC).
+ * Legacy bytes {@link #LOW} / {@link #MEDIUM} / {@link #DIM_DISABLED} may still exist in old saves.
  */
 public final class CivilMapTintPalette {
 
@@ -25,6 +21,8 @@ public final class CivilMapTintPalette {
     public static final byte HIGH = 3;
     public static final byte MONSTER = 4;
     public static final byte UNKNOWN = 5;
+    /** Structure zone policy (caution orange); use with {@link civil.config.CivilConfig#mapTintZoneFillAlpha} etc. */
+    public static final byte ZONE = 6;
 
     /** When {@link #evaluateTintForChunk} returns {@link #UNKNOWN} from civilization lookup. */
     public enum ScoreUnknownReason {
@@ -45,36 +43,25 @@ public final class CivilMapTintPalette {
         if (!DimensionPolicyRegistry.policyFor(level).civilization()) {
             return new ChunkTintEval(UNKNOWN, null);
         }
-        int dimMinY = level.dimensionType().minY();
-        int dimMaxY = dimMinY + level.dimensionType().height() - 1;
-        int yIdeal = sy * 16 + 8;
-        int y = Math.max(dimMinY, Math.min(dimMaxY, yIdeal));
-        BlockPos pos = new BlockPos(cx * 16 + 8, y, cz * 16 + 8);
-
-        if (DimensionPolicyRegistry.policyFor(level).headMechanics()) {
-            FarmShrineTracker shrines = CivilServices.getFarmShrineTracker();
-            if (shrines != null && shrines.isInitialized()) {
-                String dim = level.dimension().identifier().toString();
-                if (shrines.isInsideAnyBypassBox(dim, pos)) {
-                    return new ChunkTintEval(MONSTER, null);
+        CivilRegionClassifier.ClassifyResult r = CivilRegionClassifier.classify(level, cx, cz, sy);
+        return switch (r.kind()) {
+            case SHRINE -> new ChunkTintEval(MONSTER, null);
+            case ZONE -> new ChunkTintEval(ZONE, null);
+            case HIGH -> new ChunkTintEval(HIGH, null);
+            case NONE -> {
+                if (r.scoreUnknownReason() != null) {
+                    yield new ChunkTintEval(UNKNOWN, scoreUnknownReason(r.scoreUnknownReason()));
                 }
+                yield new ChunkTintEval(UNKNOWN, null);
             }
-        }
+        };
+    }
 
-        CScore cScore;
-        try {
-            cScore = CivilServices.getCivilizationService().getCScoreAt(level, pos);
-        } catch (Exception e) {
-            return new ChunkTintEval(UNKNOWN, ScoreUnknownReason.LOOKUP_EXCEPTION);
-        }
-        if (cScore == null) {
-            return new ChunkTintEval(UNKNOWN, ScoreUnknownReason.NULL_CSCORE);
-        }
-        double score = cScore.score();
-        if (score < CivilConfig.spawnThresholdMid) {
-            return new ChunkTintEval(UNKNOWN, null);
-        }
-        return new ChunkTintEval(HIGH, null);
+    private static ScoreUnknownReason scoreUnknownReason(CivilRegionClassifier.ScoreUnknownReason reason) {
+        return switch (reason) {
+            case NULL_CSCORE -> ScoreUnknownReason.NULL_CSCORE;
+            case LOOKUP_EXCEPTION -> ScoreUnknownReason.LOOKUP_EXCEPTION;
+        };
     }
 
     public static byte tintForChunk(ServerLevel level, int cx, int cz, int sy) {

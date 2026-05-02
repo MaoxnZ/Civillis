@@ -14,7 +14,6 @@ import com.mojang.blaze3d.vertex.MeshData;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -120,6 +119,9 @@ public final class AuraWallRenderer {
     // ========== Color: shrine bypass walls (amethyst / crystal purple) ==========
     private static final float HEAD_R = 0.68f, HEAD_G = 0.40f, HEAD_B = 0.88f;
 
+    // ========== Color: structure zone policy (caution red-orange) ==========
+    private static final float ZONE_R = 1.0f, ZONE_G = 0.50f, ZONE_B = 0.30f;
+
     // ========== Texture ==========
     private static final Identifier FORCEFIELD_TEXTURE =
             Identifier.fromNamespaceAndPath("minecraft", "textures/misc/forcefield.png");
@@ -127,8 +129,10 @@ public final class AuraWallRenderer {
     // ========== GPU ==========
     private static final ByteBufferBuilder ALLOCATOR = new ByteBufferBuilder(262144);
     private static final ByteBufferBuilder SHRINE_ALLOCATOR = new ByteBufferBuilder(65536);
+    private static final ByteBufferBuilder ZONE_ALLOCATOR = new ByteBufferBuilder(65536);
     private static MappableRingBuffer vertexBuffer;
     private static MappableRingBuffer shrineVertexBuffer;
+    private static MappableRingBuffer zoneVertexBuffer;
 
     // ========== State: civilization walls ==========
 
@@ -144,7 +148,11 @@ public final class AuraWallRenderer {
 
     private static volatile List<TimedShrineFace> timedShrineFaces = List.of();
 
+    private static volatile List<TimedShrineFace> timedZoneFaces = List.of();
+
     private static final HashMap<ShrineFaceId, Long> shrineFaceArrivalMap = new HashMap<>();
+
+    private static final HashMap<ShrineFaceId, Long> zoneFaceArrivalMap = new HashMap<>();
 
     // ========== State: shared phase animation ==========
 
@@ -188,12 +196,13 @@ public final class AuraWallRenderer {
         steadyEndNano = visibleAfterNano + steadyDurationNs;
 
         // Fresh activation vs. renewal determines the arrival timestamp for new faces.
-        boolean freshActivation = timedFaces.isEmpty() && timedShrineFaces.isEmpty();
+        boolean freshActivation = timedFaces.isEmpty() && timedShrineFaces.isEmpty() && timedZoneFaces.isEmpty();
         long newFaceArrival = freshActivation ? now : visibleAfterNano;
 
         if (freshActivation) {
             faceArrivalMap.clear();
             shrineFaceArrivalMap.clear();
+            zoneFaceArrivalMap.clear();
         }
 
         // ---- Civilization faces ----
@@ -251,11 +260,37 @@ public final class AuraWallRenderer {
         }
         shrineFaceArrivalMap.keySet().retainAll(newShrineIds);
         timedShrineFaces = List.copyOf(shrineResult);
+
+        Set<ShrineFaceId> newZoneIds = new HashSet<>();
+        List<TimedShrineFace> zoneResult = new ArrayList<>(payload.zoneFaces().size());
+        for (ShrineFaceData face : payload.zoneFaces()) {
+            ShrineFaceId id = ShrineFaceId.of(face);
+            newZoneIds.add(id);
+            long arrival = zoneFaceArrivalMap.computeIfAbsent(id, k -> newFaceArrival);
+            zoneResult.add(new TimedShrineFace(face, arrival));
+        }
+        if (!freshActivation) {
+            for (TimedShrineFace oldFace : timedZoneFaces) {
+                ShrineFaceId oldId = ShrineFaceId.of(oldFace.face());
+                if (!newZoneIds.contains(oldId) && !oldFace.isFading()) {
+                    zoneResult.add(new TimedShrineFace(oldFace.face(), oldFace.arrivalNano(), now));
+                } else if (oldFace.isFading() && newZoneIds.contains(ShrineFaceId.of(oldFace.face()))) {
+                } else if (oldFace.isFading()) {
+                    float fadeElapsed = (now - oldFace.fadeOutNano()) / 1_000_000_000f;
+                    if (fadeElapsed < FACE_FADE_IN_S) {
+                        zoneResult.add(oldFace);
+                    }
+                }
+            }
+        }
+        zoneFaceArrivalMap.keySet().retainAll(newZoneIds);
+        timedZoneFaces = List.copyOf(zoneResult);
     }
 
     public static void close() {
         ALLOCATOR.close();
         SHRINE_ALLOCATOR.close();
+        ZONE_ALLOCATOR.close();
         if (vertexBuffer != null) {
             vertexBuffer.close();
             vertexBuffer = null;
@@ -263,6 +298,10 @@ public final class AuraWallRenderer {
         if (shrineVertexBuffer != null) {
             shrineVertexBuffer.close();
             shrineVertexBuffer = null;
+        }
+        if (zoneVertexBuffer != null) {
+            zoneVertexBuffer.close();
+            zoneVertexBuffer = null;
         }
     }
 
@@ -273,8 +312,9 @@ public final class AuraWallRenderer {
 
         List<TimedFace> faces = timedFaces;
         List<TimedShrineFace> shrineFaces = timedShrineFaces;
+        List<TimedShrineFace> zoneFacesR = timedZoneFaces;
 
-        boolean hasFaces = !faces.isEmpty() || !shrineFaces.isEmpty();
+        boolean hasFaces = !faces.isEmpty() || !shrineFaces.isEmpty() || !zoneFacesR.isEmpty();
 
         if (!hasFaces && phaseAlpha < 0.01f) return;
 
@@ -306,6 +346,7 @@ public final class AuraWallRenderer {
             if (now > visibleAfterNano && now > steadyEndNano) {
                 timedFaces = List.of();
                 timedShrineFaces = List.of();
+                timedZoneFaces = List.of();
                 lastFrameNano = 0;
             }
             return;
@@ -327,6 +368,9 @@ public final class AuraWallRenderer {
             renderCivilizationWalls(faces, now, globalAlpha, texMatrix, cam);
         }
 
+        if (!zoneFacesR.isEmpty()) {
+            renderZonePolicyWalls(zoneFacesR, now, globalAlpha, texMatrix, cam);
+        }
         if (!shrineFaces.isEmpty()) {
             renderShrineZoneWalls(shrineFaces, now, globalAlpha, texMatrix, cam);
         }
@@ -403,7 +447,7 @@ public final class AuraWallRenderer {
         if (totalQuads == 0) return;
 
         drawBucketedWalls(builder, bucketRanges, totalQuads, globalAlpha,
-                WALL_R, WALL_G, WALL_B, texMatrix, true);
+                WALL_R, WALL_G, WALL_B, texMatrix, 0);
     }
 
     private static void renderShrineZoneWalls(List<TimedShrineFace> faces, long now,
@@ -475,7 +519,66 @@ public final class AuraWallRenderer {
         if (totalQuads == 0) return;
 
         drawBucketedWalls(builder, bucketRanges, totalQuads, globalAlpha,
-                HEAD_R, HEAD_G, HEAD_B, texMatrix, false);
+                HEAD_R, HEAD_G, HEAD_B, texMatrix, 1);
+    }
+
+    private static void renderZonePolicyWalls(List<TimedShrineFace> faces, long now,
+                                            float globalAlpha, Matrix4f texMatrix, Vec3 cam) {
+        var pipeline = RenderPipelines.WORLD_BORDER;
+        TreeMap<Integer, List<TimedShrineFace>> buckets = new TreeMap<>();
+        for (TimedShrineFace tf : faces) {
+            float faceAlpha;
+            if (tf.isFading()) {
+                float fadeElapsed = (now - tf.fadeOutNano()) / 1_000_000_000f;
+                faceAlpha = Math.max(0.0f, 1.0f - fadeElapsed / FACE_FADE_IN_S);
+            } else {
+                float elapsed = (now - tf.arrivalNano()) / 1_000_000_000f;
+                if (elapsed < 0.0f) continue;
+                faceAlpha = Math.min(1.0f, elapsed / FACE_FADE_IN_S);
+            }
+            if (faceAlpha <= 0.0f) continue;
+            int bucket = Math.max(1, Math.min(10, Math.round(faceAlpha * 10)));
+            buckets.computeIfAbsent(bucket, k -> new ArrayList<>()).add(tf);
+        }
+        if (buckets.isEmpty()) return;
+        BufferBuilder builder = new BufferBuilder(ZONE_ALLOCATOR,
+                pipeline.getVertexFormatMode(), pipeline.getVertexFormat());
+        List<int[]> bucketRanges = new ArrayList<>();
+        int totalQuads = 0;
+        for (var entry : buckets.entrySet()) {
+            int bucketStartQuad = totalQuads;
+            for (TimedShrineFace tf : entry.getValue()) {
+                ShrineFaceData face = tf.face();
+                double plane = face.planeCoord();
+                double minU  = face.minU();
+                double maxU  = minU + 16.0;
+                double fMinY = face.faceMinY();
+                double fMaxY = face.faceMaxY();
+                float texU1 = (float) (minU  * 0.5);
+                float texU2 = (float) (maxU  * 0.5);
+                float texV1 = (float) (fMinY * 0.5);
+                float texV2 = (float) (fMaxY * 0.5);
+                if (face.axis() == 0) {
+                    addQuadYZ(builder, cam, plane, minU, fMinY, maxU, fMaxY,
+                            texU1, texV1, texU2, texV2, true);
+                    addQuadYZ(builder, cam, plane, minU, fMinY, maxU, fMaxY,
+                            texU1, texV1, texU2, texV2, false);
+                } else {
+                    addQuadXY(builder, cam, plane, minU, fMinY, maxU, fMaxY,
+                            texU1, texV1, texU2, texV2, true);
+                    addQuadXY(builder, cam, plane, minU, fMinY, maxU, fMaxY,
+                            texU1, texV1, texU2, texV2, false);
+                }
+                totalQuads += 2;
+            }
+            int quadsInBucket = totalQuads - bucketStartQuad;
+            if (quadsInBucket > 0) {
+                bucketRanges.add(new int[]{entry.getKey(), bucketStartQuad, quadsInBucket});
+            }
+        }
+        if (totalQuads == 0) return;
+        drawBucketedWalls(builder, bucketRanges, totalQuads, globalAlpha,
+                ZONE_R, ZONE_G, ZONE_B, texMatrix, 2);
     }
 
     // ========== Shared bucketed draw ==========
@@ -489,12 +592,12 @@ public final class AuraWallRenderer {
      * @param globalAlpha   global alpha (base × phase × breathe)
      * @param r, g, b       wall color
      * @param texMatrix     texture scroll matrix
-     * @param usePrimaryBuf true for civilization buffer, false for shrine bypass buffer
+     * @param bufferKind 0 = civilization, 1 = shrine, 2 = zone
      */
     private static void drawBucketedWalls(BufferBuilder builder, List<int[]> bucketRanges,
                                            int totalQuads, float globalAlpha,
                                            float r, float g, float b,
-                                           Matrix4f texMatrix, boolean usePrimaryBuf) {
+                                           Matrix4f texMatrix, int bufferKind) {
         var pipeline = RenderPipelines.WORLD_BORDER;
 
         MeshData built = builder.build();
@@ -505,9 +608,8 @@ public final class AuraWallRenderer {
             VertexFormat format = drawState.format();
             int totalBytes = drawState.vertexCount() * format.getVertexSize();
 
-            // Select or create the appropriate ring buffer
             MappableRingBuffer ringBuf;
-            if (usePrimaryBuf) {
+            if (bufferKind == 0) {
                 if (vertexBuffer == null || vertexBuffer.size() < totalBytes) {
                     if (vertexBuffer != null) vertexBuffer.close();
                     vertexBuffer = new MappableRingBuffer(
@@ -516,7 +618,7 @@ public final class AuraWallRenderer {
                             Math.max(totalBytes, 16384));
                 }
                 ringBuf = vertexBuffer;
-            } else {
+            } else if (bufferKind == 1) {
                 if (shrineVertexBuffer == null || shrineVertexBuffer.size() < totalBytes) {
                     if (shrineVertexBuffer != null) shrineVertexBuffer.close();
                     shrineVertexBuffer = new MappableRingBuffer(
@@ -525,6 +627,15 @@ public final class AuraWallRenderer {
                             Math.max(totalBytes, 8192));
                 }
                 ringBuf = shrineVertexBuffer;
+            } else {
+                if (zoneVertexBuffer == null || zoneVertexBuffer.size() < totalBytes) {
+                    if (zoneVertexBuffer != null) zoneVertexBuffer.close();
+                    zoneVertexBuffer = new MappableRingBuffer(
+                            () -> "civil zone policy wall",
+                            GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_MAP_WRITE,
+                            Math.max(totalBytes, 8192));
+                }
+                ringBuf = zoneVertexBuffer;
             }
 
             GpuBuffer gpuVerts = ringBuf.currentBuffer();
@@ -560,9 +671,14 @@ public final class AuraWallRenderer {
                 GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms()
                         .writeTransform(RenderSystem.getModelViewMatrix(), color, new Vector3f(), texMatrix);
 
+                String passLabel = switch (bufferKind) {
+                    case 0 -> "civil aura wall";
+                    case 1 -> "civil shrine bypass wall";
+                    default -> "civil zone policy wall";
+                };
                 try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
                         .createRenderPass(
-                                () -> usePrimaryBuf ? "civil aura wall" : "civil shrine bypass wall",
+                                () -> passLabel,
                                 fb.getColorTextureView(), OptionalInt.empty(),
                                 fb.getDepthTextureView(), OptionalDouble.empty())) {
                     pass.setPipeline(pipeline);

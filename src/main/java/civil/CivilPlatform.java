@@ -27,6 +27,15 @@ public final class CivilPlatform {
         throw new AssertionError();
     }
 
+    /**
+     * Released mod version string from loader metadata (same as {@code mod_version} / Modrinth jar), e.g.
+     * {@code 1.3.3-release}. Used for simple-settings schema migration in {@link civil.config.CivilConfig}.
+     */
+    @ExpectPlatform
+    public static String getReleasedModVersion() {
+        throw new AssertionError();
+    }
+
     @ExpectPlatform
     public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
         throw new AssertionError();
