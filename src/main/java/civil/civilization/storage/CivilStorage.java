@@ -59,11 +59,6 @@ public interface CivilStorage {
     /** Load all L1 entries. NBT: returns empty (L1 not preloaded). */
     List<StoredL1Entry> loadAllL1();
 
-    /**
-     * Sync load L1 score for a single key. NBT: triggers bulk load of region; returns null if miss.
-     */
-    Double loadL1Sync(String dim, VoxelChunkKey key);
-
     /** Async save L1. NBT: adds to pendingScoreWrites; actual write in unified flush. */
     CompletableFuture<Void> saveL1Async(String dim, VoxelChunkKey key, CScore cScore);
 

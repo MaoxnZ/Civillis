@@ -3,13 +3,12 @@ package civil.aura;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 
 /**
- * Boundary face for a farm shrine bypass volume (axis-aligned VC neighborhood around the anchor).
+ * Boundary face for a sonar-visible overlay volume on the current scan layer.
  *
  * <p>Similar to {@link BoundaryFaceData} but carries per-face vertical extent
- * ({@code faceMinY/faceMaxY}) because different shrine anchors may sit at different Y levels,
- * producing envelopes of different heights.
- *
- * <p>Vertical extent includes padding around each included voxel chunk for visible wall height.
+ * ({@code faceMinY/faceMaxY}) because zone/shrine overlays are transmitted as
+ * scan-layer-derived vertical bands with their own padding, rather than using the
+ * payload-wide civilization wall height.
  *
  * @param axis         0 = X, 2 = Z
  * @param planeCoord   world coordinate of the boundary plane (block edge)

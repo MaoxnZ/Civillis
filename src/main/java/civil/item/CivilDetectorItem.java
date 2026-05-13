@@ -11,6 +11,7 @@ import civil.civilization.CivilRegionClassifier;
 import civil.civilization.CivilRegionKind;
 import civil.civilization.CScore;
 import civil.civilization.VoxelChunkKey;
+import civil.progress.CivilAdvancements;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -70,6 +71,11 @@ public class CivilDetectorItem extends Item {
             stack.set(ModComponents.DETECTOR_DISPLAY, displayState);
             stack.set(ModComponents.DETECTOR_ANIMATION_END, world.getGameTime() + CivilConfig.detectorAnimationTicks);
             CivilDetectorAnimationReset.markActive();
+
+            // Award high-civilization advancement the first time a HIGH reading is obtained
+            if ("high".equals(displayState) && player instanceof ServerPlayer serverPlayer) {
+                CivilAdvancements.tryAward(serverPlayer, CivilAdvancements.HIGH_CIVILIZATION);
+            }
 
             // Play sound effect by detection state: get sound + pitch at once (vanilla uses pitch to distinguish, custom OGG uses 1.0)
             ModSounds.DetectorPlayback playback = ModSounds.getDetectorPlayback(displayState);

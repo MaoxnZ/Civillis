@@ -278,6 +278,20 @@ public final class ResultCache {
     // ========== Presence persistence ==========
 
     /**
+     * Return the most-recently staged presence times for a key if a pending write exists.
+     *
+     * <p>Used by {@link civil.civilization.cache.TtlCacheService#getPresenceForCompute} to
+     * prefer in-flight (not-yet-flushed) presence values over the potentially stale
+     * presencePreload that was seeded from the last NBT bulk load. Returns {@code null}
+     * if no pending write is staged for this key (key format: {@code dim|cx|cz|sy}).
+     */
+    public long[] getPendingPresenceTime(String shardKey) {
+        CivilStorage.PresenceSaveRequest req = pendingPresenceWrites.get(shardKey);
+        if (req == null) return null;
+        return new long[] { req.presenceTime(), req.lastRecoveryTime() };
+    }
+
+    /**
      * Drain pending presence writes for unified flush (merged into L1 region files on NBT path).
      */
     public List<CivilStorage.PresenceSaveRequest> drainPendingPresenceWrites() {

@@ -119,6 +119,8 @@ public final class ZoneTransitionHud {
         if (ticksRemaining <= 0 || currentText.getString().isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.font == null) return;
+        int scalePercent = clampInt(CivilConfig.zoneTransitionHudFontScalePercent, 50, 500);
+        float scale = scalePercent / 100.0f;
 
         int total = FADE_IN_TICKS + HOLD_TICKS + FADE_OUT_TICKS;
         float clampedPartial = clamp01(partialTick);
@@ -144,13 +146,18 @@ public final class ZoneTransitionHud {
         int anchorY = Math.round(height * (0.5f - oy / 100.0f));
 
         Component textComponent = currentText;
-        int textWidth = mc.font.width(textComponent);
-        int textHeight = mc.font.lineHeight;
+        int textWidth = scalePositive(mc.font.width(textComponent), scale);
+        int textHeight = scalePositive(mc.font.lineHeight, scale);
+        int barWidth = scalePositive(BAR_WIDTH, scale);
+        int barHeight = scalePositive(BAR_HEIGHT, scale);
+        int barGap = scalePositive(BAR_GAP, scale);
+        int barTravel = scalePositive(BAR_TRAVEL, scale);
         int barCenterBias = Math.round(textHeight * BAR_CENTER_Y_BIAS_RATIO);
-        barCenterBias = clampInt(barCenterBias, -4, -1);
+        int barCenterBiasMin = Math.min(-1, Math.round(-4.0f * scale));
+        barCenterBias = clampInt(barCenterBias, barCenterBiasMin, -1);
 
         int x = anchorX - textWidth / 2;
-        int y = alignBaselineToHudCenterY(anchorY, textHeight, barCenterBias);
+        int y = alignBaselineToHudCenterY(anchorY, textHeight, barHeight, barCenterBias);
 
         int rgb = switch (currentState) {
             case CIVILIZED -> CIV_RGB;
@@ -159,21 +166,25 @@ public final class ZoneTransitionHud {
             case SHRINE -> SHRINE_RGB;
         };
         int color = ((int) (alpha * 255.0f) << 24) | rgb;
-        guiGraphics.drawString(mc.font, textComponent, x, y, color, true);
+        guiGraphics.pose().pushMatrix();
+        guiGraphics.pose().translate((float) x, (float) y);
+        guiGraphics.pose().scale(scale, scale);
+        guiGraphics.drawString(mc.font, textComponent, 0, 0, color, true);
+        guiGraphics.pose().popMatrix();
 
         float inEased = easeOutCubic(inPhase);
         float outEased = easeInCubic(outPhase);
         float leftOffset;
         float rightOffset;
         if (elapsed < FADE_IN_TICKS) {
-            leftOffset = -BAR_TRAVEL * (1.0f - inEased);
-            rightOffset = BAR_TRAVEL * (1.0f - inEased);
+            leftOffset = -barTravel * (1.0f - inEased);
+            rightOffset = barTravel * (1.0f - inEased);
         } else if (elapsed < (FADE_IN_TICKS + HOLD_TICKS)) {
             leftOffset = 0.0f;
             rightOffset = 0.0f;
         } else {
-            leftOffset = BAR_TRAVEL * outEased;
-            rightOffset = -BAR_TRAVEL * outEased;
+            leftOffset = barTravel * outEased;
+            rightOffset = -barTravel * outEased;
         }
 
         int barColor = ((int) (alpha * 220.0f) << 24) | rgb;
@@ -184,15 +195,18 @@ public final class ZoneTransitionHud {
             case SHRINE -> 0x1A0C26;
         };
         int barShadowColor = ((int) (alpha * 120.0f) << 24) | barShadowRgb;
-        int baseBarY = y + (textHeight - BAR_HEIGHT) / 2 + barCenterBias;
-        int leftX = x - BAR_GAP - BAR_WIDTH;
-        int rightX = x + textWidth + BAR_GAP;
+        int barShadowOffset = Math.max(1, Math.round(scale));
+        int baseBarY = y + (textHeight - barHeight) / 2 + barCenterBias;
+        int leftX = x - barGap - barWidth;
+        int rightX = x + textWidth + barGap;
         int leftY1 = Math.round(baseBarY + leftOffset);
         int rightY1 = Math.round(baseBarY + rightOffset);
-        guiGraphics.fill(leftX + 1, leftY1 + 1, leftX + BAR_WIDTH + 1, leftY1 + BAR_HEIGHT + 1, barShadowColor);
-        guiGraphics.fill(rightX + 1, rightY1 + 1, rightX + BAR_WIDTH + 1, rightY1 + BAR_HEIGHT + 1, barShadowColor);
-        guiGraphics.fill(leftX, leftY1, leftX + BAR_WIDTH, leftY1 + BAR_HEIGHT, barColor);
-        guiGraphics.fill(rightX, rightY1, rightX + BAR_WIDTH, rightY1 + BAR_HEIGHT, barColor);
+        guiGraphics.fill(leftX + barShadowOffset, leftY1 + barShadowOffset,
+                leftX + barWidth + barShadowOffset, leftY1 + barHeight + barShadowOffset, barShadowColor);
+        guiGraphics.fill(rightX + barShadowOffset, rightY1 + barShadowOffset,
+                rightX + barWidth + barShadowOffset, rightY1 + barHeight + barShadowOffset, barShadowColor);
+        guiGraphics.fill(leftX, leftY1, leftX + barWidth, leftY1 + barHeight, barColor);
+        guiGraphics.fill(rightX, rightY1, rightX + barWidth, rightY1 + barHeight, barColor);
     }
 
     private static float clamp01(float value) {
@@ -215,13 +229,17 @@ public final class ZoneTransitionHud {
         return Math.max(min, Math.min(max, value));
     }
 
+    private static int scalePositive(int baseValue, float scale) {
+        return Math.max(1, Math.round(baseValue * scale));
+    }
+
     /** Vertical center (integer) of text + decorative bars for a given text baseline. */
-    private static int hudClusterCenterY(int baselineY, int textHeight, int barCenterBias) {
-        int k = (textHeight - BAR_HEIGHT) / 2 + barCenterBias;
+    private static int hudClusterCenterY(int baselineY, int textHeight, int barHeight, int barCenterBias) {
+        int k = (textHeight - barHeight) / 2 + barCenterBias;
         int baseBarY = baselineY + k;
         int textTop = baselineY - textHeight;
         int blockTop = Math.min(textTop, baseBarY);
-        int blockBottom = Math.max(baselineY, baseBarY + BAR_HEIGHT);
+        int blockBottom = Math.max(baselineY, baseBarY + barHeight);
         return (blockTop + blockBottom) / 2;
     }
 
@@ -229,10 +247,10 @@ public final class ZoneTransitionHud {
      * Finds a text baseline such that {@link #hudClusterCenterY} matches {@code targetCenterY}
      * (iterative — layout is piecewise-linear in baseline).
      */
-    private static int alignBaselineToHudCenterY(int targetCenterY, int textHeight, int barCenterBias) {
+    private static int alignBaselineToHudCenterY(int targetCenterY, int textHeight, int barHeight, int barCenterBias) {
         int y = targetCenterY;
         for (int i = 0; i < 10; i++) {
-            int cy = hudClusterCenterY(y, textHeight, barCenterBias);
+            int cy = hudClusterCenterY(y, textHeight, barHeight, barCenterBias);
             if (cy == targetCenterY) {
                 break;
             }

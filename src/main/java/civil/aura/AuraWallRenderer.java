@@ -76,8 +76,8 @@ public final class AuraWallRenderer {
     // ========== Per-face identity (shrine bypass zone) ==========
 
     /**
-     * Uniquely identifies a shrine bypass boundary face. Includes {@code faceMinY}
-     * because different anchors at different Y levels produce distinct faces.
+     * Uniquely identifies a zone/shrine boundary face. Includes {@code faceMinY}
+     * so scans taken on different Y layers do not reuse fade state accidentally.
      */
     private record ShrineFaceId(int axis, long planeCoord, long minU, long faceMinY) {
         static ShrineFaceId of(ShrineFaceData face) {

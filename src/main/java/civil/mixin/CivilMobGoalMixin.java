@@ -1,6 +1,7 @@
 package civil.mixin;
 
 import civil.mob.FleeCivilizationGoal;
+import civil.registry.MobFleeEntityRegistry;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.ai.goal.GoalSelector;
@@ -16,7 +17,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Injects civilization flee goals into all hostile {@link PathfinderMob} mobs.
+ * Injects civilization flee goals into monster-category {@link PathfinderMob} mobs,
+ * plus optional datapack-driven blacklist types ({@code civil_mob_flee_entities}),
+ * unless whitelisted.
  *
  * <p>Two goal instances per mob:
  * <ul>
@@ -36,7 +39,8 @@ public abstract class CivilMobGoalMixin {
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void civil$injectFleeGoals(EntityType<?> type, Level world, CallbackInfo ci) {
-        if (type.getCategory() == MobCategory.MONSTER
+        if ((type.getCategory() == MobCategory.MONSTER || MobFleeEntityRegistry.isBlacklist(type))
+                && !MobFleeEntityRegistry.isWhitelist(type)
                 && (Object) this instanceof PathfinderMob pae
                 && world instanceof ServerLevel) {
             this.goalSelector.addGoal(5, new FleeCivilizationGoal(pae, FleeCivilizationGoal.Mode.IDLE));

@@ -1,0 +1,64 @@
+{
+  "parent": "civil:guide/structures/emerald_block",
+  "display": {
+    "icon": {
+      "id": "minecraft:totem_of_undying"
+    },
+    "title": {
+      "translate": "civil.advancement.guide.undying_anchor.title"
+    },
+    "description": {
+      "translate": "civil.advancement.guide.undying_anchor.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "has_emerald_block": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "minecraft:emerald_block"
+          }
+        ]
+      }
+    },
+    "has_gold_block": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "minecraft:gold_block"
+          }
+        ]
+      }
+    },
+    "has_waxed_oxidized_cut_copper_stairs": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "minecraft:waxed_oxidized_cut_copper_stairs"
+          }
+        ]
+      }
+    },
+    "unlock": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "has_emerald_block"
+    ],
+    [
+      "has_gold_block"
+    ],
+    [
+      "has_waxed_oxidized_cut_copper_stairs"
+    ],
+    [
+      "unlock"
+    ]
+  ]
+}

@@ -197,7 +197,7 @@ public final class ScalableCivilizationService implements CivilizationService {
 
         // Restore persisted presenceTime / lastRecoveryTime (preload from bulk load or cold).
         String dimKey = world.dimension().identifier().toString();
-        long[] persisted = cacheService.getPresenceForCompute(dimKey, centerVC);
+        long[] persisted = cacheService.getPresenceForCompute(world, dimKey, centerVC);
         boolean cacheable = unknownCount == 0;
         if (persisted != null) {
             return new ResultCache.ComputeResult(

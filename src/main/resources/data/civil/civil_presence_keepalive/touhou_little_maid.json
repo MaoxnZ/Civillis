@@ -1,0 +1,13 @@
+{
+  "_comment": [
+    "Optional Touhou Little Maid integration: maids refresh civilization presence nearby.",
+    "If the mod is not installed, the entity id is unknown and this file is skipped with a warning.",
+    "",
+    "Radius uses the same built-in defaults as vanilla examples in defaults.json (3/3/1 half-extents",
+    "in voxel chunks when radius_voxel_chunks is omitted). Change x/z/y on an entry to widen or narrow the halo."
+  ],
+  "replace": false,
+  "entries": [
+    { "entity": "touhou_little_maid:maid" }
+  ]
+}

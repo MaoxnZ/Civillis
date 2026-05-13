@@ -399,6 +399,14 @@ public final class CivilConfigScreen {
                 .setSaveConsumer(v -> CivilConfig.zoneTransitionHudAnchorOffsetYPercent = v)
                 .build());
 
+        zoneHud.add(eb.startIntSlider(
+                        Component.translatable("civil.config.ui.zoneTransitionHudFontScalePercent"),
+                        Math.max(50, Math.min(500, CivilConfig.zoneTransitionHudFontScalePercent)), 50, 500)
+                .setDefaultValue(100)
+                .setTextGetter(val -> Component.literal(String.format(Locale.ROOT, "%d%%", val)))
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionHudFontScalePercent = v)
+                .build());
+
         cat.addEntry(zoneHud.build());
 
         // ── Miscellaneous (collapsible, last) ──
@@ -414,10 +422,17 @@ public final class CivilConfigScreen {
                         CivilConfig.mobFleeEnabled)
                 .setDefaultValue(true)
                 .setTooltip(
-                        Component.translatable("civil.config.subcategory.mobFlee.tooltip.1"),
-                        Component.translatable("civil.config.subcategory.mobFlee.tooltip.2"),
-                        Component.translatable("civil.config.subcategory.mobFlee.tooltip.3"))
+                        Component.translatable("civil.config.subcategory.mobFlee.tooltip.1"))
                 .setSaveConsumer(v -> CivilConfig.mobFleeEnabled = v)
+                .build());
+
+        misc.add(eb.startBooleanToggle(
+                        Component.translatable("civil.config.presenceKeepalive.enabled"),
+                        CivilConfig.presenceKeepaliveEnabled)
+                .setDefaultValue(true)
+                .setTooltip(
+                        Component.translatable("civil.config.presenceKeepalive.tooltip.1"))
+                .setSaveConsumer(v -> CivilConfig.presenceKeepaliveEnabled = v)
                 .build());
 
         cat.addEntry(misc.build());

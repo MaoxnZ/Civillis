@@ -69,6 +69,7 @@
   "civil.config.slider.zoneTransitionHudCooldown": "%d 秒",
   "civil.config.ui.zoneTransitionHudAnchorOffsetXPercent": "水平偏移",
   "civil.config.ui.zoneTransitionHudAnchorOffsetYPercent": "垂直偏移",
+  "civil.config.ui.zoneTransitionHudFontScalePercent": "字体大小",
 
   "civil.hud.zone_transition.civilized": "文明区域",
   "civil.hud.zone_transition.wilderness": "荒野",
@@ -82,10 +83,11 @@
   "civil.config.override.warning": "\u00a7e\u26a0 检测到 civil.properties 中存在手动自定义值。修改此滑块将覆盖您的自定义配置。",
 
   "civil.config.subcategory.mobFlee": "怪物逃离行为",
-  "civil.config.subcategory.mobFlee.tooltip.1": "文明区域中的敌对生物",
-  "civil.config.subcategory.mobFlee.tooltip.2": "会主动逃离，在市中心甚至会临阵脱逃。",
-  "civil.config.subcategory.mobFlee.tooltip.3": "\u00a77与文明强度联动。",
+  "civil.config.subcategory.mobFlee.tooltip.1": "文明区内的怪物会自己离开。",
   "civil.config.mobFlee.enabled": "怪物逃离 AI",
+
+  "civil.config.presenceKeepalive.enabled": "实体巡逻抗衰",
+  "civil.config.presenceKeepalive.tooltip.1": "村民等实体在场时，可抵抗文明衰减。",
 
   "civil.config.subcategory.podiumOfUndying": "不死祭坛",
   "civil.config.subcategory.podiumOfUndying.tooltip.1": "用图腾激活的绿宝石结构。",
@@ -99,5 +101,24 @@
 
   "civil.config.subcategory.miscellaneous": "其他",
   "civil.config.subcategory.miscellaneous.tooltip.1": "不易归类的杂项选项。",
-  "civil.config.subcategory.miscellaneous.tooltip.2": "\u00a77今后的小功能会放这里。"
+  "civil.config.subcategory.miscellaneous.tooltip.2": "\u00a77今后的小功能会放这里。",
+
+  "civil.advancement.guide.root.title": "文礼",
+  "civil.advancement.guide.root.description": "绿宝石不只用来交易。",
+  "civil.advancement.guide.detector_crafted.title": "察言观色",
+  "civil.advancement.guide.detector_crafted.description": "看看附近有没有文明痕迹？",
+  "civil.advancement.guide.map_crafted.title": "丈量大地",
+  "civil.advancement.guide.map_crafted.description": "升级后的地图，读的不只是山川。",
+  "civil.advancement.guide.high_civilization.title": "指针拉满",
+  "civil.advancement.guide.high_civilization.description": "检测器满格了。这片土地不简单。",
+  "civil.advancement.guide.soul_campfire.title": "幽冥之火",
+  "civil.advancement.guide.soul_campfire.description": "带上灵魂篝火，找个合适的地方试试。",
+  "civil.advancement.guide.emerald_block.title": "价值凝聚",
+  "civil.advancement.guide.emerald_block.description": "九颗凑成一块，或许能带来好运。",
+  "civil.advancement.guide.bell_sonar.title": "合乎周礼",
+  "civil.advancement.guide.bell_sonar.description": "磁石为底，钟悬其上；叩之一声，方圆尽知。",
+  "civil.advancement.guide.farm_shrine.title": "呼唤荒野",
+  "civil.advancement.guide.farm_shrine.description": "让灵魂篝火就位，再用骨头唤来生灵。",
+  "civil.advancement.guide.undying_anchor.title": "落地生根",
+  "civil.advancement.guide.undying_anchor.description": "将图腾献给翡翠祭坛，定下你的归处。"
 }

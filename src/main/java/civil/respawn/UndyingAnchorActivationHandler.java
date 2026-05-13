@@ -3,6 +3,7 @@ package civil.respawn;
 import civil.CivilServices;
 import civil.civilization.UndyingAnchorStructureValidator;
 import civil.civilization.UndyingAnchorTracker;
+import civil.progress.CivilAdvancements;
 import civil.civilization.scoring.CivilizationService;
 import civil.config.CivilConfig;
 import net.minecraft.core.BlockPos;
@@ -78,6 +79,7 @@ public final class UndyingAnchorActivationHandler {
             tracker.onAnchorActivated(dim, x, y, z);
         }
 
+        CivilAdvancements.tryAward(player, CivilAdvancements.UNDYING_ANCHOR);
         stack.shrink(1);
         level.playSound(null, pos, SoundEvents.RESPAWN_ANCHOR_AMBIENT, SoundSource.BLOCKS, 1.0f, 1.0f);
         level.playSound(null, pos, SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.BLOCKS, 0.6f, 1.0f);

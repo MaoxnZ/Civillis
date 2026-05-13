@@ -1,0 +1,32 @@
+{
+  "parent": "civil:guide/structures/bell_sonar",
+  "display": {
+    "icon": {
+      "id": "minecraft:emerald_block"
+    },
+    "title": {
+      "translate": "civil.advancement.guide.emerald_block.title"
+    },
+    "description": {
+      "translate": "civil.advancement.guide.emerald_block.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "has_emerald_block": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "minecraft:emerald_block"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "has_emerald_block"
+    ]
+  ]
+}

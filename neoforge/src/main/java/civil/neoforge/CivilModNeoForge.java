@@ -24,6 +24,8 @@ import civil.perf.TpsLogger;
 import civil.registry.BlockWeightLoader;
 import civil.registry.HeadTypeLoader;
 import civil.registry.DimensionPolicyLoader;
+import civil.registry.MobFleeEntityLoader;
+import civil.registry.PresenceKeepAliveLoader;
 import civil.registry.SpawnGateEntityLoader;
 import civil.registry.ZonePolicyLoader;
 import civil.civilization.ZoneTransitionPayload;
@@ -218,6 +220,8 @@ public class CivilModNeoForge {
         ZonePolicyLoader.reload(manager, ra);
         DimensionPolicyLoader.reload(manager, ra);
         SpawnGateEntityLoader.reload(manager);
+        MobFleeEntityLoader.reload(manager);
+        PresenceKeepAliveLoader.reload(manager);
         CivilMod.onHeadTypesReloaded();
     }
 
@@ -230,6 +234,8 @@ public class CivilModNeoForge {
         ZonePolicyLoader.reload(manager, ra);
         DimensionPolicyLoader.reload(manager, ra);
         SpawnGateEntityLoader.reload(manager);
+        MobFleeEntityLoader.reload(manager);
+        PresenceKeepAliveLoader.reload(manager);
         CivilMod.onHeadTypesReloaded();
     }
 

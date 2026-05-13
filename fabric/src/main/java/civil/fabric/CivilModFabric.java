@@ -22,6 +22,8 @@ import civil.perf.TpsLogger;
 import civil.registry.BlockWeightLoader;
 import civil.registry.HeadTypeLoader;
 import civil.registry.DimensionPolicyLoader;
+import civil.registry.MobFleeEntityLoader;
+import civil.registry.PresenceKeepAliveLoader;
 import civil.registry.SpawnGateEntityLoader;
 import civil.registry.ZonePolicyLoader;
 import civil.civilization.ZoneTransitionPayload;
@@ -83,6 +85,8 @@ public class CivilModFabric implements ModInitializer {
             ZonePolicyLoader.reload(server.getResourceManager(), ra);
             DimensionPolicyLoader.reload(server.getResourceManager(), ra);
             SpawnGateEntityLoader.reload(server.getResourceManager());
+            MobFleeEntityLoader.reload(server.getResourceManager());
+            PresenceKeepAliveLoader.reload(server.getResourceManager());
             CivilMod.onHeadTypesReloaded();
         });
         ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resourceManager, success) -> {
@@ -94,6 +98,8 @@ public class CivilModFabric implements ModInitializer {
             ZonePolicyLoader.reload(server.getResourceManager(), ra);
             DimensionPolicyLoader.reload(server.getResourceManager(), ra);
             SpawnGateEntityLoader.reload(server.getResourceManager());
+            MobFleeEntityLoader.reload(server.getResourceManager());
+            PresenceKeepAliveLoader.reload(server.getResourceManager());
             CivilMod.onHeadTypesReloaded();
         });
 

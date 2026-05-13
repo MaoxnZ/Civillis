@@ -141,12 +141,25 @@ public final class TtlVoxelCache implements CivilizationCache {
     }
 
     /**
-     * Restore L1 entry (from disk snapshot or chunk load palette scan).
+     * Restore L1 entry (from disk snapshot or bulk region load).
+     *
+     * <p>Two guards apply in order:
+     * <ol>
+     *   <li>TTL: skip if the stored {@code createTime} is older than the TTL window.
+     *       Relevant for the {@code initialize} path where the real write timestamp is used.</li>
+     *   <li>Hot-cache: skip if a live (non-expired) entry already exists.
+     *       Hot-cache entries reflect more recent writes (always mirrored into
+     *       {@code pendingScoreWrites}); NBT data is older by definition.</li>
+     * </ol>
      */
     public void restoreL1(ServerLevel level, VoxelChunkKey key, CScore cScore, long createTime) {
         String k = l1Key(level, key);
         if (System.currentTimeMillis() - createTime > ttlMillis) {
-            return; // Expired, do not restore
+            return;
+        }
+        TimestampedEntry<CScore> existing = l1Cache.get(k);
+        if (existing != null && !existing.isExpired(ttlMillis)) {
+            return;
         }
         l1Cache.put(k, new TimestampedEntry<>(cScore, createTime));
     }

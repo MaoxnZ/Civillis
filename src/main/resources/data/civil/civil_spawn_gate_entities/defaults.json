@@ -13,13 +13,14 @@
     "",
     "Files load in lexicographic order; later files add to the merged sets.",
     "Set replace: true on a file to clear all entries loaded from earlier files,",
-    "then apply that file (same idea as civil_blocks)."
+    "then apply that file (same idea as civil_blocks).",
+    "Unknown entity ids are skipped with a warning."
   ],
   "replace": false,
   "entries": [
     {
       "blacklist": [],
-      "whitelist": ["minecraft:pig"]
+      "whitelist": []
     }
   ]
 }

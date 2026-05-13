@@ -1,0 +1,25 @@
+{
+  "parent": "civil:guide/items/high_civilization",
+  "display": {
+    "icon": {
+      "id": "minecraft:bell"
+    },
+    "title": {
+      "translate": "civil.advancement.guide.bell_sonar.title"
+    },
+    "description": {
+      "translate": "civil.advancement.guide.bell_sonar.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "unlock": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "unlock"
+    ]
+  ]
+}

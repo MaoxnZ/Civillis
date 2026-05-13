@@ -1,0 +1,28 @@
+{
+  "parent": "civil:guide/items/detector_crafted",
+  "display": {
+    "icon": {
+      "id": "civil:civil_detector",
+      "components": {
+        "civil:detector_display": "high"
+      }
+    },
+    "title": {
+      "translate": "civil.advancement.guide.high_civilization.title"
+    },
+    "description": {
+      "translate": "civil.advancement.guide.high_civilization.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "unlock": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "unlock"
+    ]
+  ]
+}

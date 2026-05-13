@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.4.0-release]
+
+### Added
+
+- **Advancements**: Civillis now has its own advancement tree. Pick up an emerald and open
+  your advancements tab — it surfaces each major feature as you encounter it, from the
+  Civil Detector to bell sonar to the Podium of Undying.
+- **Entity Presence Upkeep**: Nearby villagers, iron golems, and similar entities now slow
+  civilization decay while they are around. Toggle under *Miscellaneous* in settings.
+  Which entity types count can be customized via data packs.
+- **Zone HUD font scale**: New slider in Zone Transition HUD settings to resize the
+  transition text, ranging from 50% to 500%.
+- **Minimap overlay colors configurable** *(1.20.1 and 1.21.1 only)*: The zone overlay
+  colors shown on JourneyMap and Xaero's maps can now be changed in `civil.properties`
+  using standard `0xAARRGGBB` hex values (`advanced.chunkBand.color*`).
+
+### Changed
+
+- **Mob Flee AI — allow/block lists**: Pillagers, evokers, and raid-type mobs no longer
+  flee from civilization, so raids stay as challenging as ever. Which mobs do or don't
+  flee is now fully configurable via data packs (`civil_mob_flee_entities`).
+- **Config update behavior**: GUI settings now only reset when a release explicitly calls
+  for it. Previously, any version bump could trigger a reset — that is no longer the case
+  by default. Users with `simple.persistAcrossSchema=true` are fully shielded either way.
+
+### Fixed
+
+- **Sonar aura walls**: Civilization boundary walls from sonar scans now only detect
+  boundaries at your current height layer instead of spanning the full world height.
+  Overlapping wall faces between adjacent zones are also resolved.
+- **Exploration performance**: Significantly improved performance when loading into or
+  moving through large areas. The key change is a reworked NBT bulk-load schedule that
+  avoids unnecessary work during fast exploration.
+
+### Note
+
+- Feedback, bug reports, ideas — join our Discord: [Civillis Official](https://discord.gg/dA7QCPx7zd)
+
 ## [1.3.3-release]
 
 ### Added

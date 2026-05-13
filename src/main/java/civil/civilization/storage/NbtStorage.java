@@ -103,25 +103,6 @@ public final class NbtStorage implements CivilStorage {
     }
 
     @Override
-    public Double loadL1Sync(String dim, VoxelChunkKey key) {
-        int rx = Math.floorDiv(key.getCx(), 32);
-        int rz = Math.floorDiv(key.getCz(), 32);
-        Map<VoxelChunkKey, L1Entry> region;
-        try {
-            region = bulkLoadRegion(dim, rx, rz).get(5, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            LOGGER.warn("[civil-storage] Bulk load region ({},{},{}) for L1 interrupted", dim, rx, rz);
-            return null;
-        } catch (ExecutionException | TimeoutException e) {
-            LOGGER.warn("[civil-storage] Bulk load region ({},{},{}) for L1 failed: {}", dim, rx, rz, e.getMessage());
-            return null;
-        }
-        L1Entry e = region.get(key);
-        return e != null ? e.score() : null;
-    }
-
-    @Override
     public CompletableFuture<Void> saveL1Async(String dim, VoxelChunkKey key, CScore cScore) {
         // NBT: no per-key async write; use pendingScoreWrites + unified flush
         return CompletableFuture.completedFuture(null);

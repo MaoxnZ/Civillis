@@ -3,6 +3,7 @@ package civil.shrine;
 import civil.CivilServices;
 import civil.civilization.FarmShrineStructureValidator;
 import civil.civilization.FarmShrineTracker;
+import civil.progress.CivilAdvancements;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -69,6 +70,7 @@ public final class FarmShrineActivationHandler {
         }
 
         tracker.onShrineActivated(dim, x, y, z);
+        CivilAdvancements.tryAward(player, CivilAdvancements.FARM_SHRINE);
         stack.shrink(1);
         level.playSound(null, pos, SoundEvents.WARDEN_HEARTBEAT, SoundSource.BLOCKS, 0.62f, 0.74f);
         level.playSound(null, pos, SoundEvents.SCULK_CATALYST_BLOOM, SoundSource.BLOCKS, 0.9f, 0.98f);

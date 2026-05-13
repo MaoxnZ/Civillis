@@ -1,5 +1,6 @@
 package civil.map;
 
+import civil.CivilMod;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -32,7 +33,7 @@ public final class CivilMapSurfaceSy {
 
     /**
      * Aggregates raw {@link LevelChunk#getHeight} values across sampled columns (one recompute). When
-     * {@link CivilMapTrace#ON}, pass one instance through all {@link #compute} calls, then {@link #logSummary}.
+     * {@link CivilMod#DEBUG}, pass one instance through all {@link #compute} calls, then {@link #logSummary}.
      */
     public static final class WorldSurfaceHeightStats {
 
@@ -80,12 +81,13 @@ public final class CivilMapSurfaceSy {
         }
 
         public void logSummary(int mapId, int dimMinY, int dimMaxY) {
-            if (!CivilMapTrace.ON || n == 0) {
+            if (!CivilMod.DEBUG || n == 0) {
                 return;
             }
             double meanTopWs = sumTopWs / (double) n;
-            CivilMapTrace.log(
-                    "heightmapRaw mapId={} dimY=[{},{}] firstChunkClass={} columns={} "
+            CivilMod.LOGGER.info(
+                    "[civil-map-trace] "
+                            + "heightmapRaw mapId={} dimY=[{},{}] firstChunkClass={} columns={} "
                             + "WORLD_SURFACE top: min={} max={} mean={} | spawnLayerY(=top) belowMinY={} aboveMaxY={} "
                             + "| motionBlockFallbackColumns={} | finalY(afterClamp) min={} max={}",
                     mapId,
@@ -112,7 +114,7 @@ public final class CivilMapSurfaceSy {
     }
 
     /**
-     * @param heightStats when non-null and {@link CivilMapTrace#ON}, records raw heightmap tops per column
+     * @param heightStats when non-null and {@link CivilMod#DEBUG}, records raw heightmap tops per column
      *                    for {@link WorldSurfaceHeightStats#logSummary(int, int, int)} after the map grid loop.
      */
     public static SurfaceSyComputation compute(
@@ -178,7 +180,7 @@ public final class CivilMapSurfaceSy {
      * above the top solid block), avoiding an off-by-one {@code sy} at 16-block boundaries versus spawn checks.
      * <p>
      * Clamping is <strong>defensive</strong> (avoids dropping every column). Interpretation of Mojang heightmap
-     * semantics must rely on {@link WorldSurfaceHeightStats} logs when {@link CivilMapTrace#ON}, not on clamp
+     * semantics must rely on {@link WorldSurfaceHeightStats} logs when {@link CivilMod#DEBUG}, not on clamp
      * alone.
      */
     private static int surfaceYForColumn(
@@ -188,7 +190,7 @@ public final class CivilMapSurfaceSy {
             int dx,
             int dz,
             WorldSurfaceHeightStats stats) {
-        int topWs = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, dx, dz);
+        int topWs = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, dx, dz) + 1;
         int yWs = topWs;
         boolean usedMb = false;
         int topMb = topWs;

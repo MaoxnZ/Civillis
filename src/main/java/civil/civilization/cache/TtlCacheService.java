@@ -41,6 +41,7 @@ public final class TtlCacheService implements CivilizationCache {
     private final TtlVoxelCache cache;
     private final CivilStorage storage;
     private final PlayerAwarePrefetcher prefetcher;
+    private final PresenceKeepAliveSweep presenceKeepAliveSweep;
     private final LoadingStateTracker loadingTracker;
 
     private volatile boolean initialized = false;
@@ -61,6 +62,7 @@ public final class TtlCacheService implements CivilizationCache {
         this.storage = new NbtStorage();
         this.loadingTracker = cache.getLoadingTracker();
         this.prefetcher = new PlayerAwarePrefetcher();
+        this.presenceKeepAliveSweep = new PresenceKeepAliveSweep();
 
         cache.setStorage(storage);
     }
@@ -107,6 +109,7 @@ public final class TtlCacheService implements CivilizationCache {
 
         // CFR 1.2.2: prefetch queue + round-robin budget + epoch receipts (each logical tick)
         prefetcher.onServerTick(server);
+        presenceKeepAliveSweep.onServerTick(server);
 
         if (CivilMod.DEBUG && tickCounter % 20 == 0) {
             var resultCache = civil.CivilServices.getResultCache();
@@ -157,6 +160,7 @@ public final class TtlCacheService implements CivilizationCache {
             activatedRegions.clear();
             presencePreload.clear();
             prefetcher.clear();
+            presenceKeepAliveSweep.clear();
             initialized = false;
 
             if (CivilMod.DEBUG) {
@@ -375,8 +379,11 @@ public final class TtlCacheService implements CivilizationCache {
         if (activatedRegions.contains(regionKey)) return Optional.empty();
 
         Map<VoxelChunkKey, L1Entry> region;
+        long bulkLoadWaitNanos;
         try {
+            long t0 = System.nanoTime();
             region = storage.bulkLoadRegion(dim, rx, rz).get(5, TimeUnit.SECONDS);
+            bulkLoadWaitNanos = System.nanoTime() - t0;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             LOGGER.warn("[civil-cache-service] Bulk load region {} interrupted", regionKey);
@@ -385,16 +392,20 @@ public final class TtlCacheService implements CivilizationCache {
             LOGGER.warn("[civil-cache-service] Bulk load region {} failed: {}", regionKey, e.getMessage());
             return Optional.empty();
         }
-        restoreRegionFromBulkLoad(level, dim, rx, rz, region);
+        restoreRegionFromBulkLoad(level, dim, rx, rz, region, "l1_miss", bulkLoadWaitNanos);
         return cache.getChunkCScore(level, key);
     }
 
     /**
      * Restore a bulk-loaded region into cache and mark it activated.
-     * Invoked from {@link #getChunkCScore} on first hot miss for any key in the region.
+     * Invoked from {@link #getChunkCScore} (L1 hot miss) or {@link #getPresenceForCompute}
+     * (presence cold path) when the region was not yet activated.
+     *
+     * @param trigger       {@code l1_miss} or {@code presence_miss}; used only for DEBUG logging
+     * @param bulkLoadWaitNs wall time spent in {@code bulkLoadRegion(...).get(...)} (IO queue + disk)
      */
     private void restoreRegionFromBulkLoad(ServerLevel level, String dim, int rx, int rz,
-            Map<VoxelChunkKey, L1Entry> region) {
+            Map<VoxelChunkKey, L1Entry> region, String trigger, long bulkLoadWaitNs) {
         long now = System.currentTimeMillis();
         for (Map.Entry<VoxelChunkKey, L1Entry> e : region.entrySet()) {
             VoxelChunkKey k = e.getKey();
@@ -407,6 +418,19 @@ public final class TtlCacheService implements CivilizationCache {
         }
         String regionKey = dim + "|" + rx + "|" + rz;
         activatedRegions.add(regionKey);
+
+        if (CivilMod.DEBUG) {
+            int entries = region.size();
+            int withScore = 0;
+            int withPresence = 0;
+            for (L1Entry v : region.values()) {
+                if (v.score() != 0.0) withScore++;
+                if (v.presenceTime() != 0L || v.lastRecoveryTime() != 0L) withPresence++;
+            }
+            long loadWaitMs = TimeUnit.NANOSECONDS.toMillis(bulkLoadWaitNs);
+            LOGGER.info("[civil-region-bulk-load] trigger={} dim={} rx={} rz={} entries={} withScore={} withPresence={} load_wait_ms={}",
+                    trigger, dim, rx, rz, entries, withScore, withPresence, loadWaitMs);
+        }
     }
 
     @Override
@@ -430,13 +454,67 @@ public final class TtlCacheService implements CivilizationCache {
     }
 
     /**
-     * Get presence for compute. Checks preload first (from bulk load), then storage.
+     * Get presence for compute, using a three-level lookup to avoid spurious NBT reads.
+     *
+     * <ol>
+     *   <li><b>pendingPresenceWrites</b> (ResultCache): in-flight updates from {@code visitAt}
+     *       that have not yet been flushed to NBT. These are more recent than anything on disk
+     *       and must take priority to avoid regressing presenceTime on ResultEntry rebuild.</li>
+     *   <li><b>presencePreload</b>: populated when this region was last bulk-loaded. Valid until
+     *       the region is deactivated on the next flush.</li>
+     *   <li><b>activation-gated bulk restore</b>: if the region is not yet activated, trigger a
+     *       full {@code restoreRegionFromBulkLoad} (same path as {@link #getChunkCScore}).
+     *       This atomically restores both L1 scores and the entire region's presence data,
+     *       marks the region activated, and then returns from presencePreload.</li>
+     * </ol>
+     *
+     * <p>If the region is already activated but a key is absent from presencePreload, that
+     * means the VC had no persisted presence (e.g. never visited or tombstoned on last flush).
+     * In that case {@code null} is returned and a fresh presenceTime will be assigned.
+     *
+     * @param level the server level (needed to restore L1 cache on cold bulk load)
+     * @param dim   dimension string
+     * @param key   voxel chunk key
      */
-    public long[] getPresenceForCompute(String dim, VoxelChunkKey key) {
-        String k = dim + "|" + key.getCx() + "|" + key.getCz() + "|" + key.getSy();
-        long[] preload = presencePreload.get(k);
+    public long[] getPresenceForCompute(ServerLevel level, String dim, VoxelChunkKey key) {
+        String shardKey = dim + "|" + key.getCx() + "|" + key.getCz() + "|" + key.getSy();
+
+        // 1. Check in-flight pending presence (ResultCache) — most recent, pre-flush
+        ResultCache resultCache = civil.CivilServices.getResultCache();
+        if (resultCache != null) {
+            long[] pending = resultCache.getPendingPresenceTime(shardKey);
+            if (pending != null) return pending;
+        }
+
+        // 2. Check presencePreload — populated by last bulk restore for this region
+        long[] preload = presencePreload.get(shardKey);
         if (preload != null) return preload;
-        return storage.loadPresenceSync(dim, key);
+
+        // 3. Region not activated: trigger full bulk restore (same gate as getChunkCScore)
+        int rx = Math.floorDiv(key.getCx(), 32);
+        int rz = Math.floorDiv(key.getCz(), 32);
+        String regionKey = dim + "|" + rx + "|" + rz;
+        if (activatedRegions.contains(regionKey)) {
+            // Activated but key absent from preload → this VC had no persisted presence
+            return null;
+        }
+
+        Map<VoxelChunkKey, L1Entry> region;
+        long bulkLoadWaitNanos;
+        try {
+            long t0 = System.nanoTime();
+            region = storage.bulkLoadRegion(dim, rx, rz).get(5, TimeUnit.SECONDS);
+            bulkLoadWaitNanos = System.nanoTime() - t0;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOGGER.warn("[civil-cache-service] Bulk load region {} for presence interrupted", regionKey);
+            return null;
+        } catch (ExecutionException | TimeoutException e) {
+            LOGGER.warn("[civil-cache-service] Bulk load region {} for presence failed: {}", regionKey, e.getMessage());
+            return null;
+        }
+        restoreRegionFromBulkLoad(level, dim, rx, rz, region, "presence_miss", bulkLoadWaitNanos);
+        return presencePreload.get(shardKey);
     }
 
     /** Remove region from activated set (call when flush writes that region). Phase 4. */

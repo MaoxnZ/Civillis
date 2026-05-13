@@ -66,6 +66,20 @@ public final class PlayerAwarePrefetcher {
         int resultRadiusY = CivilConfig.patrolRadiusY;
 
         HashMap<String, ServerLevel> worldByDim = new HashMap<>();
+        this.enqueuePlayerPrefetch(server, currentEpoch, nowSec, resultRadiusX, resultRadiusZ, resultRadiusY, worldByDim);
+
+        this.consumeResultQueue(currentEpoch, worldByDim, resultCache, civilizationService,
+                CivilConfig.resultBudgetPerTick, CivilConfig.resultEpochTtlSec);
+        this.flushResultReceipts(currentEpoch, server);
+    }
+
+    /**
+     * Walk online players and enqueue result-shard prefetch tasks when movement / interval gates allow.
+     * Fills {@code worldByDim} for {@link #consumeResultQueue} in the same tick.
+     */
+    private void enqueuePlayerPrefetch(MinecraftServer server, long currentEpoch, long nowSec,
+                                       int resultRadiusX, int resultRadiusZ, int resultRadiusY,
+                                       HashMap<String, ServerLevel> worldByDim) {
         for (ServerLevel world : server.getAllLevels()) {
             String dim = world.dimension().identifier().toString();
             worldByDim.put(dim, world);
@@ -124,9 +138,6 @@ public final class PlayerAwarePrefetcher {
                 state.lastTickBlockPos = pos.immutable();
             }
         }
-        this.consumeResultQueue(currentEpoch, worldByDim, resultCache, civilizationService,
-                CivilConfig.resultBudgetPerTick, CivilConfig.resultEpochTtlSec);
-        this.flushResultReceipts(currentEpoch, server);
     }
 
     private static ZoneSemanticState resolveZoneHudState(ServerLevel world, VoxelChunkKey vc, ZoneSemanticState base) {

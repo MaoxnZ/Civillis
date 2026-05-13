@@ -49,6 +49,9 @@ public final class CivilConfig {
      */
     private static final String KEY_SIMPLE_PERSIST_ACROSS_SCHEMA = "simple.persistAcrossSchema";
 
+    /** Ship-time: allow jar vs {@code config.simpleSchemaVersion} mismatch to reset {@code simple.*} unless {@code simple.persistAcrossSchema}. First run (no key) still resets. Not in properties. */
+    public static final boolean resetSimpleGuiOnJarSchemaMismatchThisRelease = false;
+
     /** Keys that appeared as uncommented {@code advanced.*} entries in the last loaded file (see {@link #load}). */
     private static final Set<String> advancedKeysActiveInFile = new HashSet<>();
 
@@ -297,6 +300,14 @@ public final class CivilConfig {
     /** Result raw score threshold for staging presence writes vs deletes (CFR prefetch). */
     public static double presenceRawEpsilon = 0.01;
 
+    // -- Presence keepalive (datapack civil_presence_keepalive: entity vicinity anti-decay) --
+    /** Ticks between enqueue waves scanning configured entity types (default ~600s). */
+    public static int keepaliveIntervalTicks = 12000;
+    /** Max keepalive tasks consumed per server tick (getCScoreAt + visitAt per VC). */
+    public static int keepaliveBudgetPerTick = 10;
+    /** Max queued tasks; after shuffle, trim head excess when exceeded. */
+    public static int keepaliveQueueCap = 150000;
+
     // -- Farm shrine spawn suppression (attract radius around activated anchors) --
     public static double farmShrineAttractMaxRadius = 128.0;
     public static double farmShrineAttractLambda = 0.15;
@@ -312,6 +323,12 @@ public final class CivilConfig {
     // -- Mob Flee AI --
     /** Master toggle for mob flee behavior in civilized areas. */
     public static boolean mobFleeEnabled = true;
+
+    /**
+     * Master toggle for datapack-driven entity presence keepalive (civil_presence_keepalive:
+     * periodic getCScoreAt + visitAt near listed entity types). Independent from player prefetch.
+     */
+    public static boolean presenceKeepaliveEnabled = true;
     /** Ratio of (greenLine → 1.0) interval where combat panic begins. 0.5 = halfway. */
     public static double mobFleeCombatFleeRatio = 0.5;
     /** Base interval (ticks) between flee evaluations per mob. */
@@ -365,6 +382,11 @@ public final class CivilConfig {
      * Default 30 matches the legacy placement (~20% from top of screen, horizontally centered).
      */
     public static int zoneTransitionHudAnchorOffsetYPercent = 30;
+    /**
+     * Overall ZoneTransition HUD scale in percent. 100 = current built-in visual size.
+     * Applies uniformly to text and decorative bars.
+     */
+    public static int zoneTransitionHudFontScalePercent = 100;
     public static int detectorAnimationTicks = 40;
     public static int detectorCooldownTicks = 10;
 
@@ -441,10 +463,15 @@ public final class CivilConfig {
                     intEntry("simple.zoneHud.anchorOffsetXPercent", () -> zoneTransitionHudAnchorOffsetXPercent,
                             v -> zoneTransitionHudAnchorOffsetXPercent = Math.max(-50, Math.min(50, v))),
                     intEntry("simple.zoneHud.anchorOffsetYPercent", () -> zoneTransitionHudAnchorOffsetYPercent,
-                            v -> zoneTransitionHudAnchorOffsetYPercent = Math.max(-50, Math.min(50, v)))),
+                            v -> zoneTransitionHudAnchorOffsetYPercent = Math.max(-50, Math.min(50, v))),
+                    intEntry("simple.zoneHud.fontScalePercent", () -> zoneTransitionHudFontScalePercent,
+                            v -> zoneTransitionHudFontScalePercent = Math.max(50, Math.min(500, v)))),
             section("Mob flee",
                     boolEntry("simple.mobFlee.enabled", () -> mobFleeEnabled,
                             v -> mobFleeEnabled = v)),
+            section("Presence keepalive",
+                    boolEntry("simple.presenceKeepalive.enabled", () -> presenceKeepaliveEnabled,
+                            v -> presenceKeepaliveEnabled = v)),
     };
 
     private static final ConfigSection[] ADVANCED_SECTIONS = new ConfigSection[] {
@@ -530,6 +557,13 @@ public final class CivilConfig {
                             v -> presenceRawEpsilon = Math.max(0.0, Math.min(1_000_000.0, v))),
                     doubleEntry("advanced.prefetch.zoneReceiptStrongCivilizedRatio", () -> zoneReceiptStrongCivilizedRatio,
                             v -> zoneReceiptStrongCivilizedRatio = Math.max(0.0, Math.min(1.0, v)))),
+            section("Presence keepalive (entity anti-decay sweep)",
+                    intEntry("advanced.keepalive.intervalTicks", () -> keepaliveIntervalTicks,
+                            v -> keepaliveIntervalTicks = Math.max(1, Math.min(72000, v))),
+                    intEntry("advanced.keepalive.budgetPerTick", () -> keepaliveBudgetPerTick,
+                            v -> keepaliveBudgetPerTick = Math.max(0, Math.min(200000, v))),
+                    intEntry("advanced.keepalive.queueCap", () -> keepaliveQueueCap,
+                            v -> keepaliveQueueCap = Math.max(64, Math.min(500_000, v)))),
             section("Mob flee (parameters other than simple toggle)",
                     doubleEntry("advanced.mobFlee.combatFleeRatio", () -> mobFleeCombatFleeRatio,
                             v -> mobFleeCombatFleeRatio = v),
@@ -669,7 +703,7 @@ public final class CivilConfig {
         } else if (diskSimpleSchema.equals(currentJarVersion)) {
             needResetSimple = false;
         } else {
-            needResetSimple = !persistSimpleAcrossSchema;
+            needResetSimple = !persistSimpleAcrossSchema && resetSimpleGuiOnJarSchemaMismatchThisRelease;
         }
 
         if (needResetSimple) {
@@ -768,8 +802,10 @@ public final class CivilConfig {
         zoneTransitionHudCooldownSeconds = 10;
         zoneTransitionHudAnchorOffsetXPercent = 0;
         zoneTransitionHudAnchorOffsetYPercent = 30;
+        zoneTransitionHudFontScalePercent = 100;
 
         mobFleeEnabled = true;
+        presenceKeepaliveEnabled = true;
     }
 
     private static void applySimpleParamClamps() {
@@ -790,6 +826,7 @@ public final class CivilConfig {
         zoneTransitionHudCooldownSeconds = Math.max(0, Math.min(60, zoneTransitionHudCooldownSeconds));
         zoneTransitionHudAnchorOffsetXPercent = Math.max(-50, Math.min(50, zoneTransitionHudAnchorOffsetXPercent));
         zoneTransitionHudAnchorOffsetYPercent = Math.max(-50, Math.min(50, zoneTransitionHudAnchorOffsetYPercent));
+        zoneTransitionHudFontScalePercent = Math.max(50, Math.min(500, zoneTransitionHudFontScalePercent));
     }
 
     /** Load {@code advanced.*} after {@link #computeInternalFromSimple()} so overrides apply on top of mapping. */
@@ -832,7 +869,7 @@ public final class CivilConfig {
             sb.append("# advanced.* : optional tuning (default lines commented; remove leading # to apply).\n\n");
 
             sb.append("# ── Simple (GUI) ──\n");
-            sb.append("# Stored release version for simple-settings migration (differs from jar => reset simple.* unless opt-out below).\n");
+            sb.append("# Stored release version for simple-settings migration (jar bump reset gated in CivilConfig; opt-out below).\n");
             sb.append(KEY_CONFIG_SIMPLE_SCHEMA_VERSION).append('=').append(CivilPlatform.getReleasedModVersion()).append('\n');
             sb.append("# Remove leading # on the next line to opt out of simple migration when updating the mod jar.\n");
             sb.append('#').append(KEY_SIMPLE_PERSIST_ACROSS_SCHEMA).append("=true\n");

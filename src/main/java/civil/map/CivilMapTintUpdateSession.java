@@ -1,5 +1,6 @@
 package civil.map;
 
+import civil.CivilMod;
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -34,7 +35,7 @@ public final class CivilMapTintUpdateSession {
         if (mapId == null) {
             return;
         }
-        long startNs = CivilMapTrace.ON ? System.nanoTime() : 0L;
+        long startNs = CivilMod.DEBUG ? System.nanoTime() : 0L;
         CTX.set(new Context(sl, mapId, data, startNs));
     }
 
@@ -44,7 +45,7 @@ public final class CivilMapTintUpdateSession {
         if (c == null) {
             return;
         }
-        if (CivilMapTrace.ON && c.pixelsProcessed > 0) {
+        if (CivilMod.DEBUG && c.pixelsProcessed > 0) {
             long us = (System.nanoTime() - c.traceStartNs) / 1000L;
             CivilMapPerfTrace.onServerTintPass(0, c.pixelsProcessed, c.pixelsBaked, us);
         }

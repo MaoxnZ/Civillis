@@ -69,6 +69,7 @@
   "civil.config.slider.zoneTransitionHudCooldown": "%d s",
   "civil.config.ui.zoneTransitionHudAnchorOffsetXPercent": "Horizontal offset",
   "civil.config.ui.zoneTransitionHudAnchorOffsetYPercent": "Vertical offset",
+  "civil.config.ui.zoneTransitionHudFontScalePercent": "Font size",
 
   "civil.hud.zone_transition.civilized": "Civilized",
   "civil.hud.zone_transition.wilderness": "Wilderness",
@@ -82,10 +83,11 @@
   "civil.config.override.warning": "\u00a7e\u26a0 Advanced override detected in civil.properties. Changing this slider will overwrite your custom value.",
 
   "civil.config.subcategory.mobFlee": "Mob Flee Behavior",
-  "civil.config.subcategory.mobFlee.tooltip.1": "Hostile mobs in civilized areas",
-  "civil.config.subcategory.mobFlee.tooltip.2": "will flee — even deserting mid-combat in city centers.",
-  "civil.config.subcategory.mobFlee.tooltip.3": "\u00a77Linked to Civilization Strength.",
+  "civil.config.subcategory.mobFlee.tooltip.1": "Mobs in civilized areas will leave on their own.",
   "civil.config.mobFlee.enabled": "Mob Flee AI",
+
+  "civil.config.presenceKeepalive.enabled": "Entity Presence Upkeep",
+  "civil.config.presenceKeepalive.tooltip.1": "Nearby villagers and similar entities slow civilization decay.",
 
   "civil.config.subcategory.podiumOfUndying": "Podium of Undying",
   "civil.config.subcategory.podiumOfUndying.tooltip.1": "Emerald structure activated with totem.",
@@ -99,5 +101,24 @@
 
   "civil.config.subcategory.miscellaneous": "Miscellaneous",
   "civil.config.subcategory.miscellaneous.tooltip.1": "Options that don't fit other categories.",
-  "civil.config.subcategory.miscellaneous.tooltip.2": "\u00a77Future small features will go here."
+  "civil.config.subcategory.miscellaneous.tooltip.2": "\u00a77Future small features will go here.",
+
+  "civil.advancement.guide.root.title": "Civillis",
+  "civil.advancement.guide.root.description": "Villagers only know half the story.",
+  "civil.advancement.guide.detector_crafted.title": "Reading the Room",
+  "civil.advancement.guide.detector_crafted.description": "Hold it out and use it. The land has something to say.",
+  "civil.advancement.guide.map_crafted.title": "Lay of the Land",
+  "civil.advancement.guide.map_crafted.description": "Combine your map with the detector. Now it shows more than terrain.",
+  "civil.advancement.guide.high_civilization.title": "The Meter's Peaking",
+  "civil.advancement.guide.high_civilization.description": "The needle maxed out. Whoever built here was serious about it.",
+  "civil.advancement.guide.soul_campfire.title": "Strange Fire",
+  "civil.advancement.guide.soul_campfire.description": "Pale flame, specific purpose. The foundation matters.",
+  "civil.advancement.guide.emerald_block.title": "Dense With Value",
+  "civil.advancement.guide.emerald_block.description": "Nine emeralds pressed into one. Something out there wants this.",
+  "civil.advancement.guide.bell_sonar.title": "Ring and Listen",
+  "civil.advancement.guide.bell_sonar.description": "Put a bell on a lodestone and give it a ring. You'll see.",
+  "civil.advancement.guide.farm_shrine.title": "Welcome the Wild",
+  "civil.advancement.guide.farm_shrine.description": "Light the campfire on its foundation. A bone in hand does the rest.",
+  "civil.advancement.guide.undying_anchor.title": "Roots Run Deep",
+  "civil.advancement.guide.undying_anchor.description": "Bring a totem of undying to the emerald podium. It remembers where you are."
 }

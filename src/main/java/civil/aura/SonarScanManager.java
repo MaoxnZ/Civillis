@@ -9,6 +9,7 @@ import civil.civilization.VoxelChunkKey;
 import civil.civilization.ZonePolicyService;
 import civil.config.CivilConfig;
 import civil.CivilPlatform;
+import civil.progress.CivilAdvancements;
 import civil.registry.DimensionPolicyRegistry;
 import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
@@ -39,11 +40,14 @@ public final class SonarScanManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("civil-sonar");
 
-    /** Wall extends this many blocks above and below the scan center Y. */
+    /** Civilization walls remain the tall reference wall used by the original sonar. */
     private static final double WALL_HALF_HEIGHT = 48.0;
 
-    /** Vertical padding (blocks) above and below a shrine bypass voxel chunk for the zone envelope. */
-    private static final double SHRINE_ZONE_Y_PADDING = 8.0;
+    /** Zone policy walls extend slightly beyond the current scan layer for readability. */
+    private static final double ZONE_Y_PADDING = 16.0;
+
+    /** Shrine walls are tighter than zone walls but still taller than a raw VC slice. */
+    private static final double SHRINE_Y_PADDING = 8.0;
 
     /**
      * Server ticks after scan start before the charge-up sound plays.
@@ -260,33 +264,17 @@ public final class SonarScanManager {
                 scan.getWorld(), scan.getCenter(), scan.getMaxRadius() + 1, shrineResult.shrineBypass2D);
         zoneResult = suppressZoneFacesOverlappingShrine(zoneResult, shrineResult);
 
-        Set<Long> shrineBypass2D = shrineResult.shrineBypass2D;
-        Set<Long> zonePolicy2D = zoneResult.envelope2DToY.keySet();
-        List<BoundaryFaceData> faces;
-        if (shrineBypass2D.isEmpty() && zonePolicy2D.isEmpty()) {
-            faces = scan.getAllBoundaries().stream()
-                    .map(BoundaryFaceData::fromBoundaryFace)
-                    .toList();
-        } else {
-            faces = scan.getAllBoundaries().stream()
-                    .filter(bf -> {
-                        long highXZ = packXZ(bf.highSide().getCx(), bf.highSide().getCz());
-                        long lowXZ  = packXZ(bf.lowSide().getCx(), bf.lowSide().getCz());
-                        return !shrineBypass2D.contains(highXZ)
-                                && !shrineBypass2D.contains(lowXZ)
-                                && !zonePolicy2D.contains(highXZ)
-                                && !zonePolicy2D.contains(lowXZ);
-                    })
-                    .map(BoundaryFaceData::fromBoundaryFace)
-                    .toList();
-        }
-
-        double cx = scan.getCenter().getCx() * 16.0 + 8.0;
         double cy = scan.getCenter().getSy() * 16.0 + 8.0;
-        double cz = scan.getCenter().getCz() * 16.0 + 8.0;
-
         double wallMinY = cy - WALL_HALF_HEIGHT;
         double wallMaxY = cy + WALL_HALF_HEIGHT;
+        Set<Long> blockedCivFaceKeys = collectFacePlaneKeys(shrineResult.faces, zoneResult.faces);
+        List<BoundaryFaceData> faces = scan.getAllBoundaries().stream()
+                .map(BoundaryFaceData::fromBoundaryFace)
+                .filter(face -> !blockedCivFaceKeys.contains(facePlaneKey(face)))
+                .toList();
+
+        double cx = scan.getCenter().getCx() * 16.0 + 8.0;
+        double cz = scan.getCenter().getCz() * 16.0 + 8.0;
 
         int shrineZoneSize = shrineResult.shrineZoneYRanges.size();
         long[] shrineZone2DArray = new long[shrineZoneSize];
@@ -363,6 +351,10 @@ public final class SonarScanManager {
         PENDING_BOOMS.put(player.getUUID(), new PendingBoom(scan.getWorld(),
                 originX, originY, originZ, BOOM_DELAY_TICKS, sonarType));
 
+        if (sonarType == SonarType.STATIC) {
+            CivilAdvancements.tryAward(player, CivilAdvancements.BELL_SONAR);
+        }
+
         if (CivilMod.DEBUG) {
             LOGGER.info("[civil-sonar] Sent boundary to {}: civF={} shrineF={} zoneF={} Y=[{}, {}]",
                     player.getName().getString(), faces.size(), shrineResult.faces.size(), zoneResult.faces.size(),
@@ -371,8 +363,6 @@ public final class SonarScanManager {
     }
 
     // ========== Shrine bypass boundary computation ==========
-
-    private record VC3(int cx, int cz, int sy) {}
 
     private record ShrineZoneResult(List<ShrineFaceData> faces, Set<Long> shrineBypass2D,
                                     Map<Long, float[]> shrineZoneYRanges) {
@@ -389,77 +379,33 @@ public final class SonarScanManager {
         if (zps == null || !DimensionPolicyRegistry.policyFor(world).civilization()) {
             return EnvelopeResult.EMPTY;
         }
-        Set<VC3> zoneVcs = new HashSet<>();
+        int sy = center.getSy();
+        Set<Long> zoneCells2D = new HashSet<>();
         for (int dx = -filterRange; dx <= filterRange; dx++) {
             for (int dz = -filterRange; dz <= filterRange; dz++) {
-                for (int dsy = -1; dsy <= 1; dsy++) {
-                    int cx = center.getCx() + dx;
-                    int cz = center.getCz() + dz;
-                    int sy = center.getSy() + dsy;
-                    if (shrineBypass2D.contains(packXZ(cx, cz))) {
-                        continue;
-                    }
-                    VoxelChunkKey vc = new VoxelChunkKey(cx, cz, sy);
-                    if (!vc.isValidIn(world)) {
-                        continue;
-                    }
-                    if (zps.treatAsNonCivilized(world, vc)) {
-                        zoneVcs.add(new VC3(cx, cz, sy));
-                    }
+                int cx = center.getCx() + dx;
+                int cz = center.getCz() + dz;
+                if (!isWithinScanWindow(center, cx, cz, filterRange)) {
+                    continue;
+                }
+                long packed = packXZ(cx, cz);
+                if (shrineBypass2D.contains(packed)) {
+                    continue;
+                }
+                VoxelChunkKey vc = new VoxelChunkKey(cx, cz, sy);
+                if (!vc.isValidIn(world)) {
+                    continue;
+                }
+                if (zps.treatAsNonCivilized(world, vc)) {
+                    zoneCells2D.add(packed);
                 }
             }
         }
-        if (zoneVcs.isEmpty()) {
+        if (zoneCells2D.isEmpty()) {
             return EnvelopeResult.EMPTY;
         }
-        Map<Long, float[]> yRanges = new HashMap<>();
-        for (VC3 v : zoneVcs) {
-            long packed = packXZ(v.cx, v.cz);
-            float y0 = v.sy * 16.0f;
-            float y1 = (v.sy + 1) * 16.0f;
-            float[] existing = yRanges.get(packed);
-            if (existing == null) {
-                yRanges.put(packed, new float[] {y0, y1});
-            } else {
-                existing[0] = Math.min(existing[0], y0);
-                existing[1] = Math.max(existing[1], y1);
-            }
-        }
-        int[][] xzNeigh = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        byte[] neighborAxes = {0, 0, 2, 2};
-        boolean[] neighborPos = {true, false, true, false};
-        List<ShrineFaceData> outFaces = new ArrayList<>();
-        Set<Long> dedup = new HashSet<>();
-        for (VC3 vc : zoneVcs) {
-            if (Math.abs(vc.cx - center.getCx()) > filterRange
-                    || Math.abs(vc.cz - center.getCz()) > filterRange) {
-                continue;
-            }
-            for (int n = 0; n < 4; n++) {
-                int ncx = vc.cx + xzNeigh[n][0];
-                int ncz = vc.cz + xzNeigh[n][1];
-                VC3 neighbor = new VC3(ncx, ncz, vc.sy);
-                if (!zoneVcs.contains(neighbor)) {
-                    byte axis = neighborAxes[n];
-                    boolean positive = neighborPos[n];
-                    double planeCoord;
-                    double minU;
-                    if (axis == 0) {
-                        planeCoord = positive ? (vc.cx + 1) * 16.0 : vc.cx * 16.0;
-                        minU = vc.cz * 16.0;
-                    } else {
-                        planeCoord = positive ? (vc.cz + 1) * 16.0 : vc.cz * 16.0;
-                        minU = vc.cx * 16.0;
-                    }
-                    double fMinY = vc.sy * 16.0 - SHRINE_ZONE_Y_PADDING;
-                    double fMaxY = (vc.sy + 1) * 16.0 + SHRINE_ZONE_Y_PADDING;
-                    long dedupKey = dedupHash(axis, planeCoord, minU, vc.sy);
-                    if (dedup.add(dedupKey)) {
-                        outFaces.add(new ShrineFaceData(axis, planeCoord, minU, positive, fMinY, fMaxY));
-                    }
-                }
-            }
-        }
+        Map<Long, float[]> yRanges = buildSingleLayerYRanges(zoneCells2D, sy, ZONE_Y_PADDING);
+        List<ShrineFaceData> outFaces = buildSingleLayerFaces(zoneCells2D, center, filterRange, ZONE_Y_PADDING);
         if (CivilMod.DEBUG && !outFaces.isEmpty()) {
             LOGGER.info("[civil-sonar] zone policy: {} faces, 2D cells {}", outFaces.size(), yRanges.size());
         }
@@ -468,6 +414,78 @@ public final class SonarScanManager {
 
     private static long packXZ(int cx, int cz) {
         return ((long) cx << 32) | (cz & 0xFFFFFFFFL);
+    }
+
+    private static int unpackCx(long packedXZ) {
+        return (int) (packedXZ >> 32);
+    }
+
+    private static int unpackCz(long packedXZ) {
+        return (int) packedXZ;
+    }
+
+    private static boolean isWithinScanWindow(VoxelChunkKey center, int cx, int cz, int radius) {
+        return Math.abs(cx - center.getCx()) + Math.abs(cz - center.getCz()) <= radius;
+    }
+
+    private static float layerMinY(int sy) {
+        return sy * 16.0f;
+    }
+
+    private static float layerMaxY(int sy) {
+        return (sy + 1) * 16.0f;
+    }
+
+    private static Map<Long, float[]> buildSingleLayerYRanges(Set<Long> cells2D, int sy, double padding) {
+        if (cells2D.isEmpty()) {
+            return Map.of();
+        }
+        float minY = (float) (layerMinY(sy) - padding);
+        float maxY = (float) (layerMaxY(sy) + padding);
+        Map<Long, float[]> ranges = new HashMap<>(cells2D.size());
+        for (long packed : cells2D) {
+            ranges.put(packed, new float[] {minY, maxY});
+        }
+        return ranges;
+    }
+
+    private static List<ShrineFaceData> buildSingleLayerFaces(
+            Set<Long> cells2D, VoxelChunkKey center, int filterRange, double padding) {
+        if (cells2D.isEmpty()) {
+            return List.of();
+        }
+        int[][] xzNeighbors = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        byte[] neighborAxes = {0, 0, 2, 2};
+        boolean[] neighborPos = {true, false, true, false};
+        double faceMinY = layerMinY(center.getSy()) - padding;
+        double faceMaxY = layerMaxY(center.getSy()) + padding;
+        List<ShrineFaceData> faces = new ArrayList<>();
+        Set<Long> dedup = new HashSet<>();
+        for (long packed : cells2D) {
+            int cx = unpackCx(packed);
+            int cz = unpackCz(packed);
+            for (int n = 0; n < 4; n++) {
+                int ncx = cx + xzNeighbors[n][0];
+                int ncz = cz + xzNeighbors[n][1];
+                if (!isWithinScanWindow(center, ncx, ncz, filterRange)) {
+                    continue; // Unknown outside the scan window: do not invent a boundary.
+                }
+                if (cells2D.contains(packXZ(ncx, ncz))) {
+                    continue;
+                }
+                byte axis = neighborAxes[n];
+                boolean positive = neighborPos[n];
+                double planeCoord = axis == 0
+                        ? (positive ? (cx + 1) * 16.0 : cx * 16.0)
+                        : (positive ? (cz + 1) * 16.0 : cz * 16.0);
+                double minU = axis == 0 ? cz * 16.0 : cx * 16.0;
+                long dedupKey = facePlaneKey(axis, planeCoord, minU);
+                if (dedup.add(dedupKey)) {
+                    faces.add(new ShrineFaceData(axis, planeCoord, minU, positive, faceMinY, faceMaxY));
+                }
+            }
+        }
+        return faces;
     }
 
     private static ShrineZoneResult computeShrineZoneData(SonarScan scan) {
@@ -482,113 +500,49 @@ public final class SonarScanManager {
 
         String dim = world.dimension().identifier().toString();
         VoxelChunkKey center = scan.getCenter();
-        int maxRange = scan.getMaxRadius() + 2;
+        int filterRange = scan.getMaxRadius() + 2;
+        int currentSy = center.getSy();
 
         int rx = CivilConfig.farmShrineRangeX;
         int rz = CivilConfig.farmShrineRangeZ;
         int ry = CivilConfig.farmShrineRangeY;
 
-        Set<VC3> bypassVCs = new HashSet<>();
+        Set<Long> shrineBypass2D = new HashSet<>();
         tracker.forEachActivatedShrine(dim, shrine -> {
             int avcx = shrine.x() >> 4;
             int avcz = shrine.z() >> 4;
             int avcy = Math.floorDiv(shrine.y(), 16);
-            if (Math.abs(avcx - center.getCx()) > maxRange + rx
-                    || Math.abs(avcz - center.getCz()) > maxRange + rz) {
+            if (currentSy < avcy - ry || currentSy > avcy + ry) {
+                return;
+            }
+            if (Math.abs(avcx - center.getCx()) > filterRange + rx
+                    || Math.abs(avcz - center.getCz()) > filterRange + rz) {
                 return;
             }
             for (int dx = -rx; dx <= rx; dx++) {
                 for (int dz = -rz; dz <= rz; dz++) {
-                    for (int dy = -ry; dy <= ry; dy++) {
-                        bypassVCs.add(new VC3(avcx + dx, avcz + dz, avcy + dy));
+                    int cx = avcx + dx;
+                    int cz = avcz + dz;
+                    if (isWithinScanWindow(center, cx, cz, filterRange)) {
+                        shrineBypass2D.add(packXZ(cx, cz));
                     }
                 }
             }
         });
 
-        if (bypassVCs.isEmpty()) {
+        if (shrineBypass2D.isEmpty()) {
             return ShrineZoneResult.EMPTY;
         }
 
-        Set<Long> shrineBypass2D = new HashSet<>();
-        Map<Long, float[]> shrineZoneYRanges = new HashMap<>();
-        for (VC3 vc : bypassVCs) {
-            long packedXZ = packXZ(vc.cx, vc.cz);
-            shrineBypass2D.add(packedXZ);
-            float vcMinY = vc.sy * 16.0f;
-            float vcMaxY = (vc.sy + 1) * 16.0f;
-            float[] existing = shrineZoneYRanges.get(packedXZ);
-            if (existing == null) {
-                shrineZoneYRanges.put(packedXZ, new float[]{vcMinY, vcMaxY});
-            } else {
-                existing[0] = Math.min(existing[0], vcMinY);
-                existing[1] = Math.max(existing[1], vcMaxY);
-            }
-        }
-
-        int[][] xzNeighbors = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        byte[] neighborAxes = {0, 0, 2, 2};
-        boolean[] neighborPos = {true, false, true, false};
-
-        int filterRange = scan.getMaxRadius() + 1;
-
-        List<ShrineFaceData> faces = new ArrayList<>();
-        Set<Long> dedup = new HashSet<>();
-
-        for (VC3 vc : bypassVCs) {
-            if (Math.abs(vc.cx - center.getCx()) > filterRange
-                    || Math.abs(vc.cz - center.getCz()) > filterRange) {
-                continue;
-            }
-
-            for (int n = 0; n < 4; n++) {
-                int ncx = vc.cx + xzNeighbors[n][0];
-                int ncz = vc.cz + xzNeighbors[n][1];
-                VC3 neighbor = new VC3(ncx, ncz, vc.sy);
-
-                if (!bypassVCs.contains(neighbor)) {
-                    byte axis = neighborAxes[n];
-                    boolean positive = neighborPos[n];
-
-                    double planeCoord;
-                    double minU;
-                    if (axis == 0) {
-                        planeCoord = positive ? (vc.cx + 1) * 16.0 : vc.cx * 16.0;
-                        minU = vc.cz * 16.0;
-                    } else {
-                        planeCoord = positive ? (vc.cz + 1) * 16.0 : vc.cz * 16.0;
-                        minU = vc.cx * 16.0;
-                    }
-
-                    double faceMinY = vc.sy * 16.0 - SHRINE_ZONE_Y_PADDING;
-                    double faceMaxY = (vc.sy + 1) * 16.0 + SHRINE_ZONE_Y_PADDING;
-
-                    long dedupKey = dedupHash(axis, planeCoord, minU, vc.sy);
-                    if (dedup.add(dedupKey)) {
-                        faces.add(new ShrineFaceData(axis, planeCoord, minU, positive, faceMinY, faceMaxY));
-                    }
-                }
-            }
-        }
+        Map<Long, float[]> shrineZoneYRanges = buildSingleLayerYRanges(shrineBypass2D, currentSy, SHRINE_Y_PADDING);
+        List<ShrineFaceData> faces = buildSingleLayerFaces(shrineBypass2D, center, filterRange, SHRINE_Y_PADDING);
 
         if (CivilMod.DEBUG && !faces.isEmpty()) {
-            LOGGER.info("[civil-sonar] Computed {} shrine bypass boundary faces from {} VCs (2D footprint: {} cells)",
-                    faces.size(), bypassVCs.size(), shrineBypass2D.size());
+            LOGGER.info("[civil-sonar] Computed {} shrine bypass boundary faces from {} cells (2D footprint: {} cells)",
+                    faces.size(), shrineBypass2D.size(), shrineBypass2D.size());
         }
 
         return new ShrineZoneResult(faces, shrineBypass2D, shrineZoneYRanges);
-    }
-
-    /**
-     * Combine face identity fields into a single long for fast dedup.
-     * Encodes axis(2 bits) + sy(16 bits) + planeCoord hash + minU hash.
-     */
-    private static long dedupHash(byte axis, double planeCoord, double minU, int sy) {
-        long a = axis;
-        long p = Double.doubleToLongBits(planeCoord);
-        long u = Double.doubleToLongBits(minU);
-        long s = sy;
-        return a ^ (p * 31) ^ (u * 997) ^ (s * 65537);
     }
 
     /**
@@ -601,13 +555,10 @@ public final class SonarScanManager {
         if (zoneResult.faces.isEmpty() || shrineResult.faces.isEmpty()) {
             return zoneResult;
         }
-        Set<Long> shrineFaceKeys = new HashSet<>(shrineResult.faces.size() * 2);
-        for (ShrineFaceData sf : shrineResult.faces) {
-            shrineFaceKeys.add(faceOverlapKey(sf.axis(), sf.planeCoord(), sf.minU(), sf.faceMinY()));
-        }
+        Set<Long> shrineFaceKeys = collectFacePlaneKeys(shrineResult.faces);
         List<ShrineFaceData> filtered = new ArrayList<>(zoneResult.faces.size());
         for (ShrineFaceData zf : zoneResult.faces) {
-            long key = faceOverlapKey(zf.axis(), zf.planeCoord(), zf.minU(), zf.faceMinY());
+            long key = facePlaneKey(zf);
             if (!shrineFaceKeys.contains(key)) {
                 filtered.add(zf);
             }
@@ -618,12 +569,34 @@ public final class SonarScanManager {
         return new EnvelopeResult(List.copyOf(filtered), zoneResult.envelope2DToY);
     }
 
-    private static long faceOverlapKey(byte axis, double planeCoord, double minU, double faceMinY) {
+    @SafeVarargs
+    private static Set<Long> collectFacePlaneKeys(List<ShrineFaceData>... faceGroups) {
+        int expectedSize = 0;
+        for (List<ShrineFaceData> faceGroup : faceGroups) {
+            expectedSize += faceGroup.size();
+        }
+        Set<Long> keys = new HashSet<>(Math.max(16, expectedSize * 2));
+        for (List<ShrineFaceData> faceGroup : faceGroups) {
+            for (ShrineFaceData face : faceGroup) {
+                keys.add(facePlaneKey(face));
+            }
+        }
+        return keys;
+    }
+
+    private static long facePlaneKey(ShrineFaceData face) {
+        return facePlaneKey(face.axis(), face.planeCoord(), face.minU());
+    }
+
+    private static long facePlaneKey(BoundaryFaceData face) {
+        return facePlaneKey(face.axis(), face.planeCoord(), face.minU());
+    }
+
+    private static long facePlaneKey(byte axis, double planeCoord, double minU) {
         long a = axis;
         long p = Double.doubleToLongBits(planeCoord);
         long u = Double.doubleToLongBits(minU);
-        long y = Double.doubleToLongBits(faceMinY);
-        return a ^ (p * 31) ^ (u * 997) ^ (y * 65537);
+        return a ^ (p * 31) ^ (u * 997);
     }
 
     /**
