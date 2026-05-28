@@ -1,0 +1,23 @@
+{
+  "replace": false,
+  "entries": [
+    {
+      "id": "born_in_chaos_v1_all",
+      "structures": [
+        "born_in_chaos_v1:clown_caravan_plains",
+        "born_in_chaos_v1:clown_caravan_savanna",
+        "born_in_chaos_v1:clown_caravan_taiga",
+        "born_in_chaos_v1:dark_tower_forest",
+        "born_in_chaos_v1:dark_tower_plain",
+        "born_in_chaos_v1:dark_tower_taiga",
+        "born_in_chaos_v1:farm",
+        "born_in_chaos_v1:firewell",
+        "born_in_chaos_v1:observation_tower_forest",
+        "born_in_chaos_v1:observation_tower_plains"
+      ],
+      "rules": {
+        "allow_hostile_spawn": true
+      }
+    }
+  ]
+}

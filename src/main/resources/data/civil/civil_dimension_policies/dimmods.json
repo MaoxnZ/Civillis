@@ -14,14 +14,9 @@
   ],
   "replace": false,
   "entries": [
-    { "dimension": "minecells:prison", "civilization": false },
-    { "dimension": "minecells:promenade", "civilization": false },
-    { "dimension": "minecells:insufferable_crypt", "civilization": false },
-    { "dimension": "minecells:black_bridge", "civilization": false },
-    { "dimension": "minecells:ramparts", "civilization": false },
-    { "dimension": "dimdungeons:dungeon_dimension", "civilization": false },
-    { "dimension": "dimdungeons:build_dimension", "civilization": false },
+    { "dimension": "blood_magic:dungeon", "civilization": false },
     { "dimension": "the_deep_void:deep_void", "civilization": false },
+    { "dimension": "the_deep_void:the_pit", "civilization": false },
     { "dimension": "perdition:purgatory", "civilization": false },
     { "dimension": "perdition:dis", "civilization": false }
   ]
