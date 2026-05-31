@@ -1,5 +1,6 @@
 package civil.registry;
 
+import civil.CivilMod;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -8,8 +9,9 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
-import civil.CivilMod;
 import net.minecraft.world.entity.EntityType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -34,6 +36,7 @@ import java.util.Map;
  */
 public final class PresenceKeepAliveLoader {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("civil-registry");
     private static final String DATA_PATH = "civil_presence_keepalive";
 
     /** Half-extent in voxel chunks when datapack omits {@code radius_voxel_chunks} or a coordinate inside it. */
@@ -62,7 +65,7 @@ public final class PresenceKeepAliveLoader {
 
                 boolean replace = root.has("replace") && root.get("replace").getAsBoolean();
                 if (replace) {
-                    CivilMod.LOGGER.warn("[civil-registry] replace=true in {} — clearing presence keepalive entries={}",
+                    LOGGER.warn("[civil-registry] replace=true in {} — clearing presence keepalive entries={}",
                             fileId, merged.size());
                     merged.clear();
                 }
@@ -74,7 +77,7 @@ public final class PresenceKeepAliveLoader {
                 for (JsonElement elem : entries) {
                     JsonObject obj = elem.getAsJsonObject();
                     if (!obj.has("entity")) {
-                        CivilMod.LOGGER.warn("[civil-registry] Missing \"entity\" in presence keepalive entry ({})", fileId);
+                        LOGGER.warn("[civil-registry] Missing \"entity\" in presence keepalive entry ({})", fileId);
                         continue;
                     }
                     String idStr = obj.get("entity").getAsString();
@@ -82,30 +85,32 @@ public final class PresenceKeepAliveLoader {
                     try {
                         parsed = Identifier.parse(idStr);
                     } catch (Exception ex) {
-                        CivilMod.LOGGER.warn("[civil-registry] Invalid entity id '{}' in presence keepalive ({})", idStr, fileId);
+                        LOGGER.warn("[civil-registry] Invalid entity id '{}' in presence keepalive ({})", idStr, fileId);
                         continue;
                     }
                     if (!BuiltInRegistries.ENTITY_TYPE.containsKey(parsed)) {
-                        CivilMod.LOGGER.warn("[civil-registry] Unknown entity type '{}' in presence keepalive ({}), skipping",
-                                idStr, fileId);
+                        if (CivilMod.DEBUG) {
+                            LOGGER.warn("[civil-registry] Unknown entity type '{}' in presence keepalive ({}), skipping",
+                                    idStr, fileId);
+                        }
                         continue;
                     }
                     EntityType<?> et = BuiltInRegistries.ENTITY_TYPE.getValue(parsed);
                     PresenceKeepAliveRegistry.RadiusVc rv = parseRadius(obj, fileId);
                     if (merged.containsKey(et)) {
-                        CivilMod.LOGGER.warn("[civil-registry] Duplicate presence keepalive entity {} in {}; later entry wins",
+                        LOGGER.warn("[civil-registry] Duplicate presence keepalive entity {} in {}; later entry wins",
                                 idStr, fileId);
                     }
                     merged.put(et, rv);
                 }
             } catch (Exception e) {
-                CivilMod.LOGGER.error("[civil-registry] Failed to load presence keepalive from {}: {}",
+                LOGGER.error("[civil-registry] Failed to load presence keepalive from {}: {}",
                         fileId, e.getMessage());
             }
         }
 
         PresenceKeepAliveRegistry.reload(merged);
-        CivilMod.LOGGER.info("[civil-registry] Loaded presence keepalive entity types: {}", merged.size());
+        LOGGER.info("[civil-registry] Loaded presence keepalive entity types: {}", merged.size());
     }
 
     private static PresenceKeepAliveRegistry.RadiusVc parseRadius(JsonObject obj, Identifier fileId) {
@@ -123,7 +128,7 @@ public final class PresenceKeepAliveLoader {
         rz = Math.max(0, rz);
         ry = Math.max(0, ry);
         if (rx > 32 || rz > 32 || ry > 32) {
-            CivilMod.LOGGER.warn("[civil-registry] Large radius_voxel_chunks ({},{},{}) in {}, clamping to 32",
+            LOGGER.warn("[civil-registry] Large radius_voxel_chunks ({},{},{}) in {}, clamping to 32",
                     rx, rz, ry, fileId);
             rx = Math.min(rx, 32);
             rz = Math.min(rz, 32);

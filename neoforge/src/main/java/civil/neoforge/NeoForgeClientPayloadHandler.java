@@ -10,9 +10,17 @@ import civil.respawn.UndyingAnchorParticleEffect;
 import civil.respawn.UndyingAnchorParticlePayload;
 import civil.shrine.FarmShrineParticleEffect;
 import civil.shrine.FarmShrineParticlePayload;
+import civil.towncenter.TownCenterActivationBurstEffect;
+import civil.towncenter.TownCenterActivationBurstPayload;
+import civil.towncenter.TownCenterParticleEffect;
+import civil.towncenter.TownCenterParticlePayload;
 import civil.respawn.UndyingAnchorPreTeleportPayload;
 import civil.civilization.ZoneTransitionHud;
 import civil.civilization.ZoneTransitionPayload;
+import civil.towncenter.gui.TownCenterClientState;
+import civil.towncenter.gui.TownCenterScreenBase;
+import net.minecraft.client.Minecraft;
+import civil.towncenter.network.TownCenterGuiSyncPayload;
 import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -76,8 +84,23 @@ final class NeoForgeClientPayloadHandler {
         FarmShrineParticleEffect.updateFromPayload(payload);
     }
 
+    static void handleTownCenterParticles(TownCenterParticlePayload payload, IPayloadContext context) {
+        TownCenterParticleEffect.updateFromPayload(payload);
+    }
+
+    static void handleTownCenterActivationBurst(TownCenterActivationBurstPayload payload, IPayloadContext context) {
+        TownCenterActivationBurstEffect.start(payload.x(), payload.y(), payload.z());
+    }
+
     static void handleZoneTransition(ZoneTransitionPayload payload, IPayloadContext context) {
         ZoneTransitionHud.onPayload(payload);
+    }
+
+    static void handleTownCenterGuiSync(TownCenterGuiSyncPayload payload, IPayloadContext context) {
+        TownCenterClientState.apply(payload);
+        if (Minecraft.getInstance().screen instanceof TownCenterScreenBase screen) {
+            screen.onProfileSync();
+        }
     }
 
     private static Map<Long, float[]> buildShrineZoneYMap(long[] keys, float[] minY, float[] maxY) {

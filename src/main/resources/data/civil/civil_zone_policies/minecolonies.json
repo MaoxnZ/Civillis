@@ -1,0 +1,28 @@
+{
+  "replace": false,
+  "entries": [
+    {
+      "id": "minecolonies_all",
+      "structures": [
+        "minecolonies:amazon_camp",
+        "minecolonies:asian_colony",
+        "minecolonies:barbarian_camp",
+        "minecolonies:caledonia_colony",
+        "minecolonies:desert_camp",
+        "minecolonies:desertoasis_colony",
+        "minecolonies:incan_colony",
+        "minecolonies:lostmesacity_colony",
+        "minecolonies:medieval_birch_colony",
+        "minecolonies:medieval_dark_oak_colony",
+        "minecolonies:medieval_oak_colony",
+        "minecolonies:medieval_spruce_colony",
+        "minecolonies:ship",
+        "minecolonies:shire_colony",
+        "minecolonies:warpednetherlands_colony"
+      ],
+      "rules": {
+        "allow_hostile_spawn": true
+      }
+    }
+  ]
+}

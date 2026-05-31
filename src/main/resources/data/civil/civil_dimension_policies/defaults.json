@@ -20,6 +20,9 @@
     { "dimension": "minecells:black_bridge", "civilization": false },
     { "dimension": "minecells:ramparts", "civilization": false },
     { "dimension": "dimdungeons:dungeon_dimension", "civilization": false },
-    { "dimension": "dimdungeons:build_dimension", "civilization": false }
+    { "dimension": "dimdungeons:build_dimension", "civilization": false },
+    { "dimension": "the_deep_void:deep_void", "civilization": false },
+    { "dimension": "perdition:purgatory", "civilization": false },
+    { "dimension": "perdition:dis", "civilization": false }
   ]
 }

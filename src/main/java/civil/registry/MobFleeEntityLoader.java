@@ -9,6 +9,9 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.entity.EntityType;
+
+import civil.CivilMod;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,12 +108,16 @@ public final class MobFleeEntityLoader {
                 if (BuiltInRegistries.ENTITY_TYPE.containsKey(parsed)) {
                     out.add(BuiltInRegistries.ENTITY_TYPE.getValue(parsed));
                 } else {
-                    LOGGER.warn("[civil-registry] Unknown entity type '{}' in mob flee {} ({}), skipping",
-                            idStr, fileId, key);
+                    if (CivilMod.DEBUG) {
+                        LOGGER.warn("[civil-registry] Unknown entity type '{}' in mob flee {} ({}), skipping",
+                                idStr, fileId, key);
+                    }
                 }
             } catch (Exception ex) {
-                LOGGER.warn("[civil-registry] Invalid entity id '{}' in mob flee {} ({}), skipping",
-                        idStr, fileId, key);
+                if (CivilMod.DEBUG) {
+                    LOGGER.warn("[civil-registry] Invalid entity id '{}' in mob flee {} ({}), skipping",
+                            idStr, fileId, key);
+                }
             }
         }
     }

@@ -4,6 +4,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+
+import civil.CivilMod;
+
 import net.minecraft.world.level.block.Block;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -77,8 +80,10 @@ public final class BlockWeightLoader {
                             Block block = BuiltInRegistries.BLOCK.getValue(blockId);
                             accumulated.put(block, weight);
                         } else {
-                            LOGGER.warn("[civil-registry] Unknown block '{}' in {}, skipping",
-                                    blockSpec, fileId);
+                            if (CivilMod.DEBUG) {
+                                LOGGER.warn("[civil-registry] Unknown block '{}' in {}, skipping",
+                                        blockSpec, fileId);
+                            }
                         }
                     }
                 }

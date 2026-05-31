@@ -1,8 +1,15 @@
 package civil.fabric;
 
 import civil.CivilMod;
+import civil.ModMenuTypes;
+import civil.towncenter.gui.TownCenterMenu;
+import civil.towncenter.gui.TownCenterMainScreen;
+import civil.towncenter.gui.TownCenterScreenBase;
+import net.minecraft.client.gui.screens.MenuScreens;
 import civil.civilization.ZoneTransitionHud;
 import civil.civilization.ZoneTransitionPayload;
+import civil.towncenter.gui.TownCenterClientState;
+import civil.towncenter.network.TownCenterGuiSyncPayload;
 import civil.aura.AuraWallRenderer;
 import civil.aura.SonarBoundaryPayload;
 import civil.aura.SonarChargePayload;
@@ -11,6 +18,10 @@ import civil.respawn.UndyingAnchorParticleEffect;
 import civil.respawn.UndyingAnchorParticlePayload;
 import civil.shrine.FarmShrineParticleEffect;
 import civil.shrine.FarmShrineParticlePayload;
+import civil.towncenter.TownCenterActivationBurstEffect;
+import civil.towncenter.TownCenterActivationBurstPayload;
+import civil.towncenter.TownCenterParticleEffect;
+import civil.towncenter.TownCenterParticlePayload;
 import civil.respawn.UndyingAnchorPreTeleportPayload;
 import civil.aura.SonarShockwaveEffect;
 import civil.aura.SonarType;
@@ -42,6 +53,7 @@ public class CivilModClientFabric implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         CivilDetectorClientParticles.register();
+        MenuScreens.register(ModMenuTypes.getTownCenter(), TownCenterMainScreen::new);
 
         // Zone HUD: same-JVM world switch — reset epoch gate + overlay state (common + integrated server).
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> ZoneTransitionHud.resetForWorldSession());
@@ -68,6 +80,13 @@ public class CivilModClientFabric implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(FarmShrineParticlePayload.ID,
                 (payload, context) -> FarmShrineParticleEffect.updateFromPayload(payload));
 
+        ClientPlayNetworking.registerGlobalReceiver(TownCenterParticlePayload.ID,
+                (payload, context) -> TownCenterParticleEffect.updateFromPayload(payload));
+
+        ClientPlayNetworking.registerGlobalReceiver(TownCenterActivationBurstPayload.ID,
+                (payload, context) -> TownCenterActivationBurstEffect.start(
+                        payload.x(), payload.y(), payload.z()));
+
         ClientPlayNetworking.registerGlobalReceiver(SonarBoundaryPayload.ID,
                 (payload, context) -> {
                     AuraWallRenderer.updateBoundaries(payload);
@@ -87,6 +106,14 @@ public class CivilModClientFabric implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(ZoneTransitionPayload.ID,
                 (payload, context) -> ZoneTransitionHud.onPayload(payload));
 
+        ClientPlayNetworking.registerGlobalReceiver(TownCenterGuiSyncPayload.ID,
+                (payload, context) -> {
+                    TownCenterClientState.apply(payload);
+                    if (Minecraft.getInstance().screen instanceof TownCenterScreenBase screen) {
+                        screen.onProfileSync();
+                    }
+                });
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> ZoneTransitionHud.tick());
 
         // v1.world API has no AFTER_TRANSLUCENT; END_MAIN runs after translucent terrain (Fabric javadoc).
@@ -94,6 +121,8 @@ public class CivilModClientFabric implements ClientModInitializer {
             UndyingAnchorCinematicEffect.tickAndApplyShake(null);
             UndyingAnchorParticleEffect.tick();
             FarmShrineParticleEffect.tick();
+            TownCenterParticleEffect.tick();
+            TownCenterActivationBurstEffect.tick();
             // MC 1.21.11+: Camera no longer exposes getPosition(); match NeoForge (eye + partial tick).
             Minecraft mc = Minecraft.getInstance();
             float pt = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);

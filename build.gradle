@@ -18,6 +18,7 @@ loom {
     runConfigs.configureEach {
         ideConfigGenerated = false
     }
+    accessWidenerPath = file('src/main/resources/civil.accesswidener')
 }
 
 def mcRangeToLabel = { String range ->

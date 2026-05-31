@@ -1,5 +1,6 @@
 package civil.registry;
 
+import civil.CivilMod;
 import civil.CivilServices;
 import civil.civilization.ZonePolicyService;
 import com.google.gson.JsonArray;
@@ -78,19 +79,25 @@ public final class ZonePolicyLoader {
                                 Identifier id = Identifier.parse(raw);
                                 ResourceKey<Structure> sKey = ResourceKey.create(Registries.STRUCTURE, id);
                                 if (structureLookup.get(sKey).isEmpty()) {
-                                    LOGGER.warn("[civil-registry] Unknown structure '{}' in {} (rule={}), skipping",
-                                            raw, fileId, ruleId);
+                                    if (CivilMod.DEBUG) {
+                                        LOGGER.warn("[civil-registry] Unknown structure '{}' in {} (rule={}), skipping",
+                                                raw, fileId, ruleId);
+                                    }
                                     continue;
                                 }
                                 structures.add(id);
                             } catch (Exception ex) {
-                                LOGGER.warn("[civil-registry] Invalid structure id '{}' in {} (rule={}), skipping",
-                                        raw, fileId, ruleId);
+                                if (CivilMod.DEBUG) {
+                                    LOGGER.warn("[civil-registry] Invalid structure id '{}' in {} (rule={}), skipping",
+                                            raw, fileId, ruleId);
+                                }
                             }
                         }
                     }
                     if (structures.isEmpty()) {
-                        LOGGER.warn("[civil-registry] Rule '{}' in {} has no valid structures, skipping", ruleId, fileId);
+                        if (CivilMod.DEBUG) {
+                            LOGGER.warn("[civil-registry] Rule '{}' in {} has no valid structures, skipping", ruleId, fileId);
+                        }
                         continue;
                     }
 
@@ -109,12 +116,16 @@ public final class ZonePolicyLoader {
                                 if (BuiltInRegistries.ENTITY_TYPE.containsKey(parsed)) {
                                     allowMobs.add(BuiltInRegistries.ENTITY_TYPE.getValue(parsed));
                                 } else {
-                                    LOGGER.warn("[civil-registry] Unknown entity type '{}' in {} (rule={}), skipping",
-                                            mobId, fileId, ruleId);
+                                    if (CivilMod.DEBUG) {
+                                        LOGGER.warn("[civil-registry] Unknown entity type '{}' in {} (rule={}), skipping",
+                                                mobId, fileId, ruleId);
+                                    }
                                 }
                             } catch (Exception ex) {
-                                LOGGER.warn("[civil-registry] Invalid entity id '{}' in {} (rule={}), skipping",
-                                        mobId, fileId, ruleId);
+                                if (CivilMod.DEBUG) {
+                                    LOGGER.warn("[civil-registry] Invalid entity id '{}' in {} (rule={}), skipping",
+                                            mobId, fileId, ruleId);
+                                }
                             }
                         }
                     }

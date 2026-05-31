@@ -13,6 +13,7 @@ public final class StructureBlockChangeListeners {
     /** All registered listeners. Called from CivilLevelBlockChangeMixin after each successful setBlock. */
     public static final List<StructureBlockChangeListener> LISTENERS = List.of(
             new UndyingAnchorBlockChangeListener(),
-            new FarmShrineBlockChangeListener()
+            new FarmShrineBlockChangeListener(),
+            new TownCenterBlockChangeListener()
     );
 }

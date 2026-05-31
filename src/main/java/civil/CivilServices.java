@@ -1,8 +1,10 @@
 package civil;
 
+import civil.civilization.BaseScoreSourceRegistry;
 import civil.civilization.FarmShrineTracker;
 import civil.civilization.HeadTracker;
 import civil.civilization.UndyingAnchorTracker;
+import civil.civilization.TownCenterTracker;
 import civil.civilization.ZonePolicyService;
 import civil.civilization.cache.CivilizationCache;
 import civil.civilization.cache.ResultCache;
@@ -22,6 +24,8 @@ public final class CivilServices {
     private static HeadTracker headTracker;
     private static UndyingAnchorTracker undyingAnchorTracker;
     private static FarmShrineTracker farmShrineTracker;
+    private static TownCenterTracker townCenterTracker;
+    private static BaseScoreSourceRegistry baseScoreSourceRegistry;
     private static ZonePolicyService zonePolicyService;
 
     private CivilServices() {
@@ -45,6 +49,14 @@ public final class CivilServices {
 
     public static void initFarmShrineTracker(FarmShrineTracker tracker) {
         farmShrineTracker = tracker;
+    }
+
+    public static void initTownCenterTracker(TownCenterTracker tracker) {
+        townCenterTracker = tracker;
+    }
+
+    public static void initBaseScoreSourceRegistry(BaseScoreSourceRegistry registry) {
+        baseScoreSourceRegistry = registry;
     }
 
     public static void initZonePolicyService(ZonePolicyService service) {
@@ -73,6 +85,14 @@ public final class CivilServices {
     /** Farm shrine tracker (spawn bypass / conversion / suppression). null if not initialized. */
     public static FarmShrineTracker getFarmShrineTracker() {
         return farmShrineTracker;
+    }
+
+    public static TownCenterTracker getTownCenterTracker() {
+        return townCenterTracker;
+    }
+
+    public static BaseScoreSourceRegistry getBaseScoreSourceRegistry() {
+        return baseScoreSourceRegistry;
     }
 
     /** Zone policy (structure-based spawn bypass + caution semantics). null if not initialized. */

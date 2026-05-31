@@ -1,0 +1,23 @@
+{
+  "replace": false,
+  "entries": [
+    {
+      "id": "terralith_all",
+      "structures": [
+        "terralith:mage_complex",
+        "terralith:mage_tower",
+        "terralith:mage_tower_autumn",
+        "terralith:mage_tower_spring",
+        "terralith:mage_tower_winter",
+        "terralith:mage_tower_summer",
+        "terralith:spire",
+        "terralith:underground/frosted_dungeon",
+        "terralith:underground_cabin",
+        "terralith:witch_hut"
+      ],
+      "rules": {
+        "allow_hostile_spawn": true
+      }
+    }
+  ]
+}

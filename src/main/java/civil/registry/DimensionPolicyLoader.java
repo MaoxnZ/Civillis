@@ -11,6 +11,9 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.Level;
+
+import civil.CivilMod;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +87,9 @@ public final class DimensionPolicyLoader {
                     Identifier dimId = Identifier.parse(dimSpec);
                     ResourceKey<Level> dKey = ResourceKey.create(Registries.DIMENSION, dimId);
                     if (dimensionLookup.get(dKey).isEmpty()) {
-                        LOGGER.warn("[civil-registry] Unknown dimension '{}' in {}, skipping", dimSpec, fileId);
+                        if (CivilMod.DEBUG) {
+                            LOGGER.warn("[civil-registry] Unknown dimension '{}' in {}, skipping", dimSpec, fileId);
+                        }
                         continue;
                     }
                     String dimKey = dimId.toString();

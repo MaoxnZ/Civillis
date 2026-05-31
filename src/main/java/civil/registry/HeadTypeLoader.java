@@ -4,6 +4,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+
+import civil.CivilMod;
 import civil.registry.HeadTypeRegistry.HeadTypeEntry;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -68,8 +70,10 @@ public final class HeadTypeLoader {
                         if (BuiltInRegistries.ENTITY_TYPE.containsKey(id)) {
                             entityType = BuiltInRegistries.ENTITY_TYPE.getValue(id);
                         } else {
-                            LOGGER.warn("[civil-registry] Unknown entity type '{}' for skull '{}' in {}, skipping entity mapping",
-                                    entityId, skullType, fileId);
+                            if (CivilMod.DEBUG) {
+                                LOGGER.warn("[civil-registry] Unknown entity type '{}' for skull '{}' in {}, skipping entity mapping",
+                                        entityId, skullType, fileId);
+                            }
                         }
                     }
 

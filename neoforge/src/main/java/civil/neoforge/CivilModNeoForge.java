@@ -2,6 +2,7 @@ package civil.neoforge;
 
 import civil.CivilMod;
 import civil.ModItems;
+import civil.ModMenuTypes;
 import civil.ModRecipeSerializers;
 import civil.ModSounds;
 import civil.component.ModComponents;
@@ -19,6 +20,9 @@ import civil.respawn.UndyingAnchorSaveHandler;
 import civil.shrine.FarmShrineActivationHandler;
 import civil.shrine.FarmShrineParticleManager;
 import civil.shrine.FarmShrineParticlePayload;
+import civil.towncenter.TownCenterActivationBurstPayload;
+import civil.towncenter.TownCenterParticleManager;
+import civil.towncenter.TownCenterParticlePayload;
 import civil.item.CivilDetectorAnimationReset;
 import civil.perf.TpsLogger;
 import civil.registry.BlockWeightLoader;
@@ -29,11 +33,16 @@ import civil.registry.PresenceKeepAliveLoader;
 import civil.registry.SpawnGateEntityLoader;
 import civil.registry.ZonePolicyLoader;
 import civil.civilization.ZoneTransitionPayload;
+import civil.registry.TownCenterLevelLoader;
+import civil.towncenter.network.TownCenterMenuActionHandler;
+import civil.towncenter.network.TownCenterC2SPayload;
+import civil.towncenter.network.TownCenterGuiSyncPayload;
+import civil.towncenter.gui.TownCenterMenu;
 import civil.config.CivilConfig;
 import civil.command.CivilAdminCommands;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvent;
@@ -44,6 +53,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.CustomRecipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -91,6 +101,8 @@ public class CivilModNeoForge {
             DeferredRegister.create(Registries.ITEM, CivilMod.MOD_ID);
     private static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS =
             DeferredRegister.create(Registries.RECIPE_SERIALIZER, CivilMod.MOD_ID);
+    private static final DeferredRegister<MenuType<?>> MENUS =
+            DeferredRegister.create(Registries.MENU, CivilMod.MOD_ID);
 
     // ── Deferred Holders (components) ───────────────────────────────────
     @SuppressWarnings("unchecked")
@@ -140,12 +152,21 @@ public class CivilModNeoForge {
                                     "detector_map_upgrade",
                                     () -> new CustomRecipe.Serializer<>(CivilDetectorMapUpgradeRecipe::new));
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static final DeferredHolder<MenuType<?>, MenuType<TownCenterMenu>> TOWN_CENTER_MENU =
+            (DeferredHolder) MENUS.register("town_center", ModMenuTypes::createTownCenterMenuType);
+
+    /** For {@link RegisterMenuScreensEvent}: registries are ready before {@link FMLCommonSetupEvent}. */
+    static MenuType<TownCenterMenu> townCenterMenuType() {
+        return TOWN_CENTER_MENU.get();
+    }
+
     public CivilModNeoForge(IEventBus modBus, Dist dist, ModContainer modContainer) {
         COMPONENTS.register(modBus);
         SOUNDS.register(modBus);
         ITEMS.register(modBus);
         RECIPE_SERIALIZERS.register(modBus);
-
+        MENUS.register(modBus);
         modBus.addListener(this::onCommonSetup);
         modBus.addListener(this::onRegisterPayloads);
         modBus.addListener(this::onBuildCreativeTab);
@@ -182,6 +203,7 @@ public class CivilModNeoForge {
         ModSounds.DETECTOR_SHRINE = SOUND_SHRINE.get();
         ModItems.setCivilDetector(CIVIL_DETECTOR.get());
         ModRecipeSerializers.bindDetectorMapUpgrade(DETECTOR_MAP_UPGRADE_SERIALIZER.get());
+        ModMenuTypes.setTownCenter(TOWN_CENTER_MENU.get());
         CivilMod.LOGGER.debug("Common fields populated from deferred holders (NeoForge)");
     }
 
@@ -197,8 +219,20 @@ public class CivilModNeoForge {
                 NeoForgeClientPayloadHandler::handleUndyingAnchorParticles);
         registrar.playToClient(FarmShrineParticlePayload.ID, FarmShrineParticlePayload.CODEC,
                 NeoForgeClientPayloadHandler::handleFarmShrineParticles);
+        registrar.playToClient(TownCenterParticlePayload.ID, TownCenterParticlePayload.CODEC,
+                NeoForgeClientPayloadHandler::handleTownCenterParticles);
+        registrar.playToClient(TownCenterActivationBurstPayload.ID, TownCenterActivationBurstPayload.CODEC,
+                NeoForgeClientPayloadHandler::handleTownCenterActivationBurst);
         registrar.playToClient(ZoneTransitionPayload.ID, ZoneTransitionPayload.CODEC,
                 NeoForgeClientPayloadHandler::handleZoneTransition);
+        registrar.playToClient(TownCenterGuiSyncPayload.ID, TownCenterGuiSyncPayload.CODEC,
+                NeoForgeClientPayloadHandler::handleTownCenterGuiSync);
+        registrar.playToServer(TownCenterC2SPayload.ID, TownCenterC2SPayload.CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> {
+                    if (ctx.player() instanceof net.minecraft.server.level.ServerPlayer sp) {
+                        TownCenterMenuActionHandler.handle(sp, payload);
+                    }
+                }));
     }
 
     /** Tools tab: detector after {@link Items#COMPASS}. Filled maps (including civil) stay out of creative — they are dynamic. */
@@ -222,6 +256,7 @@ public class CivilModNeoForge {
         SpawnGateEntityLoader.reload(manager);
         MobFleeEntityLoader.reload(manager);
         PresenceKeepAliveLoader.reload(manager);
+        TownCenterLevelLoader.reload(manager);
         CivilMod.onHeadTypesReloaded();
     }
 
@@ -236,6 +271,7 @@ public class CivilModNeoForge {
         SpawnGateEntityLoader.reload(manager);
         MobFleeEntityLoader.reload(manager);
         PresenceKeepAliveLoader.reload(manager);
+        TownCenterLevelLoader.reload(manager);
         CivilMod.onHeadTypesReloaded();
     }
 
@@ -266,6 +302,7 @@ public class CivilModNeoForge {
         UndyingAnchorSaveHandler.onServerTick(event.getServer());
         UndyingAnchorParticleManager.onServerTick(event.getServer());
         FarmShrineParticleManager.onServerTick(event.getServer());
+        TownCenterParticleManager.onServerTick(event.getServer());
         SonarScanManager.onServerTick(event.getServer());
     }
 
