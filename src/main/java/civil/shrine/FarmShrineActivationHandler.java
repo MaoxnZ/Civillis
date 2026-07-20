@@ -70,6 +70,7 @@ public final class FarmShrineActivationHandler {
         }
 
         tracker.onShrineActivated(dim, x, y, z);
+        tracker.discoverExistingHeadsForShrine(serverLevel, dim, x, y, z);
         CivilAdvancements.tryAward(player, CivilAdvancements.FARM_SHRINE);
         stack.shrink(1);
         level.playSound(null, pos, SoundEvents.WARDEN_HEARTBEAT, SoundSource.BLOCKS, 0.62f, 0.74f);

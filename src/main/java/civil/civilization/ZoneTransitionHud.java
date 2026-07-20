@@ -86,9 +86,20 @@ public final class ZoneTransitionHud {
         }
         latestEpoch = payload.epoch();
         currentState = payload.state();
-        currentText = labelForState(currentState);
+        currentText = labelForPayload(payload, currentState);
         ticksRemaining = FADE_IN_TICKS + HOLD_TICKS + FADE_OUT_TICKS;
         lastHudShowStartTimeMs = System.currentTimeMillis();
+    }
+
+    private static Component labelForPayload(ZoneTransitionPayload payload, ZoneSemanticState state) {
+        String override = payload.labelOverride();
+        if (override != null) {
+            override = override.trim();
+            if (!override.isEmpty()) {
+                return Component.literal(override);
+            }
+        }
+        return labelForState(state);
     }
 
     private static Component labelForState(ZoneSemanticState state) {

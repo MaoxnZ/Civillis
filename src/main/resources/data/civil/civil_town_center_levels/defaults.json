@@ -9,30 +9,30 @@
   "offers": {
     "zoneBuffOffers": [
       { "id": "tc.haste_iron", "effect": "minecraft:haste", "increment": 1, "paymentTier": "IRON", "translationKey": "zone_buff.civil.tc.haste", "ambient": true, "showParticles": false, "showIcon": true },
-      { "id": "tc.resistance_gold", "effect": "minecraft:resistance", "increment": 1, "paymentTier": "GOLD", "translationKey": "zone_buff.civil.tc.resistance", "ambient": true, "showParticles": false, "showIcon": true },
-      { "id": "tc.regeneration_netherite", "effect": "minecraft:regeneration", "increment": 1, "paymentTier": "NETHERITE", "translationKey": "zone_buff.civil.tc.regeneration", "ambient": true, "showParticles": false, "showIcon": true }
+      { "id": "tc.regeneration_gold", "effect": "minecraft:regeneration", "increment": 1, "paymentTier": "GOLD", "translationKey": "zone_buff.civil.tc.regeneration", "ambient": true, "showParticles": false, "showIcon": true },
+      { "id": "tc.resistance_netherite", "effect": "minecraft:resistance", "increment": 1, "paymentTier": "NETHERITE", "translationKey": "zone_buff.civil.tc.resistance", "ambient": true, "showParticles": false, "showIcon": true }
     ]
   },
   "entries": [
     {
       "targetLevel": 2,
       "upgrade": { "emeraldBlockCost": 1, "horizRadiusVc": 6, "vertRadiusVc": 1, "baseScoreRaw": 0.2 },
-      "zoneBuffOfferIds": ["tc.haste_iron", "tc.resistance_gold", "tc.regeneration_netherite"]
+      "zoneBuffOfferIds": ["tc.haste_iron", "tc.regeneration_gold", "tc.resistance_netherite"]
     },
     {
       "targetLevel": 3,
       "upgrade": { "emeraldBlockCost": 4, "horizRadiusVc": 7, "vertRadiusVc": 1, "baseScoreRaw": 0.3 },
-      "zoneBuffOfferIds": ["tc.haste_iron", "tc.resistance_gold", "tc.regeneration_netherite"]
+      "zoneBuffOfferIds": ["tc.haste_iron", "tc.regeneration_gold", "tc.resistance_netherite"]
     },
     {
       "targetLevel": 4,
       "upgrade": { "emeraldBlockCost": 16, "horizRadiusVc": 9, "vertRadiusVc": 1, "baseScoreRaw": 0.4 },
-      "zoneBuffOfferIds": ["tc.haste_iron", "tc.resistance_gold", "tc.regeneration_netherite"]
+      "zoneBuffOfferIds": ["tc.haste_iron", "tc.regeneration_gold", "tc.resistance_netherite"]
     },
     {
       "targetLevel": 5,
       "upgrade": { "emeraldBlockCost": 64, "horizRadiusVc": 11, "vertRadiusVc": 2, "baseScoreRaw": 0.5 },
-      "zoneBuffOfferIds": ["tc.haste_iron", "tc.resistance_gold", "tc.regeneration_netherite"]
+      "zoneBuffOfferIds": ["tc.haste_iron", "tc.regeneration_gold", "tc.resistance_netherite"]
     }
   ]
 }

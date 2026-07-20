@@ -1,5 +1,47 @@
 # Changelog
 
+## [2.0.1-release]
+
+### Added
+
+- **Town names on the Zone HUD**: When you enter civilized land covered by an active Town
+  Center, the Zone Transition HUD can now show that town's name instead of the generic
+  Civilized label. In overlapping territory, Civillis prefers the most relevant town for
+  the player.
+
+### Changed
+
+- **Max-level Town Centers claim danger pockets**: A fully upgraded, active Town Center now
+  stabilizes caution zones inside its territory. Those claimed areas behave as part of the
+  town for Civillis' spawn and zone rules, so a mature settlement can push back local danger
+  instead of always yielding to it.
+- **Town Center zone buff defaults**: The default catalog now puts Regeneration on the gold
+  choice and Resistance on the netherite choice. Modpacks overriding
+  `civil_town_center_levels` should update any offer IDs copied from the old defaults.
+- **Town Center presence upkeep**: Entity presence upkeep now scans active Town Center
+  territory instead of sweeping the whole world, keeping the mechanic tied to actual
+  settlements and reducing background work on busy servers.
+- **Farm Shrine head discovery**: Existing mob heads are now discovered when a Farm Shrine
+  is activated, rather than during chunk-load events. This avoids tying shrine setup to
+  chunk-load side effects and makes existing-head registration more stable.
+
+### Fixed
+
+- **Town Center lecterns**: Registered Town Center lecterns with a missing book can now be
+  repaired by placing a written book back into them, restoring the Town Center interface
+  without strange empty-lectern behavior.
+- **Explosion protection**: TNT and other explosion paths no longer destroy protected active
+  Town Center blocks.
+- **Non-player block destruction**: Protected Town Center blocks are also guarded against
+  non-player `destroyBlock` calls, matching the normal player break protection more closely.
+- **NeoForge login reloads**: Joining a server no longer forces Civillis' data loaders to
+  reload as if a full data-pack sync had happened, avoiding a noticeable login hitch on
+  affected NeoForge builds.
+
+### Note
+
+- Feedback, bug reports, ideas — join our Discord: [Civillis Official](https://discord.gg/dA7QCPx7zd)
+
 ## [2.0.0-release]
 
 ### Added

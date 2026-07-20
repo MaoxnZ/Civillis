@@ -41,6 +41,7 @@ public final class TownCenterShutdownService {
                 continue;
             }
 
+            tracker.removeMaxLevelClaimIfPresent(dim, e);
             tracker.finalizeShutdown(dim, e.x(), e.y(), e.z());
             if (registry != null && registry.isInitialized()) {
                 registry.remove(BaseScoreSourceRegistry.tcSourceKey(e.x(), e.y(), e.z()));

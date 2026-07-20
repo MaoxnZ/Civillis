@@ -2,6 +2,7 @@ package civil.civilization;
 
 import civil.civilization.storage.CivilStorage;
 import civil.config.CivilConfig;
+import civil.towncenter.TownCenterLevelTable;
 import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,6 +80,10 @@ public final class TownCenterTracker {
             new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, ConcurrentHashMap<Long, ConcurrentHashMap<Integer, ConcurrentHashMap<Long, TownCenterEntry>>>>
             centersByVcXZ = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ConcurrentHashMap<Long, Integer>> maxLevelClaimCountsByDim =
+            new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ConcurrentHashMap<Long, Boolean>> maxLevelClaimedCentersByDim =
+            new ConcurrentHashMap<>();
 
     private volatile CivilStorage storage;
     private volatile boolean initialized;
@@ -89,6 +94,8 @@ public final class TownCenterTracker {
         this.townCentersDirty = false;
         centers.clear();
         centersByVcXZ.clear();
+        maxLevelClaimCountsByDim.clear();
+        maxLevelClaimedCentersByDim.clear();
 
         List<CivilStorage.StoredTownCenter> stored = civilStorage.loadTownCenters();
         for (CivilStorage.StoredTownCenter t : stored) {
@@ -103,6 +110,8 @@ public final class TownCenterTracker {
         initialized = false;
         centers.clear();
         centersByVcXZ.clear();
+        maxLevelClaimCountsByDim.clear();
+        maxLevelClaimedCentersByDim.clear();
         storage = null;
     }
 
@@ -277,6 +286,44 @@ public final class TownCenterTracker {
                 cur.openRegistration(), cur.members()));
     }
 
+    public boolean isClaimedByMaxLevelTownCenter(String dim, VoxelChunkKey vc) {
+        if (!initialized) return false;
+        var dimClaims = maxLevelClaimCountsByDim.get(dim);
+        return dimClaims != null && dimClaims.containsKey(claimKey(vc));
+    }
+
+    public void rebuildMaxLevelClaims(long gameTime) {
+        maxLevelClaimCountsByDim.clear();
+        maxLevelClaimedCentersByDim.clear();
+        if (!initialized) return;
+        for (var dimEntry : centers.entrySet()) {
+            String dim = dimEntry.getKey();
+            for (TownCenterEntry entry : dimEntry.getValue().values()) {
+                if (shouldClaim(entry, gameTime)) {
+                    addClaimAabb(dim, entry);
+                }
+            }
+        }
+    }
+
+    public void refreshMaxLevelClaim(String dim, TownCenterEntry oldEntry, TownCenterEntry newEntry, long gameTime) {
+        if (!initialized) return;
+        if (oldEntry != null && shouldClaim(oldEntry, gameTime)) {
+            removeClaimAabb(dim, oldEntry);
+        }
+        if (newEntry != null && shouldClaim(newEntry, gameTime)) {
+            addClaimAabb(dim, newEntry);
+        }
+    }
+
+    public void removeMaxLevelClaimIfPresent(String dim, TownCenterEntry entry) {
+        if (!initialized || entry == null) return;
+        if (entry.level() >= TownCenterLevelTable.maxLevel()
+                && (entry.activated() || entry.deactivateDeadlineTick() > 0)) {
+            removeClaimAabb(dim, entry);
+        }
+    }
+
     public List<AuthorizedTcView> collectAuthorizedViews(String dim, UUID playerUuid, long gameTime) {
         List<AuthorizedTcView> out = new ArrayList<>();
         var dimMap = centers.get(dim);
@@ -407,11 +454,61 @@ public final class TownCenterTracker {
         indexCenter(dim, newEntry);
     }
 
+    private static boolean shouldClaim(TownCenterEntry entry, long gameTime) {
+        return entry.level() >= TownCenterLevelTable.maxLevel() && entry.isGameplayActive(gameTime);
+    }
+
+    private void addClaimAabb(String dim, TownCenterEntry entry) {
+        var claimedCenters = maxLevelClaimedCentersByDim.computeIfAbsent(dim, ignored -> new ConcurrentHashMap<>());
+        if (claimedCenters.putIfAbsent(packPos(entry.x(), entry.y(), entry.z()), Boolean.TRUE) != null) {
+            return;
+        }
+        updateClaimAabb(dim, entry, 1);
+    }
+
+    private void removeClaimAabb(String dim, TownCenterEntry entry) {
+        var claimedCenters = maxLevelClaimedCentersByDim.get(dim);
+        if (claimedCenters == null || claimedCenters.remove(packPos(entry.x(), entry.y(), entry.z())) == null) {
+            return;
+        }
+        if (claimedCenters.isEmpty()) {
+            maxLevelClaimedCentersByDim.remove(dim, claimedCenters);
+        }
+        updateClaimAabb(dim, entry, -1);
+    }
+
+    private void updateClaimAabb(String dim, TownCenterEntry entry, int delta) {
+        TownCenterAabb aabb = TownCenterAabb.atLectern(new BlockPos(entry.x(), entry.y(), entry.z()), entry.level());
+        var dimClaims = maxLevelClaimCountsByDim.computeIfAbsent(dim, unused -> new ConcurrentHashMap<>());
+        for (int cx = aabb.minVc().getCx(); cx <= aabb.maxVc().getCx(); cx++) {
+            for (int cz = aabb.minVc().getCz(); cz <= aabb.maxVc().getCz(); cz++) {
+                for (int sy = aabb.minVc().getSy(); sy <= aabb.maxVc().getSy(); sy++) {
+                    long key = claimKey(cx, cz, sy);
+                    dimClaims.compute(key, (unused, count) -> {
+                        int next = (count == null ? 0 : count) + delta;
+                        return next > 0 ? next : null;
+                    });
+                }
+            }
+        }
+        if (dimClaims.isEmpty()) {
+            maxLevelClaimCountsByDim.remove(dim, dimClaims);
+        }
+    }
+
     private static long packPos(int x, int y, int z) {
         return BlockPos.asLong(x, y, z);
     }
 
     private static long packVcXZ(int vcx, int vcz) {
         return (((long) vcx) << 32) ^ (vcz & 0xffffffffL);
+    }
+
+    private static long claimKey(VoxelChunkKey vc) {
+        return claimKey(vc.getCx(), vc.getCz(), vc.getSy());
+    }
+
+    private static long claimKey(int cx, int cz, int sy) {
+        return BlockPos.asLong(cx, sy, cz);
     }
 }

@@ -2,7 +2,6 @@ package civil;
 
 import civil.map.CivilMapPerfTrace;
 import civil.civilization.ServerClock;
-import civil.civilization.BlockScanner;
 import civil.civilization.BaseScoreSourceRegistry;
 import civil.civilization.FarmShrineTracker;
 import civil.civilization.HeadTracker;
@@ -18,16 +17,12 @@ import civil.shrine.FarmShrineParticleManager;
 import civil.towncenter.TownCenterParticleManager;
 import civil.config.CivilConfig;
 import civil.registry.HeadTypeLoader;
-import net.minecraft.world.level.block.AbstractSkullBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelResource;
-import net.minecraft.world.level.chunk.ChunkAccess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.nio.file.Files;
@@ -133,6 +128,15 @@ public class CivilMod {
         }
     }
 
+    /** Call after town-center level datapacks reload so max-level claim coverage matches current rules. */
+    public static void onTownCenterLevelsReloaded(MinecraftServer server) {
+        TownCenterTracker tracker = CivilServices.getTownCenterTracker();
+        ServerLevel overworld = server.overworld();
+        if (tracker != null && tracker.isInitialized() && overworld != null) {
+            tracker.rebuildMaxLevelClaims(overworld.getGameTime());
+        }
+    }
+
     // ══════════════════════════════════════════════════════════
     //  Event handlers — called by platform-specific event registration
     // ══════════════════════════════════════════════════════════
@@ -161,6 +165,7 @@ public class CivilMod {
             }
             if (townCenterTracker != null) {
                 townCenterTracker.initialize(cacheService.getStorage());
+                townCenterTracker.rebuildMaxLevelClaims(world.getGameTime());
             }
             if (zonePolicyService != null) {
                 zonePolicyService.clear();
@@ -217,24 +222,6 @@ public class CivilMod {
         civil.towncenter.TownCenterZoneEffectService.clearPlayer(player.getUUID());
         if (cacheService != null && cacheService.isInitialized()) {
             cacheService.onPlayerLeave(player.getUUID());
-        }
-    }
-
-    /** Called when a chunk loads. Discovers pre-existing mob heads (L1 is lazy via {@link TtlCacheService#getChunkCScore}). */
-    public static void onChunkLoad(ServerLevel world, ChunkAccess chunk) {
-        String dim = world.dimension().identifier().toString();
-
-        if (headTracker != null && headTracker.isInitialized()) {
-            for (BlockPos bePos : chunk.getBlockEntitiesPos()) {
-                if (chunk.getBlockEntity(bePos) instanceof SkullBlockEntity) {
-                    BlockState state = chunk.getBlockState(bePos);
-                    if (BlockScanner.isSkullBlock(state)) {
-                        AbstractSkullBlock skull = (AbstractSkullBlock) state.getBlock();
-                        String skullType = skull.getType().toString();
-                        headTracker.onHeadAdded(dim, bePos.getX(), bePos.getY(), bePos.getZ(), skullType);
-                    }
-                }
-            }
         }
     }
 

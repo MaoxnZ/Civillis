@@ -86,6 +86,8 @@ public final class TownCenterUpgradeService {
         }
 
         tracker.setLevel(dim, x, y, z, targetLevel);
+        TownCenterEntry upgradedEntry = tracker.getEntry(dim, x, y, z);
+        tracker.refreshMaxLevelClaim(dim, entry, upgradedEntry, gameTime);
         if (chosenOffer != null) {
             tracker.setLevelEffectChoice(dim, x, y, z, targetLevel, LevelEffectChoice.APPLIED);
             tracker.addAppliedEffect(dim, x, y, z, new AppliedEffect(

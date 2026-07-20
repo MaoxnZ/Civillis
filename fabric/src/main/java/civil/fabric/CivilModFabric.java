@@ -38,7 +38,6 @@ import civil.command.CivilAdminCommands;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
@@ -101,6 +100,7 @@ public class CivilModFabric implements ModInitializer {
             MobFleeEntityLoader.reload(server.getResourceManager());
             PresenceKeepAliveLoader.reload(server.getResourceManager());
             TownCenterLevelLoader.reload(server.getResourceManager());
+            CivilMod.onTownCenterLevelsReloaded(server);
             CivilMod.onHeadTypesReloaded();
         });
         ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resourceManager, success) -> {
@@ -115,6 +115,7 @@ public class CivilModFabric implements ModInitializer {
             MobFleeEntityLoader.reload(server.getResourceManager());
             PresenceKeepAliveLoader.reload(server.getResourceManager());
             TownCenterLevelLoader.reload(server.getResourceManager());
+            CivilMod.onTownCenterLevelsReloaded(server);
             CivilMod.onHeadTypesReloaded();
         });
 
@@ -129,8 +130,6 @@ public class CivilModFabric implements ModInitializer {
             TownCenterParticleManager.onServerTick(server);
             SonarScanManager.onServerTick(server);
         });
-
-        ServerChunkEvents.CHUNK_LOAD.register(CivilMod::onChunkLoad);
 
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, damageSource, damageAmount) -> {
             if (entity instanceof ServerPlayer player) {

@@ -1,6 +1,7 @@
 package civil.civilization;
 
 import civil.CivilMod;
+import civil.CivilServices;
 import civil.registry.ZonePolicyRegistry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -34,6 +35,9 @@ public final class ZonePolicyService {
 
     public boolean allowsHostileSpawn(ServerLevel world, BlockPos pos, EntityType<?> entityType) {
         VoxelChunkKey vc = VoxelChunkKey.from(pos);
+        if (isClaimedByMaxLevelTownCenter(world, vc)) {
+            return false;
+        }
         ZoneCacheEntry entry = getOrCompute(world, vc);
         for (ZonePolicyRegistry.ZonePolicyRule rule : entry.matchedRules()) {
             if (rule.rules().allows(entityType)) {
@@ -44,6 +48,9 @@ public final class ZonePolicyService {
     }
 
     public boolean treatAsNonCivilized(ServerLevel world, VoxelChunkKey vc) {
+        if (isClaimedByMaxLevelTownCenter(world, vc)) {
+            return false;
+        }
         ZoneCacheEntry entry = getOrCompute(world, vc);
         return entry.treatAsNonCivilized();
     }
@@ -101,6 +108,15 @@ public final class ZonePolicyService {
             debugLogStructureProbe(world, centerPos, treatAsNonCivilized);
         }
         return new ZoneCacheEntry(now + CACHE_TTL_MS, treatAsNonCivilized, List.copyOf(matched), List.of());
+    }
+
+    private static boolean isClaimedByMaxLevelTownCenter(ServerLevel world, VoxelChunkKey vc) {
+        TownCenterTracker tracker = CivilServices.getTownCenterTracker();
+        if (tracker == null || !tracker.isInitialized()) {
+            return false;
+        }
+        String dim = world.dimension().identifier().toString();
+        return tracker.isClaimedByMaxLevelTownCenter(dim, vc);
     }
 
     /**

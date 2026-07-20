@@ -66,6 +66,7 @@ public final class TownCenterActivationHandler {
         } else {
             tracker.setActivated(dim, x, y, z, true);
             tracker.setShutdownDeadline(dim, x, y, z, 0L);
+            tracker.refreshMaxLevelClaim(dim, entry, tracker.getEntry(dim, x, y, z), level.getGameTime());
         }
 
         applyBaseScoreSource(level, lecternPos, firstActivation ? 1 : entry.level());
@@ -123,6 +124,7 @@ public final class TownCenterActivationHandler {
 
         tracker.setActivated(dim, x, y, z, true);
         tracker.setShutdownDeadline(dim, x, y, z, 0L);
+        tracker.refreshMaxLevelClaim(dim, entry, tracker.getEntry(dim, x, y, z), level.getGameTime());
         applyBaseScoreSource(level, lecternPos, entry.level());
         TownCenterSounds.playAscendChimeDouble(level, lecternPos);
         TownCenterMenuViewers.broadcast(level, lecternPos);
@@ -139,6 +141,7 @@ public final class TownCenterActivationHandler {
         if (entry.activated() && registry != null && registry.isInitialized()) {
             registry.remove(BaseScoreSourceRegistry.tcSourceKey(x, y, z));
         }
+        tracker.removeMaxLevelClaimIfPresent(dim, entry);
         tracker.remove(dim, x, y, z);
         TownCenterMenuViewers.closeAll(dim, new BlockPos(x, y, z));
         TownCenterSounds.playBeaconDeactivate(level, new BlockPos(x, y, z));
@@ -179,6 +182,16 @@ public final class TownCenterActivationHandler {
         if (tracker == null || !tracker.isInitialized()) return false;
         if (!TownCenterStructureValidator.isEmeraldBelow(level, lecternPos)) return false;
         if (!TownCenterStructureValidator.lecternHasWrittenBook(level, lecternPos)) return false;
+
+        String dim = level.dimension().identifier().toString();
+        TownCenterEntry entry = tracker.getEntry(dim, lecternPos.getX(), lecternPos.getY(), lecternPos.getZ());
+        return entry != null;
+    }
+
+    public static boolean isRegisteredTownCenterLectern(ServerLevel level, BlockPos lecternPos) {
+        TownCenterTracker tracker = CivilServices.getTownCenterTracker();
+        if (tracker == null || !tracker.isInitialized()) return false;
+        if (!TownCenterStructureValidator.isEmeraldBelow(level, lecternPos)) return false;
 
         String dim = level.dimension().identifier().toString();
         TownCenterEntry entry = tracker.getEntry(dim, lecternPos.getX(), lecternPos.getY(), lecternPos.getZ());
