@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "entries": [
+    {
+      "id": "betterjungletemples_all",
+      "structures": [
+        "betterjungletemples:jungle_temple"
+      ],
+      "rules": {
+        "allow_hostile_spawn": true
+      }
+    }
+  ]
+}

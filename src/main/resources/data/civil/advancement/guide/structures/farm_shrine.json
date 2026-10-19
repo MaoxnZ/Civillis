@@ -1,0 +1,51 @@
+{
+  "parent": "civil:guide/structures/soul_campfire",
+  "display": {
+    "icon": {
+      "id": "minecraft:bone"
+    },
+    "title": {
+      "translate": "civil.advancement.guide.farm_shrine.title"
+    },
+    "description": {
+      "translate": "civil.advancement.guide.farm_shrine.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "has_soul_campfire": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "minecraft:soul_campfire"
+          }
+        ]
+      }
+    },
+    "has_crying_obsidian": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "minecraft:crying_obsidian"
+          }
+        ]
+      }
+    },
+    "unlock": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "has_soul_campfire"
+    ],
+    [
+      "has_crying_obsidian"
+    ],
+    [
+      "unlock"
+    ]
+  ]
+}

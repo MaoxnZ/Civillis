@@ -1,0 +1,55 @@
+# Gradle
+.gradle
+**/build/
+!**/src/**/build/
+gradle-app.setting
+.gradletasknamecache
+
+# Java
+*.class
+*.log
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+.mtj.tmp/
+
+# IDE / Eclipse
+.project
+.classpath
+.settings/
+bin/
+
+# Minecraft run (worlds, config, logs)
+run/
+
+# Python (tests)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+tests/output/*
+!tests/output/.gitkeep
+
+# Civillis roadmap (Vite / npm)
+# — node_modules: third-party deps; reinstall via `npm ci` in roadmap/ (lockfile is source of truth).
+# — dist: production build output; CI builds fresh and copies into docs/roadmap.
+roadmap/node_modules/
+roadmap/dist/
+roadmap/.vite/
+
+# MkDocs build output
+site/
+
+# Unrelated branch workspaces
+trailer/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,34 @@
+{
+  "display": {
+    "icon": {
+      "id": "minecraft:emerald"
+    },
+    "title": {
+      "translate": "civil.advancement.guide.root.title"
+    },
+    "description": {
+      "translate": "civil.advancement.guide.root.description"
+    },
+    "background": "minecraft:block/bricks",
+    "frame": "task",
+    "show_toast": false,
+    "announce_to_chat": false
+  },
+  "criteria": {
+    "has_emerald": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "minecraft:emerald"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "has_emerald"
+    ]
+  ]
+}

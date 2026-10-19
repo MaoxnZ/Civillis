@@ -1,0 +1,35 @@
+{
+  "_comment": [
+    "Civil mod compatibility: Quark (quark).",
+    "Block IDs verified against Quark namespace entries 1.20.1.",
+    "If the mod is not installed, these entries are safely ignored."
+  ],
+  "replace": false,
+  "entries": [
+    { "block": "quark:matrix_enchanter",               "weight": 1.5 },
+
+    { "block": "quark:ender_watcher",                  "weight": 0.7 },
+
+    { "block": "quark:deepslate_furnace",              "weight": 0.3 },
+    { "block": "quark:blackstone_furnace",             "weight": 0.3 },
+    { "block": "quark:crafter",                        "weight": 0.3 },
+    { "block": "quark:crate",                          "weight": 0.3 },
+    { "block": "quark:magnet",                         "weight": 0.3 },
+    { "block": "quark:ancient_chest",                  "weight": 0.3 },
+    { "block": "quark:prismarine_chest",               "weight": 0.3 },
+    { "block": "quark:acacia_chest",                   "weight": 0.3 },
+    { "block": "quark:dark_oak_chest",                 "weight": 0.3 },
+    { "block": "quark:crimson_chest",                  "weight": 0.3 },
+    { "block": "quark:warped_chest",                   "weight": 0.3 },
+    { "block": "quark:bamboo_chest",                   "weight": 0.3 },
+    { "block": "quark:mangrove_chest",                 "weight": 0.3 },
+    { "block": "quark:cherry_chest",                   "weight": 0.3 },
+    { "block": "quark:nether_brick_chest",             "weight": 0.3 },
+    { "block": "quark:purpur_chest",                   "weight": 0.3 },
+    { "block": "quark:blossom_chest",                  "weight": 0.3 },
+    { "block": "quark:azalea_chest",                   "weight": 0.3 },
+    { "block": "quark:oak_chest",                      "weight": 0.3 },
+    { "block": "quark:spruce_chest",                   "weight": 0.3 },
+    { "block": "quark:jungle_chest",                   "weight": 0.3 }
+  ]
+}

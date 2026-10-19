@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "entries": [
+    {
+      "id": "betterfortresses_all",
+      "structures": [
+        "betterfortresses:fortress"
+      ],
+      "rules": {
+        "allow_hostile_spawn": true
+      }
+    }
+  ]
+}

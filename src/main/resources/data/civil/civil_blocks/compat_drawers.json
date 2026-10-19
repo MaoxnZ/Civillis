@@ -1,0 +1,17 @@
+{
+  "_comment": [
+    "Civil mod compatibility: Storage Drawers (storagedrawers).",
+    "Block IDs verified against Storage Drawers namespace entries 1.20.1.",
+    "If the mod is not installed, these entries are safely ignored."
+  ],
+  "replace": false,
+  "entries": [
+    { "block": "storagedrawers:controller",                 "weight": 0.5 },
+    { "block": "storagedrawers:framing_table",              "weight": 0.5 },
+
+    { "block": "storagedrawers:compacting_drawers_2",       "weight": 0.2 },
+    { "block": "storagedrawers:compacting_drawers_3",       "weight": 0.2 },
+    { "block": "storagedrawers:compacting_half_drawers_2",  "weight": 0.2 },
+    { "block": "storagedrawers:compacting_half_drawers_3",  "weight": 0.2 }
+  ]
+}

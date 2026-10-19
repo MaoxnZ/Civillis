@@ -1,0 +1,32 @@
+{
+  "_comment": [
+    "Default mob flee entity lists for the Civil mod.",
+    "Add or override JSON files under data/<namespace>/civil_mob_flee_entities/.",
+    "",
+    "Shape matches civil_spawn_gate_entities, but SEMANTICS DIFFER:",
+    "  whitelist — entity types that never receive civilization flee goals (bypass).",
+    "  blacklist — entity types that receive flee goals even when not MONSTER category,",
+    "    if the mob is a PathfinderMob (same flee behavior as hostile mobs).",
+    "",
+    "If the same entity id appears in both lists, whitelist wins.",
+    "",
+    "Files load in lexicographic order; later files add to the merged sets.",
+    "Set replace: true on a file to clear all entries loaded from earlier files.",
+    "",
+    "Default whitelist includes vanilla raid wave mob types so Raids are not undermined by flee goals."
+  ],
+  "replace": false,
+  "entries": [
+    {
+      "blacklist": [],
+      "whitelist": [
+        "minecraft:evoker",
+        "minecraft:pillager",
+        "minecraft:ravager",
+        "minecraft:vex",
+        "minecraft:vindicator",
+        "minecraft:witch"
+      ]
+    }
+  ]
+}

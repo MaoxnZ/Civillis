@@ -1,0 +1,32 @@
+{
+  "parent": "civil:guide/structures/bell_sonar",
+  "display": {
+    "icon": {
+      "id": "minecraft:soul_campfire"
+    },
+    "title": {
+      "translate": "civil.advancement.guide.soul_campfire.title"
+    },
+    "description": {
+      "translate": "civil.advancement.guide.soul_campfire.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "has_soul_campfire": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "minecraft:soul_campfire"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "has_soul_campfire"
+    ]
+  ]
+}

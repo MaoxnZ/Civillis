@@ -1,0 +1,91 @@
+package civil.neoforge;
+
+import civil.aura.AuraWallRenderer;
+import civil.aura.SonarBoundaryPayload;
+import civil.aura.SonarChargePayload;
+import civil.aura.SonarShockwaveEffect;
+import civil.aura.SonarType;
+import civil.respawn.UndyingAnchorCinematicEffect;
+import civil.respawn.UndyingAnchorParticleEffect;
+import civil.respawn.UndyingAnchorParticlePayload;
+import civil.shrine.FarmShrineParticleEffect;
+import civil.shrine.FarmShrineParticlePayload;
+import civil.respawn.UndyingAnchorPreTeleportPayload;
+import civil.civilization.ZoneTransitionHud;
+import civil.civilization.ZoneTransitionPayload;
+import net.minecraft.client.Minecraft;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Client-side payload handlers for NeoForge networking.
+ * Methods in this class are only invoked on the client by NeoForge's networking layer.
+ */
+final class NeoForgeClientPayloadHandler {
+
+    private NeoForgeClientPayloadHandler() {
+    }
+
+    static void handleSonarCharge(SonarChargePayload payload, IPayloadContext context) {
+        var player = Minecraft.getInstance().player;
+        if (player != null) {
+            SonarShockwaveEffect.startCharge(
+                    payload.centerX(), payload.centerY(), payload.centerZ(),
+                    payload.regionKindId(),
+                    SonarType.fromId(payload.sonarType()));
+        }
+    }
+
+    static void handleSonarBoundary(SonarBoundaryPayload payload, IPayloadContext context) {
+        AuraWallRenderer.updateBoundaries(payload);
+        var player = Minecraft.getInstance().player;
+        if (player != null) {
+            Map<Long, float[]> shrineZoneYMap = buildShrineZoneYMap(
+                    payload.shrineZone2D(), payload.shrineZoneMinY(), payload.shrineZoneMaxY());
+            Map<Long, float[]> policyZoneYMap = buildShrineZoneYMap(
+                    payload.zoneZone2D(), payload.zoneZoneMinY(), payload.zoneZoneMaxY());
+            Set<Long> civHighZone2DSet = buildLongSet(payload.civHighZone2D());
+
+            SonarShockwaveEffect.startRing(
+                    shrineZoneYMap, policyZoneYMap, civHighZone2DSet,
+                    SonarType.fromId(payload.sonarType()));
+        }
+    }
+
+    private static Set<Long> buildLongSet(long[] array) {
+        if (array.length == 0) return Set.of();
+        Set<Long> set = new HashSet<>(array.length);
+        for (long v : array) set.add(v);
+        return set;
+    }
+
+    static void handleUndyingAnchorPreTeleport(UndyingAnchorPreTeleportPayload payload, IPayloadContext context) {
+        UndyingAnchorCinematicEffect.startPreTeleport(payload.phase0Ticks(),
+                payload.anchorX(), payload.anchorY(), payload.anchorZ());
+    }
+
+    static void handleUndyingAnchorParticles(UndyingAnchorParticlePayload payload, IPayloadContext context) {
+        UndyingAnchorParticleEffect.updateFromPayload(payload);
+    }
+
+    static void handleFarmShrineParticles(FarmShrineParticlePayload payload, IPayloadContext context) {
+        FarmShrineParticleEffect.updateFromPayload(payload);
+    }
+
+    static void handleZoneTransition(ZoneTransitionPayload payload, IPayloadContext context) {
+        ZoneTransitionHud.onPayload(payload);
+    }
+
+    private static Map<Long, float[]> buildShrineZoneYMap(long[] keys, float[] minY, float[] maxY) {
+        if (keys.length == 0) return Map.of();
+        Map<Long, float[]> map = new HashMap<>(keys.length);
+        for (int i = 0; i < keys.length; i++) {
+            map.put(keys[i], new float[]{minY[i], maxY[i]});
+        }
+        return map;
+    }
+}

@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "EEE",
+    "ECE",
+    "EEE"
+  ],
+  "key": {
+    "E": "minecraft:emerald",
+    "C": "minecraft:compass"
+  },
+  "result": {
+    "id": "civil:civil_detector",
+    "count": 1
+  }
+}

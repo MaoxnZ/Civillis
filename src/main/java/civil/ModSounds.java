@@ -1,0 +1,147 @@
+package civil;
+
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.resources.Identifier;
+
+/**
+ * Civilization detector sound effects played by detection state: default / low / medium / high / monster.
+ * Uses custom SoundEvent (civil:detector_*), pointed to by assets/civil/sounds.json to custom OGG
+ * (civil:detector_default etc., files placed in assets/civil/sounds/*.ogg).
+ * Playback controlled by {@link #PREFER_MOD_DETECTOR_SOUNDS} to prefer vanilla or custom; use {@link #getDetectorPlayback} to get sound + pitch at once.
+ * Vanilla uses same sound effect + different pitch to distinguish; custom OGGs already have their own pitch, pitch fixed at 1.0 no secondary scaling.
+ */
+public final class ModSounds {
+
+    public static SoundEvent DETECTOR_DEFAULT;
+    public static SoundEvent DETECTOR_LOW;
+    public static SoundEvent DETECTOR_MEDIUM;
+    public static SoundEvent DETECTOR_HIGH;
+    public static SoundEvent DETECTOR_MONSTER;
+    public static SoundEvent DETECTOR_SHRINE;
+
+    /**
+     * Whether to prefer mod custom sound effects (civil:detector_*).
+     * true = prefer custom ogg (pitch fixed 1.0), fallback to vanilla if unavailable;
+     * false = prefer vanilla sound effects (pitch distinguished by state), use custom if unavailable.
+     */
+    public static boolean PREFER_MOD_DETECTOR_SOUNDS = false;
+
+    /** Packaged: one-time result needed for playing detector sound effect, contains sound and pitch, compatible with vanilla/custom sources. */
+    public record DetectorPlayback(SoundEvent sound, float pitch) {}
+
+    private ModSounds() {
+    }
+
+    /**
+     * Direct registration via vanilla Registry API. Called by Fabric entry point
+     * where registries are not frozen during mod init.
+     */
+    public static void registerDirect() {
+        DETECTOR_DEFAULT = registerSingle("detector_default");
+        DETECTOR_LOW = registerSingle("detector_low");
+        DETECTOR_MEDIUM = registerSingle("detector_medium");
+        DETECTOR_HIGH = registerSingle("detector_high");
+        DETECTOR_MONSTER = registerSingle("detector_monster");
+        DETECTOR_SHRINE = registerSingle("detector_shrine");
+        if (CivilMod.DEBUG) {
+            CivilMod.LOGGER.info("[civil] sounds registered (direct): detector + detector_shrine");
+        }
+    }
+
+    private static SoundEvent registerSingle(String path) {
+        Identifier id = Identifier.fromNamespaceAndPath(CivilMod.MOD_ID, path);
+        SoundEvent event = SoundEvent.createVariableRangeEvent(id);
+        return Registry.register(BuiltInRegistries.SOUND_EVENT, id, event);
+    }
+
+    /** Create a SoundEvent for deferred registration (NeoForge). */
+    public static SoundEvent buildSoundEvent(String path) {
+        return SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath(CivilMod.MOD_ID, path));
+    }
+
+    /** Get SoundEvent from vanilla registry by id (client must have loaded), to ensure sound can be heard; returns null on failure. */
+    private static SoundEvent getVanillaSound(String namespace, String path) {
+        Identifier id = Identifier.fromNamespaceAndPath(namespace, path);
+        return BuiltInRegistries.SOUND_EVENT.getValue(id);
+    }
+
+    // ========== Sonar shockwave sound effects ==========
+    // Vanilla sounds used for the two-phase sonar audio:
+    //   Phase 1 (charge-up):  beacon activate — gradual mystical power-up
+    //   Phase 2 (ring burst): breeze shoot     — short punchy release
+
+    private static final String SONAR_CHARGE_PATH = "block.beacon.activate";
+    private static final String SONAR_BOOM_PATH   = "entity.breeze.shoot";
+
+    /** Volume and pitch for the sonar charge-up sound (server-side). */
+    public static final float SONAR_CHARGE_VOLUME = 0.8f;
+    public static final float SONAR_CHARGE_PITCH  = 0.7f;
+
+    /** Volume and pitch for the sonar boom/burst sound (client-side). */
+    public static final float SONAR_BOOM_VOLUME = 1.0f;
+    public static final float SONAR_BOOM_PITCH  = 0.85f;
+
+    /**
+     * Returns the vanilla {@link SoundEvent} for the sonar charge-up phase (beacon activate).
+     * May return {@code null} if the sound registry is unavailable.
+     */
+    public static SoundEvent getSonarChargeSound() {
+        return getVanillaSound(MC, SONAR_CHARGE_PATH);
+    }
+
+    /**
+     * Returns the vanilla {@link SoundEvent} for the sonar ring-burst phase (breeze shoot).
+     * May return {@code null} if the sound registry is unavailable.
+     */
+    public static SoundEvent getSonarBoomSound() {
+        return getVanillaSound(MC, SONAR_BOOM_PATH);
+    }
+
+    // Vanilla sound effect ids (1.21 dot format)
+    private static final String MC = "minecraft";
+    private static final String BASS = "block.note_block.bass";
+    private static final String CHIME = "block.note_block.chime";
+    private static final String WOLOLO = "entity.evoker.prepare_wololo";
+    private static final String SCULK_SHRIEKER_SHRIEK = "block.sculk_shrieker.shriek";
+
+    /** Vanilla pitch distinguished by state (low/medium use same bass, distinguished by pitch); custom OGG not scaled, use 1.0. */
+    private static float vanillaPitchFor(String displayState) {
+        if (displayState == null || "default".equals(displayState)) return 0.65f;
+        return switch (displayState) {
+            case "low" -> 0.55f;
+            case "medium" -> 0.85f;
+            case "high", "monster", "zone" -> 1.0f;
+            default -> 0.65f;
+        };
+    }
+
+    /**
+     * Returns "sound + pitch" packaged result based on display state, for direct use in playSound.
+     * Determined by {@link #PREFER_MOD_DETECTOR_SOUNDS} whether to use vanilla or custom; vanilla pitch distinguished by state, custom pitch=1.0 (no secondary scaling).
+     */
+    public static DetectorPlayback getDetectorPlayback(String displayState) {
+        SoundEvent modSound = switch (displayState == null ? "default" : displayState) {
+            case "low" -> DETECTOR_LOW;
+            case "medium" -> DETECTOR_MEDIUM;
+            case "high" -> DETECTOR_HIGH;
+            case "zone" -> DETECTOR_MONSTER;
+            case "monster" -> DETECTOR_SHRINE;
+            default -> DETECTOR_DEFAULT;
+        };
+        SoundEvent vanilla = switch (displayState == null || "default".equals(displayState) ? "default" : displayState) {
+            case "low", "medium" -> getVanillaSound(MC, BASS);
+            case "high" -> getVanillaSound(MC, CHIME);
+            case "zone" -> getVanillaSound(MC, WOLOLO);
+            case "monster" -> getVanillaSound(MC, SCULK_SHRIEKER_SHRIEK);
+            default -> getVanillaSound(MC, BASS);
+        };
+        if (PREFER_MOD_DETECTOR_SOUNDS) {
+            return new DetectorPlayback(modSound, 1.0f);
+        }
+        SoundEvent sound = vanilla != null ? vanilla : modSound;
+        float pitch = (vanilla != null) ? vanillaPitchFor(displayState) : 1.0f;
+        return new DetectorPlayback(sound, pitch);
+    }
+}

@@ -1,0 +1,882 @@
+{
+  "pipelines": [
+    {
+      "id": "track-simulation-decay",
+      "name": "Simulation | Decay",
+      "description": "Decay recovery, offline handling, toggles, and zero-config baseline for civilization decay.",
+      "status": "In Progress",
+      "startDate": "2026-01-24",
+      "endDate": "2026-03-07",
+      "children": [
+        {
+          "id": "sim-decay-1",
+          "featureRef": "f-decay-recovery",
+          "archived": true,
+          "startDate": "2026-01-24",
+          "endDate": "2026-02-07"
+        },
+        {
+          "id": "sim-decay-2",
+          "featureRef": "f-zero-config-defaults",
+          "archived": true,
+          "startDate": "2026-01-24",
+          "endDate": "2026-02-07"
+        },
+        {
+          "id": "sim-decay-3",
+          "featureRef": "f-offline-decay-fix",
+          "archived": true,
+          "startDate": "2026-02-08",
+          "endDate": "2026-02-08"
+        },
+        {
+          "id": "sim-decay-4",
+          "featureRef": "f-decay-toggle",
+          "archived": false,
+          "startDate": "2026-03-04",
+          "endDate": "2026-03-07"
+        }
+      ]
+    },
+    {
+      "id": "track-simulation-skull-totem",
+      "name": "Simulation | Skull totem",
+      "description": "Monster skull totem mechanics, zones, conversion paths, and related server-side rules.",
+      "status": "In Progress",
+      "startDate": "2026-01-24",
+      "endDate": "2026-03-07",
+      "children": [
+        {
+          "id": "sim-skull-1",
+          "featureRef": "f-monster-head-mechanic",
+          "archived": true,
+          "startDate": "2026-01-24",
+          "endDate": "2026-02-07"
+        },
+        {
+          "id": "sim-skull-2",
+          "featureRef": "f-head-score-separation-fix",
+          "archived": true,
+          "startDate": "2026-02-08",
+          "endDate": "2026-02-08"
+        },
+        {
+          "id": "sim-skull-3",
+          "featureRef": "f-head-attraction",
+          "archived": true,
+          "startDate": "2026-02-10",
+          "endDate": "2026-02-11"
+        },
+        {
+          "id": "sim-skull-4",
+          "featureRef": "f-head-dimension-rules",
+          "archived": true,
+          "startDate": "2026-02-18",
+          "endDate": "2026-02-18"
+        },
+        {
+          "id": "sim-skull-5",
+          "featureRef": "f-wither-conversion-restore",
+          "archived": true,
+          "startDate": "2026-02-18",
+          "endDate": "2026-02-18"
+        },
+        {
+          "id": "sim-skull-6",
+          "featureRef": "f-conversion-gate-bypass-fix",
+          "archived": true,
+          "startDate": "2026-02-18",
+          "endDate": "2026-02-18"
+        },
+        {
+          "id": "sim-skull-7",
+          "featureRef": "f-head-zone-entry-fix",
+          "archived": false,
+          "startDate": "2026-02-22",
+          "endDate": "2026-02-25"
+        },
+        {
+          "id": "sim-skull-8",
+          "featureRef": "f-head-index-optimization",
+          "archived": false,
+          "startDate": "2026-02-26",
+          "endDate": "2026-02-28"
+        },
+        {
+          "id": "sim-skull-9",
+          "featureRef": "f-head-system-toggle",
+          "archived": false,
+          "startDate": "2026-03-04",
+          "endDate": "2026-03-07"
+        }
+      ]
+    },
+    {
+      "id": "track-simulation-spawn",
+      "name": "Simulation | Spawn",
+      "description": "Civil spawn policy, natural spawn filtering, and structure-specific hostile bypass rules.",
+      "status": "In Progress",
+      "startDate": "2026-01-24",
+      "endDate": "2026-04-25",
+      "children": [
+        {
+          "id": "sim-spawn-1",
+          "featureRef": "f-civil-spawn-control",
+          "archived": true,
+          "startDate": "2026-01-24",
+          "endDate": "2026-02-07"
+        },
+        {
+          "id": "sim-spawn-2",
+          "featureRef": "f-natural-spawn-filter",
+          "archived": true,
+          "startDate": "2026-02-13",
+          "endDate": "2026-02-13"
+        },
+        {
+          "id": "sim-spawn-3",
+          "featureRef": "f-structure-hostile-spawn-bypass",
+          "archived": false,
+          "startDate": "2026-03-13",
+          "endDate": "2026-03-22"
+        },
+        {
+          "id": "sim-spawn-4",
+          "featureRef": "f-spawn-gate-entity-datapack",
+          "archived": false,
+          "startDate": "2026-04-06",
+          "endDate": "2026-04-19"
+        },
+        {
+          "id": "sim-spawn-5",
+          "featureRef": "f-podium-spawning",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
+        }
+      ]
+    },
+    {
+      "id": "track-simulation-patrol",
+      "name": "Simulation | Patrol",
+      "description": "Patrol influence radius and debounced settlement presence for patrol refresh.",
+      "status": "In Progress",
+      "startDate": "2026-02-08",
+      "endDate": "2026-02-12",
+      "children": [
+        {
+          "id": "sim-patrol-1",
+          "featureRef": "f-patrol-presence-detection",
+          "archived": true,
+          "startDate": "2026-02-08",
+          "endDate": "2026-02-08"
+        },
+        {
+          "id": "sim-patrol-2",
+          "featureRef": "f-patrol-influence-range-slider",
+          "archived": true,
+          "startDate": "2026-02-12",
+          "endDate": "2026-02-12"
+        }
+      ]
+    },
+    {
+      "id": "track-simulation-podium",
+      "name": "Simulation | Podium",
+      "description": "Podium of Undying survival flow and related gameplay fixes.",
+      "status": "In Progress",
+      "startDate": "2026-03-08",
+      "endDate": "2026-03-14",
+      "children": [
+        {
+          "id": "sim-podium-1",
+          "featureRef": "f-podium-undying",
+          "archived": false,
+          "startDate": "2026-03-08",
+          "endDate": "2026-03-11"
+        },
+        {
+          "id": "sim-podium-2",
+          "featureRef": "f-podium-shared-gold-fix",
+          "archived": false,
+          "startDate": "2026-03-12",
+          "endDate": "2026-03-14"
+        },
+        {
+          "id": "sim-podium-3",
+          "featureRef": "f-podium-drain-stability-fix",
+          "archived": false,
+          "startDate": "2026-03-12",
+          "endDate": "2026-03-14"
+        }
+      ]
+    },
+    {
+      "id": "track-simulation-spawning-podium",
+      "name": "Simulation | Spawning Podium",
+      "description": "Podium of Spawning pockets and head-driven hostile attraction inside civilized areas.",
+      "status": "In Progress",
+      "startDate": "2026-04-20",
+      "endDate": "2026-04-25",
+      "children": [
+        {
+          "id": "sim-spawnpodium-1",
+          "featureRef": "f-podium-spawning",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
+        },
+        {
+          "id": "sim-spawnpodium-2",
+          "featureRef": "f-podium-spawning-head-conversion",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
+        }
+      ]
+    },
+    {
+      "id": "track-entities-mob-ai",
+      "name": "Entities | Mob AI",
+      "description": "Hostile flee behavior, pathing fixes, and flee-related UI cleanup.",
+      "status": "In Progress",
+      "startDate": "2026-02-19",
+      "endDate": "2026-02-25",
+      "children": [
+        {
+          "id": "ent-mob-1",
+          "featureRef": "f-mob-flee-ai",
+          "archived": false,
+          "startDate": "2026-02-19",
+          "endDate": "2026-02-21"
+        },
+        {
+          "id": "ent-mob-2",
+          "featureRef": "f-mob-flee-border-pathing-fix",
+          "archived": false,
+          "startDate": "2026-02-22",
+          "endDate": "2026-02-25"
+        },
+        {
+          "id": "ent-mob-3",
+          "featureRef": "f-mob-flee-ui-cleanup",
+          "archived": false,
+          "startDate": "2026-02-22",
+          "endDate": "2026-02-25"
+        }
+      ]
+    },
+    {
+      "id": "track-engineering-prefetch",
+      "name": "Engineering | Prefetch",
+      "description": "Result prefetch scheduling and presence epsilon gating for decay accuracy and server cost.",
+      "status": "In Progress",
+      "startDate": "2026-03-13",
+      "endDate": "2026-03-22",
+      "children": [
+        {
+          "id": "eng-prefetch-1",
+          "featureRef": "f-prefetch-result-centric-queue",
+          "archived": false,
+          "startDate": "2026-03-13",
+          "endDate": "2026-03-22"
+        },
+        {
+          "id": "eng-prefetch-2",
+          "featureRef": "f-presence-raw-epsilon-gating",
+          "archived": false,
+          "startDate": "2026-03-13",
+          "endDate": "2026-03-22"
+        }
+      ]
+    },
+    {
+      "id": "track-engineering-foundation",
+      "name": "Engineering | Foundation",
+      "description": "Scalable processing layout and fusion-architecture runtime efficiency.",
+      "status": "In Progress",
+      "startDate": "2026-01-24",
+      "endDate": "2026-04-25",
+      "children": [
+        {
+          "id": "eng-found-1",
+          "featureRef": "f-scalable-architecture",
+          "archived": true,
+          "startDate": "2026-01-24",
+          "endDate": "2026-02-07"
+        },
+        {
+          "id": "eng-found-2",
+          "featureRef": "f-fusion-architecture",
+          "archived": true,
+          "startDate": "2026-02-12",
+          "endDate": "2026-02-12"
+        },
+        {
+          "id": "eng-found-3",
+          "featureRef": "f-server-deadlock-fix",
+          "archived": true,
+          "startDate": "2026-03-24",
+          "endDate": "2026-03-28"
+        },
+        {
+          "id": "eng-found-4",
+          "featureRef": "f-lazy-chunk-scoring",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
+        },
+        {
+          "id": "eng-found-5",
+          "featureRef": "f-nested-block-update-state-fix",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
+        },
+        {
+          "id": "eng-found-6",
+          "featureRef": "f-temporary-score-ttl-fix",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
+        }
+      ]
+    },
+    {
+      "id": "track-engineering-porting",
+      "name": "Engineering | Porting",
+      "description": "Multi-loader and version ports, H2 fixes, and mapping/remap stability.",
+      "status": "In Progress",
+      "startDate": "2026-02-09",
+      "endDate": "2026-03-07",
+      "children": [
+        {
+          "id": "eng-port-1",
+          "featureRef": "f-mc121-compat",
+          "archived": true,
+          "startDate": "2026-02-09",
+          "endDate": "2026-02-09"
+        },
+        {
+          "id": "eng-port-2",
+          "featureRef": "f-architectury-porting",
+          "archived": false,
+          "startDate": "2026-02-22",
+          "endDate": "2026-02-25"
+        },
+        {
+          "id": "eng-port-3",
+          "featureRef": "f-h2-compat-fix",
+          "archived": false,
+          "startDate": "2026-03-04",
+          "endDate": "2026-03-07"
+        },
+        {
+          "id": "eng-port-4",
+          "featureRef": "f-mapping-remap-stability-fix",
+          "archived": false,
+          "startDate": "2026-02-26",
+          "endDate": "2026-02-28"
+        }
+      ]
+    },
+    {
+      "id": "track-engineering-persistence",
+      "name": "Engineering | Persistence",
+      "description": "Storage and NBT layout refactors for civilization payloads.",
+      "status": "In Progress",
+      "startDate": "2026-03-08",
+      "endDate": "2026-03-11",
+      "children": [
+        {
+          "id": "eng-persist-1",
+          "featureRef": "f-storage-nbt-refactor",
+          "archived": false,
+          "startDate": "2026-03-08",
+          "endDate": "2026-03-11"
+        }
+      ]
+    },
+    {
+      "id": "track-engineering-world",
+      "name": "Engineering | World",
+      "description": "Teleport score reads, world-switch payload safety, and per-world cache isolation.",
+      "status": "In Progress",
+      "startDate": "2026-02-08",
+      "endDate": "2026-03-28",
+      "children": [
+        {
+          "id": "eng-world-1",
+          "featureRef": "f-teleport-stability",
+          "archived": true,
+          "startDate": "2026-02-08",
+          "endDate": "2026-02-08"
+        },
+        {
+          "id": "eng-world-2",
+          "featureRef": "f-payload-world-switch-safety",
+          "archived": false,
+          "startDate": "2026-03-08",
+          "endDate": "2026-03-11"
+        },
+        {
+          "id": "eng-world-3",
+          "featureRef": "f-world-switch-cache-isolation",
+          "archived": false,
+          "startDate": "2026-03-08",
+          "endDate": "2026-03-11"
+        },
+        {
+          "id": "eng-world-4",
+          "featureRef": "f-chunk-score-exploration-timing-fix",
+          "archived": true,
+          "startDate": "2026-03-24",
+          "endDate": "2026-03-28"
+        }
+      ]
+    },
+    {
+      "id": "track-engineering-ops",
+      "name": "Engineering | Ops",
+      "description": "Rebuild tooling and recipe/tag compatibility fixes.",
+      "status": "In Progress",
+      "startDate": "2026-03-12",
+      "endDate": "2026-03-14",
+      "children": [
+        {
+          "id": "eng-ops-1",
+          "featureRef": "f-rebuild-command",
+          "archived": false,
+          "startDate": "2026-03-12",
+          "endDate": "2026-03-14"
+        },
+        {
+          "id": "eng-ops-2",
+          "featureRef": "f-block-tag-weight-fix",
+          "archived": false,
+          "startDate": "2026-03-12",
+          "endDate": "2026-03-14"
+        }
+      ]
+    },
+    {
+      "id": "track-visualization-sonar",
+      "name": "Visualization | Sonar",
+      "description": "Civil Detector handheld readouts, sonar sweeps, aura walls, bell sonar, particles, and related assets.",
+      "status": "In Progress",
+      "startDate": "2026-01-24",
+      "endDate": "2026-03-28",
+      "children": [
+        {
+          "id": "vis-sonar-1",
+          "featureRef": "f-civil-detector",
+          "archived": true,
+          "startDate": "2026-01-24",
+          "endDate": "2026-02-07"
+        },
+        {
+          "id": "vis-sonar-2",
+          "featureRef": "f-detector-threshold-color-fix",
+          "archived": true,
+          "startDate": "2026-02-08",
+          "endDate": "2026-02-08"
+        },
+        {
+          "id": "vis-sonar-3",
+          "featureRef": "f-aura-walls",
+          "archived": true,
+          "startDate": "2026-02-14",
+          "endDate": "2026-02-14"
+        },
+        {
+          "id": "vis-sonar-4",
+          "featureRef": "f-sonar-detector",
+          "archived": true,
+          "startDate": "2026-02-14",
+          "endDate": "2026-02-14"
+        },
+        {
+          "id": "vis-sonar-5",
+          "featureRef": "f-sonar-charge-particle-fix",
+          "archived": true,
+          "startDate": "2026-02-15",
+          "endDate": "2026-02-15"
+        },
+        {
+          "id": "vis-sonar-6",
+          "featureRef": "f-combat-panic-vfx",
+          "archived": false,
+          "startDate": "2026-02-22",
+          "endDate": "2026-02-25"
+        },
+        {
+          "id": "vis-sonar-7",
+          "featureRef": "f-detector-crafting-fix",
+          "archived": false,
+          "startDate": "2026-02-26",
+          "endDate": "2026-02-28"
+        },
+        {
+          "id": "vis-sonar-8",
+          "featureRef": "f-bell-lodestone-sonar",
+          "archived": false,
+          "startDate": "2026-03-01",
+          "endDate": "2026-03-03"
+        },
+        {
+          "id": "vis-sonar-9",
+          "featureRef": "f-sonar-config-reorg",
+          "archived": false,
+          "startDate": "2026-03-01",
+          "endDate": "2026-03-03"
+        },
+        {
+          "id": "vis-sonar-10",
+          "featureRef": "f-bell-sonar-tuning",
+          "archived": false,
+          "startDate": "2026-03-01",
+          "endDate": "2026-03-03"
+        },
+        {
+          "id": "vis-sonar-11",
+          "featureRef": "f-civil-detector-visual-refresh",
+          "archived": false,
+          "startDate": "2026-03-13",
+          "endDate": "2026-03-22"
+        },
+        {
+          "id": "vis-sonar-12",
+          "featureRef": "f-detector-creative-tab-order-fix",
+          "archived": true,
+          "startDate": "2026-03-24",
+          "endDate": "2026-03-28"
+        }
+      ]
+    },
+    {
+      "id": "track-visualization-surface-map",
+      "name": "Visualization | Surface map",
+      "description": "Civilization map overlay on vanilla terrain for readable surface-level context.",
+      "status": "In Progress",
+      "startDate": "2026-03-30",
+      "endDate": "2026-05-06",
+      "children": [
+        {
+          "id": "vis-map-1",
+          "featureRef": "f-civil-map-vanilla-overlay",
+          "archived": false,
+          "startDate": "2026-03-30",
+          "endDate": "2026-04-05"
+        },
+        {
+          "id": "vis-map-2",
+          "featureRef": "f-civil-map-upgrade-recipe",
+          "archived": false,
+          "startDate": "2026-03-30",
+          "endDate": "2026-04-05"
+        },
+        {
+          "id": "vis-map-3",
+          "featureRef": "f-civil-map-cartography-table",
+          "archived": false,
+          "startDate": "2026-03-30",
+          "endDate": "2026-04-05"
+        },
+        {
+          "id": "vis-map-5",
+          "featureRef": "f-civil-map-sparse-surface-sampling",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
+        },
+        {
+          "id": "vis-map-6",
+          "featureRef": "f-map-tint-bright-terrain-contrast",
+          "archived": false,
+          "startDate": "2026-04-27",
+          "endDate": "2026-05-06"
+        },
+        {
+          "id": "vis-map-7",
+          "featureRef": "f-zone-policy-map-classification",
+          "archived": false,
+          "startDate": "2026-04-27",
+          "endDate": "2026-05-06"
+        }
+      ]
+    },
+    {
+      "id": "track-visualization-map-overlays",
+      "name": "Visualization | Map overlays",
+      "description": "JourneyMap, Xaero, and compatibility-layer civilization overlays outside vanilla map items.",
+      "status": "In Progress",
+      "startDate": "2026-04-06",
+      "endDate": "2026-04-25",
+      "children": [
+        {
+          "id": "vis-overlay-1",
+          "featureRef": "f-map-mod-overlays",
+          "archived": false,
+          "startDate": "2026-04-06",
+          "endDate": "2026-04-19"
+        },
+        {
+          "id": "vis-overlay-2",
+          "featureRef": "f-supplementaries-map-tint-compat",
+          "archived": false,
+          "startDate": "2026-04-06",
+          "endDate": "2026-04-19"
+        },
+        {
+          "id": "vis-overlay-3",
+          "featureRef": "f-overlay-default-disabled-exploration-radius",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
+        }
+      ]
+    },
+    {
+      "id": "track-visualization-hud",
+      "name": "Visualization | HUD",
+      "description": "Zone transition messaging for civilized versus wilderness areas.",
+      "status": "In Progress",
+      "startDate": "2026-03-13",
+      "endDate": "2026-04-19",
+      "children": [
+        {
+          "id": "vis-hud-1",
+          "featureRef": "f-entering-leaving-civilized-area",
+          "archived": false,
+          "startDate": "2026-03-13",
+          "endDate": "2026-03-22"
+        },
+        {
+          "id": "vis-hud-2",
+          "featureRef": "f-zone-hud-denoise-123",
+          "archived": true,
+          "startDate": "2026-03-24",
+          "endDate": "2026-03-28"
+        },
+        {
+          "id": "vis-hud-3",
+          "featureRef": "f-zone-hud-customization",
+          "archived": false,
+          "startDate": "2026-04-06",
+          "endDate": "2026-04-19"
+        },
+        {
+          "id": "vis-hud-4",
+          "featureRef": "f-civil-ring-command",
+          "archived": false,
+          "startDate": "2026-04-06",
+          "endDate": "2026-04-19"
+        }
+      ]
+    },
+    {
+      "id": "track-visualization-settings",
+      "name": "Visualization | Settings",
+      "description": "In-game settings UI, config label clarity, and undying screen updates.",
+      "status": "In Progress",
+      "startDate": "2026-02-08",
+      "endDate": "2026-03-28",
+      "children": [
+        {
+          "id": "vis-set-1",
+          "featureRef": "f-settings-gui",
+          "archived": true,
+          "startDate": "2026-02-08",
+          "endDate": "2026-02-08"
+        },
+        {
+          "id": "vis-set-2",
+          "featureRef": "f-config-label-clarity",
+          "archived": false,
+          "startDate": "2026-03-04",
+          "endDate": "2026-03-07"
+        },
+        {
+          "id": "vis-set-3",
+          "featureRef": "f-undying-config-screen-update",
+          "archived": false,
+          "startDate": "2026-03-08",
+          "endDate": "2026-03-11"
+        },
+        {
+          "id": "vis-set-4",
+          "featureRef": "f-settings-gui-polish-123",
+          "archived": true,
+          "startDate": "2026-03-24",
+          "endDate": "2026-03-28"
+        }
+      ]
+    },
+    {
+      "id": "track-content-scoring",
+      "name": "Content | Scoring",
+      "description": "Block scoring balance and mod-compat scored blocks.",
+      "status": "In Progress",
+      "startDate": "2026-02-16",
+      "endDate": "2026-04-25",
+      "children": [
+        {
+          "id": "content-score-1",
+          "featureRef": "f-block-scoring-rebalance",
+          "archived": true,
+          "startDate": "2026-02-16",
+          "endDate": "2026-02-17"
+        },
+        {
+          "id": "content-score-2",
+          "featureRef": "f-mod-compat-scored-blocks",
+          "archived": true,
+          "startDate": "2026-02-16",
+          "endDate": "2026-02-17"
+        },
+        {
+          "id": "content-score-3",
+          "featureRef": "f-block-weights-community-expansion",
+          "archived": true,
+          "startDate": "2026-03-24",
+          "endDate": "2026-03-28"
+        },
+        {
+          "id": "content-score-4",
+          "featureRef": "f-civil-block-tier-tags",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
+        }
+      ]
+    },
+    {
+      "id": "track-content-datapack",
+      "name": "Content | Datapack",
+      "description": "Head, block, spawn-gate, and dimension-policy datapack registries.",
+      "status": "In Progress",
+      "startDate": "2026-02-16",
+      "endDate": "2026-04-25",
+      "children": [
+        {
+          "id": "content-dp-1",
+          "featureRef": "f-head-datapack-system",
+          "archived": true,
+          "startDate": "2026-02-16",
+          "endDate": "2026-02-17"
+        },
+        {
+          "id": "content-dp-2",
+          "featureRef": "f-dimension-policies-datapack",
+          "archived": true,
+          "startDate": "2026-03-24",
+          "endDate": "2026-03-28"
+        },
+        {
+          "id": "content-dp-3",
+          "featureRef": "f-spawn-gate-entity-datapack",
+          "archived": false,
+          "startDate": "2026-04-06",
+          "endDate": "2026-04-19"
+        },
+        {
+          "id": "content-dp-4",
+          "featureRef": "f-dimension-policy-head-fix",
+          "archived": false,
+          "startDate": "2026-04-06",
+          "endDate": "2026-04-19"
+        },
+        {
+          "id": "content-dp-5",
+          "featureRef": "f-civil-block-tier-tags",
+          "archived": false,
+          "startDate": "2026-04-20",
+          "endDate": "2026-04-25"
+        }
+      ]
+    },
+    {
+      "id": "track-content-docs",
+      "name": "Content | Docs",
+      "description": "Wiki documentation and the public roadmap site.",
+      "status": "In Progress",
+      "startDate": "2026-02-18",
+      "endDate": "2026-03-16",
+      "children": [
+        {
+          "id": "content-docs-1",
+          "featureRef": "f-wiki-docs",
+          "archived": true,
+          "startDate": "2026-02-18",
+          "endDate": "2026-02-18"
+        },
+        {
+          "id": "content-docs-2",
+          "featureRef": "f-roadmap-site",
+          "archived": false,
+          "startDate": "2026-03-14",
+          "endDate": "2026-03-16"
+        }
+      ]
+    },
+    {
+      "id": "track-tentative",
+      "name": "Tentative",
+      "description": "Speculative ideas only—Town Center, advancements, bell sonar revamp, multiblocks; details live on each feature card.",
+      "status": "Tentative",
+      "startDate": "2026-05-01",
+      "endDate": "2026-07-31",
+      "children": [
+        {
+          "id": "tentative-1",
+          "featureRef": "f-town-center",
+          "archived": false,
+          "startDate": "2026-05-01",
+          "endDate": "2026-07-31"
+        },
+        {
+          "id": "tentative-5",
+          "featureRef": "f-town-center-interaction-gui",
+          "archived": false,
+          "startDate": "2026-05-01",
+          "endDate": "2026-07-31"
+        },
+        {
+          "id": "tentative-6",
+          "featureRef": "f-town-center-area-buffs",
+          "archived": false,
+          "startDate": "2026-05-01",
+          "endDate": "2026-07-31"
+        },
+        {
+          "id": "tentative-7",
+          "featureRef": "f-town-center-structure-management",
+          "archived": false,
+          "startDate": "2026-05-01",
+          "endDate": "2026-07-31"
+        },
+        {
+          "id": "tentative-2",
+          "featureRef": "f-civillis-advancements",
+          "archived": false,
+          "startDate": "2026-05-01",
+          "endDate": "2026-07-31"
+        },
+        {
+          "id": "tentative-3",
+          "featureRef": "f-bell-sonar-revamp",
+          "archived": false,
+          "startDate": "2026-05-01",
+          "endDate": "2026-07-31"
+        },
+        {
+          "id": "tentative-4",
+          "featureRef": "f-multiblocks-custom-blocks",
+          "archived": false,
+          "startDate": "2026-05-01",
+          "endDate": "2026-07-31"
+        }
+      ]
+    }
+  ]
+}

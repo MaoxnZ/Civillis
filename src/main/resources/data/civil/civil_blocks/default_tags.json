@@ -1,0 +1,23 @@
+{
+  "_comment": [
+    "Optional tier tags for civilization block weights (Civil mod).",
+    "Modpack authors can add blocks to these block tags under their namespace,",
+    "or extend data/civil/tags/blocks/*.json, so many blocks share one weight.",
+    "",
+    "Same schema as other civil_blocks/*.json: entries with \"block\" and \"weight\".",
+    "Tags use a leading '#', e.g. '#civil:high_civilized'.",
+    "Example: add your workbench to #civil:very_very_high_civilized for weight 5.0."
+  ],
+  "replace": false,
+  "entries": [
+    { "block": "#civil:very_very_high_civilized", "weight": 5.0 },
+    { "block": "#civil:very_high_civilized",      "weight": 3.0 },
+    { "block": "#civil:high_civilized",           "weight": 2.0 },
+    { "block": "#civil:medium_high_civilized",    "weight": 1.5 },
+    { "block": "#civil:medium_civilized",         "weight": 1.0 },
+    { "block": "#civil:medium_low_civilized",     "weight": 0.7 },
+    { "block": "#civil:low_civilized",            "weight": 0.5 },
+    { "block": "#civil:very_low_civilized",       "weight": 0.3 },
+    { "block": "#civil:very_very_low_civilized",  "weight": 0.2 }
+  ]
+}

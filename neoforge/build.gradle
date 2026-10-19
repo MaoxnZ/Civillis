@@ -1,0 +1,15 @@
+architectury {
+    platformSetupLoomIde()
+    neoForge()
+}
+
+dependencies {
+    neoForge "net.neoforged:neoforge:${rootProject.neoforge_version}"
+
+    // Cloth Config (in-game settings GUI, same API as Fabric variant)
+    implementation("me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}")
+
+    common(project(path: ':')) { transitive false }
+    shadowBundle project(path: ':', configuration: 'transformProductionNeoForge')
+
+}
