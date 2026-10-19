@@ -1,0 +1,484 @@
+package civil.config;
+
+import civil.CivilPlatform;
+import civil.compat.bandsync.ChunkBandSubscriptionHub;
+import me.shedaniel.clothconfig2.api.ConfigBuilder;
+import me.shedaniel.clothconfig2.api.ConfigCategory;
+import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
+import me.shedaniel.clothconfig2.impl.builders.SubCategoryBuilder;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+
+import java.util.Locale;
+
+/**
+ * User-friendly Cloth Config GUI for Civil mod settings.
+ *
+ * <p>Dynamic derived info (half-life, moat width, etc.) is shown directly
+ * on the slider face via {@code setTextGetter()}, so users see the impact
+ * without hovering. Individual slider tooltips are intentionally removed
+ * to avoid obscuring the slider during interaction; the subcategory header
+ * tooltip explains the overall concept instead.
+ *
+ * <p>Only loaded when both Mod Menu and Cloth Config are present.
+ */
+public final class CivilConfigScreen {
+
+    /**
+     * Estimated full-protection moat width (blocks) beyond a standard village border.
+     * Index = suppression strength (1-10). Index 0 is unused padding.
+     */
+    private static final int[] VILLAGE_MOAT = {0, 0, 8, 15, 20, 25, 35, 45, 55, 65, 80};
+
+    /**
+     * Detection range valid block values: 112, 144, 176, ..., 496  (step 32, 13 entries).
+     * Slider uses index 0-12, mapped to blocks via this array.
+     */
+    private static final int[] RANGE_STEPS;
+    static {
+        RANGE_STEPS = new int[13];
+        for (int i = 0; i < 13; i++) {
+            RANGE_STEPS[i] = 112 + i * 32;
+        }
+    }
+
+    /** Convert a block value to the nearest RANGE_STEPS index. */
+    private static int rangeToIndex(int blocks) {
+        int idx = Math.round((CivilConfig.snapDetectionRange(blocks) - 112) / 32.0f);
+        return Math.max(0, Math.min(12, idx));
+    }
+
+    /** Undying anchor search radius (blocks): discrete GUI bounds, aligned with {@link CivilConfig#snapUndyingAnchorMaxSearchRadiusBlocks}. */
+    private static final int UNDYING_SEARCH_MIN_BLOCKS = 32;
+    private static final int UNDYING_SEARCH_MAX_BLOCKS = 256;
+    private static final int UNDYING_SEARCH_IDX_MAX =
+            (UNDYING_SEARCH_MAX_BLOCKS - UNDYING_SEARCH_MIN_BLOCKS) / 16;
+
+    private static int undyingSearchRadiusToIndex(int blocks) {
+        int snapped = CivilConfig.snapUndyingAnchorMaxSearchRadiusBlocks(blocks);
+        return (snapped - UNDYING_SEARCH_MIN_BLOCKS) / 16;
+    }
+
+    private static int undyingSearchIndexToBlocks(int idx) {
+        int i = Math.max(0, Math.min(UNDYING_SEARCH_IDX_MAX, idx));
+        return UNDYING_SEARCH_MIN_BLOCKS + i * 16;
+    }
+
+    private CivilConfigScreen() {
+    }
+
+    public static Screen create(Screen parent) {
+        ConfigBuilder builder = ConfigBuilder.create()
+                .setParentScreen(parent)
+                .setTitle(Component.translatable("civil.config.title"))
+                .setSavingRunnable(() -> {
+                    CivilConfig.clearOverridesForChangedSimple();
+                    CivilConfig.computeInternalFromSimple();
+                    CivilConfig.save();
+                    ChunkBandSubscriptionHub.onCivilConfigReloaded();
+                });
+
+        ConfigEntryBuilder eb = builder.entryBuilder();
+        ConfigCategory cat = builder.getOrCreateCategory(
+                Component.translatable("civil.config.category.main"));
+
+        // ── 1. Spawn Suppression (1-10) ──
+        if (CivilConfig.hasRawOverride(CivilConfig.PARAM_SPAWN)) {
+            cat.addEntry(eb.startTextDescription(
+                    Component.translatable("civil.config.override.warning")).build());
+        }
+        cat.addEntry(eb.startIntSlider(
+                        Component.translatable("civil.config.simple.spawnSuppression"),
+                        CivilConfig.simpleSpawnSuppression, 1, 10)
+                .setDefaultValue(5)
+                .setTextGetter(val -> {
+                    int moat = VILLAGE_MOAT[Math.max(1, Math.min(10, val))];
+                    if (val <= 2) {
+                        return Component.translatable("civil.config.slider.spawn.unsafe", val, moat);
+                    }
+                    return Component.translatable("civil.config.slider.spawn", val, moat);
+                })
+                .setSaveConsumer(v -> CivilConfig.simpleSpawnSuppression = v)
+                .build());
+
+        // ── 2. Impact Radius (discrete: 13 steps → 112..496 blocks) ──
+        if (CivilConfig.hasRawOverride(CivilConfig.PARAM_RANGE)) {
+            cat.addEntry(eb.startTextDescription(
+                    Component.translatable("civil.config.override.warning")).build());
+        }
+        cat.addEntry(eb.startIntSlider(
+                        Component.translatable("civil.config.simple.impactRadius"),
+                        rangeToIndex(CivilConfig.simpleDetectionRange), 0, 12)
+                .setDefaultValue(rangeToIndex(240))
+                .setTextGetter(idx -> {
+                    int blocks = RANGE_STEPS[Math.max(0, Math.min(12, idx))];
+                    return Component.translatable("civil.config.slider.impactRadius", blocks);
+                })
+                .setSaveConsumer(idx -> CivilConfig.simpleDetectionRange = RANGE_STEPS[Math.max(0, Math.min(12, idx))])
+                .build());
+
+        // ── 2d. Sonar Visualization (collapsible) ──
+        SubCategoryBuilder sonar = eb.startSubCategory(
+                Component.translatable("civil.config.subcategory.sonar"));
+        sonar.setExpanded(false);
+        sonar.setTooltip(
+                Component.translatable("civil.config.subcategory.sonar.tooltip.1"),
+                Component.translatable("civil.config.subcategory.sonar.tooltip.2"),
+                Component.translatable("civil.config.subcategory.sonar.tooltip.3"));
+
+        sonar.add(eb.startBooleanToggle(
+                        Component.translatable("civil.config.sonar.detectorEnabled"),
+                        CivilConfig.detectorSonarEnabled)
+                .setDefaultValue(true)
+                .setTooltip(
+                        Component.translatable("civil.config.sonar.detectorEnabled.tooltip.1"),
+                        Component.translatable("civil.config.sonar.detectorEnabled.tooltip.2"),
+                        Component.translatable("civil.config.sonar.detectorEnabled.tooltip.3"))
+                .setSaveConsumer(v -> CivilConfig.detectorSonarEnabled = v)
+                .build());
+
+        sonar.add(eb.startIntSlider(
+                        Component.translatable("civil.config.sonar.detectorRadius"),
+                        CivilConfig.sonarDetectorRadius, 3, 7)
+                .setDefaultValue(5)
+                .setTextGetter(val -> {
+                    int blocks = val * 16;
+                    return Component.translatable("civil.config.slider.sonarRadius", blocks);
+                })
+                .setSaveConsumer(v -> CivilConfig.sonarDetectorRadius = v)
+                .build());
+
+        sonar.add(eb.startIntSlider(
+                        Component.translatable("civil.config.sonar.staticRadius"),
+                        CivilConfig.sonarStaticRadius, 8, 12)
+                .setDefaultValue(10)
+                .setTextGetter(val -> {
+                    int blocks = val * 16;
+                    return Component.translatable("civil.config.slider.sonarRadius", blocks);
+                })
+                .setSaveConsumer(v -> CivilConfig.sonarStaticRadius = v)
+                .build());
+
+        cat.addEntry(sonar.build());
+
+        // ── 3. Decay Details (collapsible) ──
+        SubCategoryBuilder decay = eb.startSubCategory(
+                Component.translatable("civil.config.subcategory.decay"));
+        decay.setExpanded(false);
+        decay.setTooltip(
+                Component.translatable("civil.config.subcategory.decay.tooltip.1"),
+                Component.translatable("civil.config.subcategory.decay.tooltip.2"),
+                Component.translatable("civil.config.subcategory.decay.tooltip.3"));
+
+        // 3a. Decay Enabled toggle
+        decay.add(eb.startBooleanToggle(
+                        Component.translatable("civil.config.decay.enabled"),
+                        CivilConfig.decayEnabled)
+                .setDefaultValue(true)
+                .setSaveConsumer(v -> CivilConfig.decayEnabled = v)
+                .build());
+
+        // 3b. Decay Speed (1-10)
+        if (CivilConfig.hasRawOverride(CivilConfig.PARAM_DECAY_SPEED)) {
+            decay.add(eb.startTextDescription(
+                    Component.translatable("civil.config.override.warning")).build());
+        }
+        decay.add(eb.startIntSlider(
+                        Component.translatable("civil.config.simple.decaySpeed"),
+                        CivilConfig.simpleDecaySpeed, 1, 10)
+                .setDefaultValue(5)
+                .setTextGetter(val -> {
+                    double lambda = 0.001 * Math.exp(0.52 * (val - 1));
+                    double halfLifeHours = Math.log(2) / lambda;
+                    if (halfLifeHours >= 48) {
+                        String hl = String.format("%.1f", halfLifeHours / 24.0);
+                        return Component.translatable("civil.config.slider.decay.days", val, hl);
+                    } else {
+                        String hl = String.format("%.1f", halfLifeHours);
+                        return Component.translatable("civil.config.slider.decay.hours", val, hl);
+                    }
+                })
+                .setSaveConsumer(v -> CivilConfig.simpleDecaySpeed = v)
+                .build());
+
+        // 3b. Recovery Speed (1-10)
+        if (CivilConfig.hasRawOverride(CivilConfig.PARAM_RECOVERY)) {
+            decay.add(eb.startTextDescription(
+                    Component.translatable("civil.config.override.warning")).build());
+        }
+        decay.add(eb.startIntSlider(
+                        Component.translatable("civil.config.simple.recoverySpeed"),
+                        CivilConfig.simpleRecoverySpeed, 1, 10)
+                .setDefaultValue(5)
+                .setTextGetter(val -> {
+                    double t = (val - 1.0) / 9.0;
+                    double fraction = 0.05 + (0.50 - 0.05) * t;
+                    double cooldownSec = (120_000 + (15_000 - 120_000) * t) / 1000.0;
+                    double steps = Math.log(24) / -Math.log(1 - fraction);
+                    int totalMin = (int) Math.ceil(steps * cooldownSec / 60.0);
+                    return Component.translatable("civil.config.slider.recovery", val, totalMin);
+                })
+                .setSaveConsumer(v -> CivilConfig.simpleRecoverySpeed = v)
+                .build());
+
+        // 3c. Decay Floor (0-50 %)
+        if (CivilConfig.hasRawOverride(CivilConfig.PARAM_DECAY_FLOOR)) {
+            decay.add(eb.startTextDescription(
+                    Component.translatable("civil.config.override.warning")).build());
+        }
+        decay.add(eb.startIntSlider(
+                        Component.translatable("civil.config.simple.decayFloor"),
+                        CivilConfig.simpleDecayFloor, 0, 50)
+                .setDefaultValue(25)
+                .setTextGetter(val -> Component.literal(val + "%"))
+                .setSaveConsumer(v -> CivilConfig.simpleDecayFloor = v)
+                .build());
+
+        // 3d. Freshness Duration (1-48 hours)
+        if (CivilConfig.hasRawOverride(CivilConfig.PARAM_FRESHNESS)) {
+            decay.add(eb.startTextDescription(
+                    Component.translatable("civil.config.override.warning")).build());
+        }
+        decay.add(eb.startIntSlider(
+                        Component.translatable("civil.config.simple.freshnessDuration"),
+                        CivilConfig.simpleFreshnessDuration, 1, 48)
+                .setDefaultValue(6)
+                .setTextGetter(val -> Component.translatable("civil.config.slider.freshness", val))
+                .setSaveConsumer(v -> CivilConfig.simpleFreshnessDuration = v)
+                .build());
+
+        // 3e. Patrol Influence Range (2-8 VCs → 32-128 blocks)
+        decay.add(eb.startIntSlider(
+                        Component.translatable("civil.config.simple.patrolRange"),
+                        CivilConfig.simplePatrolRange, 2, 8)
+                .setDefaultValue(3)
+                .setTextGetter(val -> {
+                    int blocks = val * 16;
+                    return Component.translatable("civil.config.slider.patrolRange", blocks);
+                })
+                .setSaveConsumer(v -> CivilConfig.simplePatrolRange = v)
+                .build());
+
+        cat.addEntry(decay.build());
+
+        // ── 4. Farm shrine (collapsible) ──
+        SubCategoryBuilder farmShrine = eb.startSubCategory(
+                Component.translatable("civil.config.subcategory.farmShrine"));
+        farmShrine.setExpanded(false);
+        farmShrine.setTooltip(
+                Component.translatable("civil.config.subcategory.farmShrine.tooltip.1"),
+                Component.translatable("civil.config.subcategory.farmShrine.tooltip.2"),
+                Component.translatable("civil.config.subcategory.farmShrine.tooltip.3"));
+
+        if (CivilConfig.hasRawOverride(CivilConfig.PARAM_SHRINE_SUPPRESS)) {
+            farmShrine.add(eb.startTextDescription(
+                    Component.translatable("civil.config.override.warning")).build());
+        }
+        farmShrine.add(eb.startIntSlider(
+                        Component.translatable("civil.config.simple.shrineSuppressStrength"),
+                        CivilConfig.simpleShrineSuppressStrength, 1, 10)
+                .setDefaultValue(5)
+                .setTextGetter(val -> {
+                    double lambda = 0.03 * val;
+                    String lambdaStr = String.format("%.2f", lambda);
+                    return Component.translatable("civil.config.slider.shrineSuppressStrength", val, lambdaStr);
+                })
+                .setSaveConsumer(v -> CivilConfig.simpleShrineSuppressStrength = v)
+                .build());
+
+        farmShrine.add(eb.startIntSlider(
+                        Component.translatable("civil.config.simple.shrineSuppressRange"),
+                        CivilConfig.simpleShrineSuppressRange, 3, 10)
+                .setDefaultValue(8)
+                .setTextGetter(val -> {
+                    int blocks = val * 16;
+                    return Component.translatable("civil.config.slider.shrineSuppressRange", blocks);
+                })
+                .setSaveConsumer(v -> CivilConfig.simpleShrineSuppressRange = v)
+                .build());
+
+        cat.addEntry(farmShrine.build());
+
+        // ── Podium of Undying (collapsible, second-to-last) ──
+        SubCategoryBuilder podium = eb.startSubCategory(
+                Component.translatable("civil.config.subcategory.podiumOfUndying"));
+        podium.setExpanded(false);
+        podium.setTooltip(
+                Component.translatable("civil.config.subcategory.podiumOfUndying.tooltip.1"),
+                Component.translatable("civil.config.subcategory.podiumOfUndying.tooltip.2"),
+                Component.translatable("civil.config.subcategory.podiumOfUndying.tooltip.3"));
+
+        podium.add(eb.startBooleanToggle(
+                        Component.translatable("civil.config.undyingAnchor.enabled"),
+                        CivilConfig.undyingAnchorEnabled)
+                .setDefaultValue(true)
+                .setSaveConsumer(v -> CivilConfig.undyingAnchorEnabled = v)
+                .build());
+
+        podium.add(eb.startIntSlider(
+                        Component.translatable("civil.config.undyingAnchor.maxSearchRadius"),
+                        undyingSearchRadiusToIndex(CivilConfig.undyingAnchorMaxSearchRadius), 0, UNDYING_SEARCH_IDX_MAX)
+                .setDefaultValue(undyingSearchRadiusToIndex(128))
+                .setTextGetter(idx -> {
+                    int blocks = undyingSearchIndexToBlocks(idx);
+                    return Component.translatable("civil.config.slider.undyingAnchorRadius", blocks);
+                })
+                .setSaveConsumer(idx -> CivilConfig.undyingAnchorMaxSearchRadius = undyingSearchIndexToBlocks(idx))
+                .build());
+
+        podium.add(eb.startIntSlider(
+                        Component.translatable("civil.config.undyingAnchor.cooldownSeconds"),
+                        CivilConfig.undyingAnchorGlobalCooldownSeconds, 1, 300)
+                .setDefaultValue(10)
+                .setTextGetter(val -> Component.translatable("civil.config.slider.undyingAnchorCooldown", val))
+                .setSaveConsumer(v -> CivilConfig.undyingAnchorGlobalCooldownSeconds = v)
+                .build());
+
+        cat.addEntry(podium.build());
+
+        if (CivilPlatform.isModLoaded("journeymap")
+                || (CivilPlatform.isModLoaded("xaerominimap")
+                        && CivilPlatform.isModLoaded("xaeroworldmap"))) {
+            SubCategoryBuilder chunkBand = eb.startSubCategory(
+                    Component.translatable("civil.config.subcategory.chunkBand"));
+            chunkBand.setExpanded(false);
+            chunkBand.setTooltip(
+                    Component.translatable("civil.config.subcategory.chunkBand.tooltip.1"),
+                    Component.translatable("civil.config.subcategory.chunkBand.tooltip.2"));
+            if (CivilPlatform.isModLoaded("journeymap")) {
+                chunkBand.add(eb.startBooleanToggle(
+                                Component.translatable("civil.config.chunkBand.clientEnabled.journeymap"),
+                                CivilConfig.chunkBandClientEnabledJourneyMap)
+                        .setDefaultValue(true)
+                        .setSaveConsumer(v -> CivilConfig.chunkBandClientEnabledJourneyMap = v)
+                        .build());
+            }
+            if (CivilPlatform.isModLoaded("xaerominimap")
+                    && CivilPlatform.isModLoaded("xaeroworldmap")) {
+                chunkBand.add(eb.startBooleanToggle(
+                                Component.translatable("civil.config.chunkBand.clientEnabled.xaeros"),
+                                CivilConfig.chunkBandClientEnabledXaeros)
+                        .setDefaultValue(true)
+                        .setSaveConsumer(v -> CivilConfig.chunkBandClientEnabledXaeros = v)
+                        .build());
+            }
+            chunkBand.add(eb.startIntSlider(
+                            Component.translatable("civil.config.chunkBand.exploreRadius"),
+                            CivilConfig.chunkBandRadiusChunks, 4, 8)
+                    .setDefaultValue(4)
+                    .setTooltip(Component.translatable("civil.config.chunkBand.exploreRadius.tooltip"))
+                    .setTextGetter(val -> val >= 6
+                            ? Component.translatable("civil.config.slider.chunkBandExploreRadius.warn", val)
+                            : Component.translatable("civil.config.slider.chunkBandExploreRadius", val))
+                    .setSaveConsumer(v -> CivilConfig.chunkBandRadiusChunks = v)
+                    .build());
+            cat.addEntry(chunkBand.build());
+        }
+
+        // ── Zone transition HUD (collapsible) ──
+        SubCategoryBuilder zoneHud = eb.startSubCategory(
+                Component.translatable("civil.config.subcategory.zoneTransitionHud"));
+        zoneHud.setExpanded(false);
+        zoneHud.setTooltip(
+                Component.translatable("civil.config.subcategory.zoneTransitionHud.tooltip.1"),
+                Component.translatable("civil.config.subcategory.zoneTransitionHud.tooltip.2"));
+
+        zoneHud.add(eb.startBooleanToggle(
+                        Component.translatable("civil.config.ui.zoneTransitionHudEnabled"),
+                        CivilConfig.zoneTransitionHudEnabled)
+                .setDefaultValue(true)
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionHudEnabled = v)
+                .build());
+
+        zoneHud.add(eb.startStrField(
+                        Component.translatable("civil.config.ui.zoneTransitionLabel.civilized"),
+                        CivilConfig.zoneTransitionLabelCivilized)
+                .setDefaultValue("")
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionLabelCivilized = CivilConfig.sanitizeZoneTransitionLabel(v))
+                .build());
+        zoneHud.add(eb.startStrField(
+                        Component.translatable("civil.config.ui.zoneTransitionLabel.wilderness"),
+                        CivilConfig.zoneTransitionLabelWilderness)
+                .setDefaultValue("")
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionLabelWilderness = CivilConfig.sanitizeZoneTransitionLabel(v))
+                .build());
+        zoneHud.add(eb.startStrField(
+                        Component.translatable("civil.config.ui.zoneTransitionLabel.caution"),
+                        CivilConfig.zoneTransitionLabelCaution)
+                .setDefaultValue("")
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionLabelCaution = CivilConfig.sanitizeZoneTransitionLabel(v))
+                .build());
+        zoneHud.add(eb.startStrField(
+                        Component.translatable("civil.config.ui.zoneTransitionLabel.shrine"),
+                        CivilConfig.zoneTransitionLabelShrine)
+                .setDefaultValue("")
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionLabelShrine = CivilConfig.sanitizeZoneTransitionLabel(v))
+                .build());
+
+        zoneHud.add(eb.startIntSlider(
+                        Component.translatable("civil.config.ui.zoneTransitionHudCooldownSeconds"),
+                        CivilConfig.zoneTransitionHudCooldownSeconds, 0, 60)
+                .setDefaultValue(10)
+                .setTextGetter(val -> val == 0
+                        ? Component.translatable("civil.config.slider.zoneTransitionHudCooldown.off")
+                        : Component.translatable("civil.config.slider.zoneTransitionHudCooldown", val))
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionHudCooldownSeconds = v)
+                .build());
+
+        zoneHud.add(eb.startIntSlider(
+                        Component.translatable("civil.config.ui.zoneTransitionHudAnchorOffsetXPercent"),
+                        CivilConfig.zoneTransitionHudAnchorOffsetXPercent, -50, 50)
+                .setDefaultValue(0)
+                .setTextGetter(val -> Component.literal(String.format(Locale.ROOT, "%+d%%", val)))
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionHudAnchorOffsetXPercent = v)
+                .build());
+
+        zoneHud.add(eb.startIntSlider(
+                        Component.translatable("civil.config.ui.zoneTransitionHudAnchorOffsetYPercent"),
+                        CivilConfig.zoneTransitionHudAnchorOffsetYPercent, -50, 50)
+                .setDefaultValue(30)
+                .setTextGetter(val -> Component.literal(String.format(Locale.ROOT, "%+d%%", val)))
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionHudAnchorOffsetYPercent = v)
+                .build());
+
+        zoneHud.add(eb.startIntSlider(
+                        Component.translatable("civil.config.ui.zoneTransitionHudFontScalePercent"),
+                        Math.max(50, Math.min(500, CivilConfig.zoneTransitionHudFontScalePercent)), 50, 500)
+                .setDefaultValue(100)
+                .setTextGetter(val -> Component.literal(String.format(Locale.ROOT, "%d%%", val)))
+                .setSaveConsumer(v -> CivilConfig.zoneTransitionHudFontScalePercent = v)
+                .build());
+
+        cat.addEntry(zoneHud.build());
+
+        // ── Miscellaneous (collapsible, last) ──
+        SubCategoryBuilder misc = eb.startSubCategory(
+                Component.translatable("civil.config.subcategory.miscellaneous"));
+        misc.setExpanded(false);
+        misc.setTooltip(
+                Component.translatable("civil.config.subcategory.miscellaneous.tooltip.1"),
+                Component.translatable("civil.config.subcategory.miscellaneous.tooltip.2"));
+
+        misc.add(eb.startBooleanToggle(
+                        Component.translatable("civil.config.mobFlee.enabled"),
+                        CivilConfig.mobFleeEnabled)
+                .setDefaultValue(true)
+                .setTooltip(
+                        Component.translatable("civil.config.subcategory.mobFlee.tooltip.1"))
+                .setSaveConsumer(v -> CivilConfig.mobFleeEnabled = v)
+                .build());
+
+        misc.add(eb.startBooleanToggle(
+                        Component.translatable("civil.config.presenceKeepalive.enabled"),
+                        CivilConfig.presenceKeepaliveEnabled)
+                .setDefaultValue(true)
+                .setTooltip(
+                        Component.translatable("civil.config.presenceKeepalive.tooltip.1"))
+                .setSaveConsumer(v -> CivilConfig.presenceKeepaliveEnabled = v)
+                .build());
+
+        cat.addEntry(misc.build());
+
+        return builder.build();
+    }
+}

@@ -1,0 +1,38 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "civil:item/civil_detector"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "civil:display_state": 0.25
+      },
+      "model": "civil:item/civil_detector_low"
+    },
+    {
+      "predicate": {
+        "civil:display_state": 0.5
+      },
+      "model": "civil:item/civil_detector_medium"
+    },
+    {
+      "predicate": {
+        "civil:display_state": 0.75
+      },
+      "model": "civil:item/civil_detector_high"
+    },
+    {
+      "predicate": {
+        "civil:display_state": 0.875
+      },
+      "model": "civil:item/civil_detector_zone"
+    },
+    {
+      "predicate": {
+        "civil:display_state": 1.0
+      },
+      "model": "civil:item/civil_detector_monster"
+    }
+  ]
+}

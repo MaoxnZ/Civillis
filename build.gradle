@@ -1,0 +1,238 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'architectury-plugin' version '3.4-SNAPSHOT'
+    id 'dev.architectury.loom' version '1.9.428'
+    id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
+}
+
+base {
+    archivesName = "$rootProject.archive_base_name-common"
+}
+
+architectury {
+    common(project.enabled_platforms.split(','))
+}
+
+loom {
+    accessWidenerPath = file("src/main/resources/civil.accesswidener")
+    mixin {
+        defaultRefmapName = "civil.refmap.json"
+    }
+    runConfigs.configureEach {
+        ideConfigGenerated = false
+    }
+}
+
+def mcRangeToLabel = { String range ->
+    if (!range) return "mc${rootProject.minecraft_version}"
+    def normalized = range.trim()
+
+    if (normalized ==~ /^\d+\.\d+\.\d+$/) {
+        return "mc${normalized}"
+    }
+
+    def fabricRange = (normalized =~ /^>=\s*(\d+\.\d+\.\d+)\s*<=\s*(\d+\.\d+\.\d+)$/)
+    if (fabricRange.matches()) {
+        def lower = fabricRange[0][1]
+        def upper = fabricRange[0][2]
+        return lower == upper ? "mc${lower}" : "mc${lower}-${upper}"
+    }
+
+    // Forge/NeoForge metadata usually uses [lower, upper)
+    def bracketRange = (normalized =~ /^\[\s*(\d+\.\d+\.\d+)\s*,\s*(\d+\.\d+\.\d+)\s*\)$/)
+    if (bracketRange.matches()) {
+        def lower = bracketRange[0][1]
+        def upperParts = bracketRange[0][2].tokenize('.').collect { it as int }
+        if (upperParts.size() == 3 && upperParts[2] > 0) {
+            upperParts[2] = upperParts[2] - 1
+        }
+        def inclusiveUpper = upperParts.join('.')
+        return lower == inclusiveUpper ? "mc${lower}" : "mc${lower}-${inclusiveUpper}"
+    }
+
+    return "mc${rootProject.minecraft_version}"
+}
+
+def declaredMcRange =
+        (findProperty('neoforge_minecraft_version_range')
+                ?: findProperty('forge_minecraft_version_range')
+                ?: findProperty('fabric_minecraft_version_range')) as String
+ext.mcSupportSuffix = mcRangeToLabel(declaredMcRange)
+
+dependencies {
+    minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+    mappings loom.layered {
+        officialMojangMappings()
+    }
+
+    modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+    annotationProcessor "org.spongepowered:mixin:0.8.5:processor"
+
+    modCompileOnly("me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}") {
+        exclude(group: "net.fabricmc.fabric-api")
+    }
+
+    // Optional at runtime: Moonlight map CustomMapData API (compile-only; no bundled download).
+    modCompileOnly "maven.modrinth:moonlight:1.20-2.14.12-fabric"
+
+    // Optional at runtime: JourneyMap (compile-only; full jar for client API; `compat.journeymap` only).
+    modCompileOnly "maven.modrinth:journeymap:1.20.1-5.10.3-forge"
+
+    // Optional at runtime: Xaero's World Map + Minimap (compile-only; mixin targets locked to these Fabric 1.20.1 jars).
+    modCompileOnly "maven.modrinth:xaeros-world-map:fabric-1.20.1-1.40.11"
+    modCompileOnly "maven.modrinth:xaeros-minimap:fabric-1.20.1-25.3.10"
+
+    // XaeroLib is nested inside the WM Modrinth jar; compile needs the extracted copy at `libs/xaerolib-fabric-1.20.1-1.1.0.jar`.
+    modCompileOnly files("libs/xaerolib-fabric-1.20.1-1.1.0.jar")
+}
+
+allprojects {
+    apply plugin: 'java'
+    apply plugin: 'maven-publish'
+    apply plugin: 'architectury-plugin'
+    apply plugin: 'dev.architectury.loom'
+
+    group = rootProject.maven_group
+    version = rootProject.mod_version
+
+    architectury {
+        minecraft = rootProject.minecraft_version
+    }
+
+    repositories {
+        maven { url 'https://maven.shedaniel.me/' }
+        maven { url 'https://maven.terraformersmc.com/releases/' }
+        maven { url 'https://maven.minecraftforge.net/' }
+        maven { url 'https://maven.blamejared.com' }
+        maven { url 'https://api.modrinth.com/maven' }
+        mavenCentral()
+    }
+
+    dependencies {
+        minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+        mappings loom.layered {
+            officialMojangMappings()
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.release = 17
+    }
+
+    java {
+        withSourcesJar()
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    jar {
+        from('LICENSE') {
+            rename { "${it}_${rootProject.archive_base_name}" }
+        }
+    }
+
+    publishing {
+        repositories {
+            mavenLocal()
+        }
+    }
+
+    var generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
+        var props = [
+                mod_id                          : rootProject.mod_id,
+                mod_version                     : rootProject.mod_version,
+                mod_name                        : rootProject.mod_name,
+                mod_description                 : rootProject.mod_description,
+                mod_authors                     : rootProject.mod_authors,
+                mod_license                     : rootProject.mod_license,
+                mod_homepage                    : rootProject.mod_homepage,
+                maven_group                     : rootProject.maven_group,
+                archive_base_name               : rootProject.archive_base_name,
+                minecraft_version               : rootProject.minecraft_version,
+                fabric_loader_version           : rootProject.fabric_loader_version,
+                fabric_api_version              : rootProject.fabric_api_version,
+                fabric_minecraft_version_range  : rootProject.fabric_minecraft_version_range,
+                fabric_loader_version_range     : rootProject.fabric_loader_version_range,
+                forge_version                   : rootProject.forge_version,
+                forge_minecraft_version_range   : rootProject.forge_minecraft_version_range,
+                forge_loader_version_range      : rootProject.forge_loader_version_range,
+                forge_version_range             : rootProject.forge_version_range,
+        ]
+        inputs.properties props
+        expand props
+        from 'src/main/templates'
+        into 'build/generated/sources/mod-metadata'
+    }
+    sourceSets.main.resources.srcDir generateModMetadata
+    processResources.dependsOn generateModMetadata
+}
+
+subprojects {
+    apply plugin: 'com.github.johnrengelman.shadow'
+
+    base {
+        archivesName = "$rootProject.archive_base_name-${loom.platform.get().id()}"
+    }
+
+    loom {
+        runs {
+            client {
+                client()
+                runDir '../run'
+                property 'file.encoding', 'COMPAT'
+            }
+            server {
+                server()
+                runDir '../run'
+                property 'file.encoding', 'COMPAT'
+            }
+        }
+    }
+
+    configurations {
+        common {
+            canBeResolved = true
+            canBeConsumed = false
+        }
+        compileClasspath.extendsFrom common
+        runtimeClasspath.extendsFrom common
+        developmentFabric.extendsFrom common
+        try { developmentForge.extendsFrom common } catch (Exception ignored) {}
+
+        shadowBundle {
+            canBeResolved = true
+            canBeConsumed = false
+        }
+    }
+
+    shadowJar {
+        exclude 'architectury.common.json'
+        configurations = [project.configurations.shadowBundle]
+        archiveClassifier = 'dev-shadow'
+        archiveFileName.set("${project.base.archivesName.get()}-${project.version}+${rootProject.mcSupportSuffix}-dev-shadow.jar")
+    }
+
+    remapJar {
+        input.set shadowJar.archiveFile
+        archiveFileName.set("${project.base.archivesName.get()}-${project.version}+${rootProject.mcSupportSuffix}.jar")
+    }
+
+    sourcesJar {
+        def commonSources = rootProject.sourcesJar
+        dependsOn commonSources
+        from commonSources.archiveFile.map { zipTree(it) }
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        archiveFileName.set("${project.base.archivesName.get()}-${project.version}+${rootProject.mcSupportSuffix}-sources.jar")
+    }
+
+    publishing {
+        publications {
+            maven(MavenPublication) {
+                artifactId = project.base.archivesName.get()
+                from components.java
+            }
+        }
+    }
+}

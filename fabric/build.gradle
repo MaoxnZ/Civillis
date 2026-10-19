@@ -1,0 +1,38 @@
+architectury {
+    platformSetupLoomIde()
+    fabric()
+}
+
+loom {
+    accessWidenerPath = project.rootProject.file("src/main/resources/civil.accesswidener")
+}
+
+tasks.named("processResources", ProcessResources).configure {
+    from(rootProject.file("src/main/resources/civil.accesswidener"))
+}
+
+dependencies {
+    modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
+
+    modImplementation("me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}") {
+        exclude(group: "net.fabricmc.fabric-api")
+    }
+    modImplementation("com.terraformersmc:modmenu:${rootProject.modmenu_version}") {
+        exclude(group: "net.fabricmc.fabric-api")
+    }
+
+    // Common Xaero mixins are modCompileOnly on `:`. Architectury dev transformer still rewrites the merged
+    // jar and needs xaero types on the transformer classpath (TypeNotPresentException: xaero/common/HudMod).
+    modLocalRuntime "maven.modrinth:xaeros-minimap:fabric-1.20.1-25.3.10"
+    modLocalRuntime "maven.modrinth:xaeros-world-map:fabric-1.20.1-1.40.11"
+    // Fabric WM/MM JiJ xaerolib lives under META-INF/jars/; Fabric Loader does not always surface it in dev — load explicitly.
+    modLocalRuntime files(file('dev-runtime-libs/xaerolib-fabric-1.20.1-1.1.0.jar'))
+
+    // Fabric JM nests API under META-INF/jars; Architectury Transformer needs PolygonOverlay on a flat classpath.
+    // Same pattern as xaerolib: checked-in dev-only jar (not bundled in release).
+    modLocalRuntime files(file('dev-runtime-libs/journeymap-api-fabric-1.20.1.jar'))
+
+    common(project(path: ':', configuration: 'namedElements')) { transitive false }
+    shadowBundle project(path: ':', configuration: 'transformProductionFabric')
+}

@@ -1,0 +1,35 @@
+{
+  "_comment": [
+    "Civil mod compatibility: Applied Energistics 2 (ae2).",
+    "Block IDs verified against Ae2 namespace entries 1.20.1.",
+    "If the mod is not installed, these entries are safely ignored."
+  ],
+  "replace": false,
+  "entries": [
+    { "block": "ae2:controller",                       "weight": 1.5 },
+
+    { "block": "ae2:charger",                          "weight": 0.5 },
+    { "block": "ae2:inscriber",                        "weight": 0.5 },
+    { "block": "ae2:cell_workbench",                   "weight": 0.5 },
+
+    { "block": "ae2:molecular_assembler",              "weight": 0.4 },
+    { "block": "ae2:crystal_resonance_generator",      "weight": 0.4 },
+    { "block": "ae2:io_port",                          "weight": 0.4 },
+    { "block": "ae2:interface",                        "weight": 0.4 },
+    { "block": "ae2:vibration_chamber",                "weight": 0.4 },
+
+    { "block": "ae2:sky_stone_chest",                  "weight": 0.3 },
+    { "block": "ae2:smooth_sky_stone_chest",           "weight": 0.3 },
+    { "block": "ae2:drive",                            "weight": 0.3 },
+    { "block": "ae2:chest",                            "weight": 0.3 },
+    { "block": "ae2:energy_cell",                      "weight": 0.3 },
+    { "block": "ae2:dense_energy_cell",                "weight": 0.3 },
+    { "block": "ae2:crafting_monitor",                 "weight": 0.3 },
+    { "block": "ae2:pattern_provider",                 "weight": 0.3 },
+    { "block": "ae2:crafting_unit",                    "weight": 0.3 },
+    { "block": "ae2:crafting_accelerator",             "weight": 0.3 },
+
+    { "block": "ae2:sky_stone_tank",                   "weight": 0.1 },
+    { "block": "ae2:growth_accelerator",               "weight": 0.1 }
+  ]
+}

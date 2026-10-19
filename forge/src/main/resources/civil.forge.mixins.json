@@ -1,0 +1,28 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "civil.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "CivilMapItemUpdateTintMixin",
+    "CivilCartographyTableMenuMixin",
+    "CivilLevelBlockChangeMixin",
+    "CivilMobGoalMixin",
+    "CivilServerLevelSpawnGateMixin",
+    "CivilSpawnHelperMixin",
+    "CivilLecternBlockUseMixin",
+    "CivilTownCenterBlockBreakMixin",
+    "CivilTownCenterExplosionBlockMixin",
+    "CivilTownCenterWorldDestroyMixin"
+  ],
+  "client": [
+    "CivilGameRendererFovMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}
+

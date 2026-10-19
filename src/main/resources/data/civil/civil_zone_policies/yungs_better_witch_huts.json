@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "entries": [
+    {
+      "id": "betterwitchhuts_all",
+      "structures": [
+        "betterwitchhuts:witch_circle",
+        "betterwitchhuts:witch_hut"
+      ],
+      "rules": {
+        "allow_hostile_spawn": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "replace": false,
+  "entries": [
+    {
+      "id": "cataclysm_all",
+      "structures": [
+        "cataclysm:abandoned_spire",
+        "cataclysm:abandoned_temple",
+        "cataclysm:abandoned_village",
+        "cataclysm:acropolis",
+        "cataclysm:amethyst_nest",
+        "cataclysm:ancient_factory",
+        "cataclysm:burning_arena",
+        "cataclysm:cursed_pyramid",
+        "cataclysm:desert_occupied_village",
+        "cataclysm:desert_site",
+        "cataclysm:desert_temple",
+        "cataclysm:frosted_prison",
+        "cataclysm:ruined_citadel",
+        "cataclysm:soul_black_smith",
+        "cataclysm:sunken_city"
+      ],
+      "rules": {
+        "allow_hostile_spawn": true
+      }
+    }
+  ]
+}

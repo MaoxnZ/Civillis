@@ -1,0 +1,35 @@
+architectury {
+    platformSetupLoomIde()
+    forge()
+}
+
+loom {
+    accessWidenerPath = project.rootProject.file("src/main/resources/civil.accesswidener")
+    forge {
+        mixinConfig "civil.forge.mixins.json"
+        mixinConfig "civil.moonlight.mixins.json"
+        mixinConfig "civil.xaeros-worldmap.mixins.json"
+        mixinConfig "civil.xaeros-minimap.mixins.json"
+        convertAccessWideners = true
+    }
+}
+
+dependencies {
+    forge "net.minecraftforge:forge:${rootProject.minecraft_version}-${rootProject.forge_version}"
+
+    modImplementation("me.shedaniel.cloth:cloth-config-forge:${rootProject.cloth_config_version}")
+
+    // Common mixins target Xaero with modCompileOnly only; Forge dev client must still resolve xaero types
+    // when Architectury Transformer rewrites bytecode (otherwise TypeNotPresentException: xaero/common/HudMod).
+    modLocalRuntime "maven.modrinth:xaeros-minimap:forge-1.20.1-25.3.10"
+    modLocalRuntime "maven.modrinth:xaeros-world-map:forge-1.20.1-1.40.11"
+    // JiJ xaerolib inside the jars above is not always visible to FML in userdev; ship a copy extracted from WM 1.40.11.
+    modLocalRuntime files(file('dev-runtime-libs/xaerolib-forge-1.20.1-1.1.0.jar'))
+
+    // Slim `journeymap/client/api` slice from the Forge JM jar for Architectury Transformer (PolygonOverlay in common).
+    // Same dev-runtime-libs pattern as Fabric (Fabric uses nested JiJ api; Forge embeds api in the fat jar).
+    modLocalRuntime files(file('dev-runtime-libs/journeymap-api-forge-1.20.1.jar'))
+
+    common(project(path: ':', configuration: 'namedElements')) { transitive false }
+    shadowBundle project(path: ':', configuration: 'transformProductionForge')
+}

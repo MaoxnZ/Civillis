@@ -1,0 +1,38 @@
+{
+  "parent": "civil:guide/items/detector_crafted",
+  "display": {
+    "icon": {
+      "item": "minecraft:filled_map"
+    },
+    "title": {
+      "translate": "civil.advancement.guide.map_crafted.title"
+    },
+    "description": {
+      "translate": "civil.advancement.guide.map_crafted.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "has_civil_map": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["minecraft:filled_map"],
+            "nbt": "{\"civil:civil_map\":1b}"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "has_civil_map"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "civil:civil_detector_map_upgrade"
+    ]
+  }
+}

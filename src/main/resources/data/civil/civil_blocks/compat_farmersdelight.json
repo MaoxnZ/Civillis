@@ -1,0 +1,28 @@
+{
+  "_comment": [
+    "Civil mod compatibility: Farmer's Delight (farmersdelight).",
+    "If the mod is not installed, these entries are safely ignored.",
+    "",
+    "Note: Farmer's Delight registers one cabinet per wood type",
+    "(oak, spruce, birch, jungle, acacia, dark_oak, mangrove,",
+    "cherry, bamboo, crimson, warped). All are listed here."
+  ],
+  "replace": false,
+  "entries": [
+    { "block": "farmersdelight:stove",            "weight": 0.5 },
+    { "block": "farmersdelight:cooking_pot",      "weight": 0.5 },
+    { "block": "farmersdelight:cutting_board",    "weight": 0.3 },
+    { "block": "farmersdelight:basket",           "weight": 0.3 },
+    { "block": "farmersdelight:oak_cabinet",      "weight": 0.4 },
+    { "block": "farmersdelight:spruce_cabinet",   "weight": 0.4 },
+    { "block": "farmersdelight:birch_cabinet",    "weight": 0.4 },
+    { "block": "farmersdelight:jungle_cabinet",   "weight": 0.4 },
+    { "block": "farmersdelight:acacia_cabinet",   "weight": 0.4 },
+    { "block": "farmersdelight:dark_oak_cabinet", "weight": 0.4 },
+    { "block": "farmersdelight:mangrove_cabinet", "weight": 0.4 },
+    { "block": "farmersdelight:cherry_cabinet",   "weight": 0.4 },
+    { "block": "farmersdelight:bamboo_cabinet",   "weight": 0.4 },
+    { "block": "farmersdelight:crimson_cabinet",  "weight": 0.4 },
+    { "block": "farmersdelight:warped_cabinet",   "weight": 0.4 }
+  ]
+}

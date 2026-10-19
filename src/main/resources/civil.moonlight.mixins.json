@@ -1,0 +1,11 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "plugin": "civil.compat.moonlight.mixin.CivilOptionalMoonlightMixinPlugin",
+  "package": "civil.compat.moonlight.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}
