@@ -1,0 +1,34 @@
+architectury {
+    platformSetupLoomIde()
+    fabric()
+}
+
+loom {
+    accessWidenerPath = project.rootProject.file("src/main/resources/civil.accesswidener")
+}
+
+tasks.named("processResources", ProcessResources).configure {
+    from(rootProject.file("src/main/resources/civil.accesswidener"))
+}
+
+// Optional: gradlew :fabric:patchXaeroLibDevJar — refresh -dev xaerolib after updating libs/xaerolib-fabric-*.jar
+apply from: 'xaero-dev-runtime.gradle'
+
+dependencies {
+    modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+    modApi "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
+
+    modImplementation("com.terraformersmc:modmenu:${rootProject.modmenu_version}")
+    modImplementation("me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}") {
+        exclude(group: "net.fabricmc.fabric-api")
+    }
+
+    // Dev client: pre-stripped WM/MM (no META-INF/jars xaerolib), patched xaerolib, JM API — see xaero-dev-runtime.gradle.
+    modLocalRuntime files(file('dev-runtime-libs/xaeros-world-map-fabric-1.21.1-1.40.11-no-jij.jar'))
+    modLocalRuntime files(file('dev-runtime-libs/xaeros-minimap-fabric-1.21.1-25.3.10-no-jij.jar'))
+    modLocalRuntime files(file('dev-runtime-libs/xaerolib-fabric-1.21.1-1.1.0-dev.jar'))
+    modLocalRuntime files(file('dev-runtime-libs/journeymap-api-fabric-2.0.0-1.21.1-SNAPSHOT.jar'))
+
+    common(project(path: ':', configuration: 'namedElements')) { transitive false }
+    shadowBundle project(path: ':', configuration: 'transformProductionFabric')
+}

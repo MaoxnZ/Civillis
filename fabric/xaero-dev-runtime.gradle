@@ -1,0 +1,64 @@
+// Regenerate dev-runtime xaerolib when upstream libs/xaerolib-fabric-*.jar changes:
+//   gradlew :fabric:patchXaeroLibDevJar
+//
+// Loom 1.13 + official mappings: tiny-remapper remaps xaerolib types from files() but can
+// leave ResourceManagerReloadListener overrides as intermediary method names when the
+// inheritance goes through Fabric API. Pre-rename method_14491 → onResourceManagerReload
+// so the dev client classpath matches named Minecraft.
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.ow2.asm:asm:9.7'
+    }
+}
+
+import org.objectweb.asm.*
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
+
+tasks.register('patchXaeroLibDevJar') {
+    group = 'civil dev setup'
+    description = 'Writes dev-runtime-libs/xaerolib-fabric-1.21.1-1.1.0-dev.jar from libs/xaerolib-fabric-1.21.1-1.1.0.jar'
+
+    def src = rootProject.file('libs/xaerolib-fabric-1.21.1-1.1.0.jar')
+    def dst = file('dev-runtime-libs/xaerolib-fabric-1.21.1-1.1.0-dev.jar')
+    inputs.file(src)
+    outputs.file(dst)
+
+    doLast {
+        if (!src.exists()) {
+            throw new GradleException("Missing ${src} — extract xaerolib from Xaero WM Modrinth jar into libs/ first.")
+        }
+        dst.parentFile.mkdirs()
+        def targetClass = 'xaero/lib/common/resource/ShaderResourceReloadListener.class'
+        new ZipFile(src).withCloseable { zin ->
+            new ZipOutputStream(dst.newOutputStream()).withCloseable { zout ->
+                for (def e = zin.entries(); e.hasMoreElements();) {
+                    def entry = e.nextElement()
+                    zout.putNextEntry(new ZipEntry(entry.name))
+                    if (entry.name == targetClass) {
+                        def cr = new ClassReader(zin.getInputStream(entry))
+                        def cw = new ClassWriter(0)
+                        cr.accept(new ClassVisitor(Opcodes.ASM9, cw) {
+                            @Override
+                            MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] ex) {
+                                if (name == 'method_14491') {
+                                    name = 'onResourceManagerReload'
+                                }
+                                return super.visitMethod(access, name, desc, sig, ex)
+                            }
+                        }, 0)
+                        zout.write(cw.toByteArray())
+                    } else if (!entry.directory) {
+                        zin.getInputStream(entry).transferTo(zout)
+                    }
+                    zout.closeEntry()
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,502 @@
+package civil.civilization.storage;
+
+import civil.CivilMod;
+import civil.civilization.BaseScoreSourceRegistry;
+import civil.civilization.CScore;
+import civil.civilization.VoxelChunkKey;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.Tag;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.storage.LevelResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+/**
+ * NBT-based storage implementation for {@link CivilStorage}.
+ *
+ * <p>Phase 0: Stub — structure load returns empty, L1 returns null/empty.
+ * Phase 1: meta, mob_heads, undying_anchors load/flush.
+ * Phase 2–4: L1 region format, bulk load, unified flush.
+ */
+public final class NbtStorage implements CivilStorage {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("civil-storage");
+    private static final int DATA_SCHEMA_VERSION = 1;
+
+    /** Recreated on re-initialize after close; executor is terminated after close(). */
+    private volatile ColdIOQueue coldQueue = new ColdIOQueue();
+    private volatile Path basePath;
+    private volatile boolean closed;
+
+    @Override
+    public void initialize(ServerLevel world) {
+        basePath = world.getServer().getWorldPath(LevelResource.ROOT).resolve("data").resolve("civil");
+        try {
+            Files.createDirectories(basePath);
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Could not create data dir: {}", e.getMessage());
+        }
+        if (closed) {
+            coldQueue = new ColdIOQueue();
+        }
+        closed = false;
+        if (CivilMod.DEBUG) {
+            LOGGER.info("[civil-storage] NBT storage initialized: {}", basePath);
+        }
+    }
+
+    @Override
+    public void close() {
+        closed = true;
+        coldQueue.shutdown(5);
+    }
+
+    @Override
+    public long loadServerClockMillis() {
+        Path p = resolve("meta.nbt");
+        if (p == null || !Files.isRegularFile(p)) return 0;
+        try {
+            CompoundTag tag = NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap());
+            if (tag != null && tag.contains("serverClockMillis")) {
+                return tag.getLong("serverClockMillis");
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to load meta.nbt: {}", e.getMessage());
+        }
+        return 0;
+    }
+
+    @Override
+    public void writeMeta(long serverClockMillis) {
+        Path p = resolve("meta.nbt");
+        if (p == null) return;
+        try {
+            CompoundTag tag = new CompoundTag();
+            tag.putLong("serverClockMillis", serverClockMillis);
+            tag.putInt("dataSchemaVersion", DATA_SCHEMA_VERSION);
+            String modVersion = CivilMod.class.getPackage() != null
+                    ? CivilMod.class.getPackage().getImplementationVersion()
+                    : null;
+            tag.putString("writtenByModVersion", modVersion == null ? "dev" : modVersion);
+            NbtIo.writeCompressed(tag, p);
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to write meta.nbt: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public List<StoredL1Entry> loadAllL1() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public CompletableFuture<Void> saveL1Async(String dim, VoxelChunkKey key, CScore cScore) {
+        // NBT: no per-key async write; use pendingScoreWrites + unified flush
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public long[] loadPresenceSync(String dim, VoxelChunkKey key) {
+        int rx = Math.floorDiv(key.getCx(), 32);
+        int rz = Math.floorDiv(key.getCz(), 32);
+        Map<VoxelChunkKey, L1Entry> region;
+        try {
+            region = bulkLoadRegion(dim, rx, rz).get(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOGGER.warn("[civil-storage] Bulk load region ({},{},{}) for presence interrupted", dim, rx, rz);
+            return null;
+        } catch (ExecutionException | TimeoutException e) {
+            LOGGER.warn("[civil-storage] Bulk load region ({},{},{}) for presence failed: {}", dim, rx, rz, e.getMessage());
+            return null;
+        }
+        L1Entry e = region.get(key);
+        if (e == null || (e.presenceTime() == 0 && e.lastRecoveryTime() == 0)) return null;
+        return new long[] { e.presenceTime(), e.lastRecoveryTime() };
+    }
+
+    @Override
+    public CompletableFuture<Void> batchSavePresenceAsync(List<PresenceSaveRequest> requests) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    private static final String MOB_HEADS_FILE = "mob_heads.nbt";
+    private static final String UNDYING_ANCHORS_FILE = "undying_anchors.nbt";
+    private static final String FARM_SHRINES_FILE = "farm_shrines.nbt";
+    private static final String TOWN_CENTERS_FILE = "town_centers.nbt";
+    private static final String BASE_SCORE_SOURCES_FILE = "base_score_sources.nbt";
+
+    @Override
+    public List<StoredMobHead> loadMobHeads() {
+        Path p = resolve(MOB_HEADS_FILE);
+        if (p == null || !Files.isRegularFile(p)) return Collections.emptyList();
+        try {
+            CompoundTag root = NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap());
+            if (root == null || !root.contains("entries")) return Collections.emptyList();
+            ListTag entries = root.getList("entries", Tag.TAG_COMPOUND);
+            List<StoredMobHead> out = new ArrayList<>(entries.size());
+            for (int i = 0; i < entries.size(); i++) {
+                CompoundTag e = entries.getCompound(i);
+                out.add(new StoredMobHead(
+                        e.getString("dim"),
+                        e.getInt("x"), e.getInt("y"), e.getInt("z"),
+                        e.getString("skullType")));
+            }
+            return out;
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to load mob_heads.nbt: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public void writeMobHeads(List<StoredMobHead> snapshot) {
+        Path p = resolve(MOB_HEADS_FILE);
+        if (p == null) return;
+        try {
+            ListTag entries = new ListTag();
+            for (StoredMobHead h : snapshot) {
+                CompoundTag e = new CompoundTag();
+                e.putString("dim", h.dim());
+                e.putInt("x", h.x());
+                e.putInt("y", h.y());
+                e.putInt("z", h.z());
+                e.putString("skullType", h.skullType());
+                entries.add(e);
+            }
+            CompoundTag root = new CompoundTag();
+            root.put("entries", entries);
+            NbtIo.writeCompressed(root, p);
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to write mob_heads.nbt: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public List<StoredUndyingAnchor> loadUndyingAnchors() {
+        Path p = resolve(UNDYING_ANCHORS_FILE);
+        if (p == null || !Files.isRegularFile(p)) return Collections.emptyList();
+        try {
+            CompoundTag root = NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap());
+            if (root == null || !root.contains("entries")) return Collections.emptyList();
+            ListTag entries = root.getList("entries", Tag.TAG_COMPOUND);
+            List<StoredUndyingAnchor> out = new ArrayList<>(entries.size());
+            for (int i = 0; i < entries.size(); i++) {
+                CompoundTag e = entries.getCompound(i);
+                out.add(new StoredUndyingAnchor(
+                        e.getString("dim"),
+                        e.getInt("x"), e.getInt("y"), e.getInt("z"),
+                        e.getBoolean("activated"),
+                        e.getLong("lastUsedGlobal")));
+            }
+            return out;
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to load undying_anchors.nbt: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public void writeUndyingAnchors(List<StoredUndyingAnchor> snapshot) {
+        Path p = resolve(UNDYING_ANCHORS_FILE);
+        if (p == null) return;
+        try {
+            ListTag entries = new ListTag();
+            for (StoredUndyingAnchor a : snapshot) {
+                CompoundTag e = new CompoundTag();
+                e.putString("dim", a.dim());
+                e.putInt("x", a.x());
+                e.putInt("y", a.y());
+                e.putInt("z", a.z());
+                e.putBoolean("activated", a.activated());
+                e.putLong("lastUsedGlobal", a.lastUsedGlobal());
+                entries.add(e);
+            }
+            CompoundTag root = new CompoundTag();
+            root.put("entries", entries);
+            NbtIo.writeCompressed(root, p);
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to write undying_anchors.nbt: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public List<StoredFarmShrine> loadFarmShrines() {
+        Path p = resolve(FARM_SHRINES_FILE);
+        if (p == null || !Files.isRegularFile(p)) return Collections.emptyList();
+        try {
+            CompoundTag root = NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap());
+            if (root == null || !root.contains("entries")) return Collections.emptyList();
+            ListTag entries = root.getList("entries", Tag.TAG_COMPOUND);
+            List<StoredFarmShrine> out = new ArrayList<>(entries.size());
+            for (int i = 0; i < entries.size(); i++) {
+                CompoundTag e = entries.getCompound(i);
+                out.add(new StoredFarmShrine(
+                        e.getString("dim"),
+                        e.getInt("x"), e.getInt("y"), e.getInt("z"),
+                        e.getBoolean("activated")));
+            }
+            return out;
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to load farm_shrines.nbt: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public void writeFarmShrines(List<StoredFarmShrine> snapshot) {
+        Path p = resolve(FARM_SHRINES_FILE);
+        if (p == null) return;
+        try {
+            ListTag entries = new ListTag();
+            for (StoredFarmShrine s : snapshot) {
+                CompoundTag e = new CompoundTag();
+                e.putString("dim", s.dim());
+                e.putInt("x", s.x());
+                e.putInt("y", s.y());
+                e.putInt("z", s.z());
+                e.putBoolean("activated", s.activated());
+                entries.add(e);
+            }
+            CompoundTag root = new CompoundTag();
+            root.put("entries", entries);
+            NbtIo.writeCompressed(root, p);
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to write farm_shrines.nbt: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public List<StoredTownCenter> loadTownCenters() {
+        Path p = resolve(TOWN_CENTERS_FILE);
+        if (p == null || !Files.isRegularFile(p)) return Collections.emptyList();
+        try {
+            CompoundTag root = NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap());
+            if (root == null || !root.contains("entries")) return Collections.emptyList();
+            int schema = TownCenterNbtCodec.readSchema(root);
+            if (!TownCenterNbtCodec.isSupportedSchema(schema)) {
+                LOGGER.warn("[civil-storage] Unsupported town_centers.nbt schema {}, skipping", schema);
+                return Collections.emptyList();
+            }
+            ListTag entries = root.getList("entries", Tag.TAG_COMPOUND);
+            List<StoredTownCenter> out = new ArrayList<>(entries.size());
+            for (int i = 0; i < entries.size(); i++) {
+                CompoundTag e = entries.getCompound(i);
+                String dim = e.getString("dim");
+                out.add(new StoredTownCenter(dim, TownCenterNbtCodec.readEntry(e)));
+            }
+            return out;
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to load town_centers.nbt: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public void writeTownCenters(List<StoredTownCenter> snapshot) {
+        Path p = resolve(TOWN_CENTERS_FILE);
+        if (p == null) return;
+        try {
+            ListTag entries = new ListTag();
+            for (StoredTownCenter t : snapshot) {
+                entries.add(TownCenterNbtCodec.writeEntry(t.dim(), t.entry()));
+            }
+            CompoundTag root = new CompoundTag();
+            root.putInt("schema", TownCenterNbtCodec.SCHEMA_VERSION);
+            root.put("entries", entries);
+            NbtIo.writeCompressed(root, p);
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to write town_centers.nbt: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public List<StoredBaseScoreSource> loadBaseScoreSources() {
+        Path p = resolve(BASE_SCORE_SOURCES_FILE);
+        if (p == null || !Files.isRegularFile(p)) return Collections.emptyList();
+        try {
+            CompoundTag root = NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap());
+            if (root == null || !root.contains("entries")) return Collections.emptyList();
+            ListTag entries = root.getList("entries", Tag.TAG_COMPOUND);
+            List<StoredBaseScoreSource> out = new ArrayList<>(entries.size());
+            for (int i = 0; i < entries.size(); i++) {
+                CompoundTag e = entries.getCompound(i);
+                String type = e.getString("type");
+                if (type == null || type.isEmpty()) {
+                    type = BaseScoreSourceRegistry.TYPE_API;
+                }
+                out.add(new StoredBaseScoreSource(
+                        e.getString("sourceId"),
+                        e.getString("dim"),
+                        e.getInt("minVcX"), e.getInt("minVcY"), e.getInt("minVcZ"),
+                        e.getInt("maxVcX"), e.getInt("maxVcY"), e.getInt("maxVcZ"),
+                        e.getDouble("rawValue"),
+                        type));
+            }
+            return out;
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to load base_score_sources.nbt: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public void writeBaseScoreSources(List<StoredBaseScoreSource> snapshot) {
+        Path p = resolve(BASE_SCORE_SOURCES_FILE);
+        if (p == null) return;
+        try {
+            ListTag entries = new ListTag();
+            for (StoredBaseScoreSource s : snapshot) {
+                CompoundTag e = new CompoundTag();
+                e.putString("sourceId", s.sourceId());
+                e.putString("dim", s.dim());
+                e.putInt("minVcX", s.minVcX());
+                e.putInt("minVcY", s.minVcY());
+                e.putInt("minVcZ", s.minVcZ());
+                e.putInt("maxVcX", s.maxVcX());
+                e.putInt("maxVcY", s.maxVcY());
+                e.putInt("maxVcZ", s.maxVcZ());
+                e.putDouble("rawValue", s.rawValue());
+                e.putString("type", s.type());
+                entries.add(e);
+            }
+            CompoundTag root = new CompoundTag();
+            root.put("entries", entries);
+            NbtIo.writeCompressed(root, p);
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to write base_score_sources.nbt: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public CompletableFuture<List<StoredL1Entry>> loadL1RangeAsync(
+            String dim, int minCx, int maxCx, int minCz, int maxCz, int sy) {
+        return CompletableFuture.completedFuture(Collections.emptyList());
+    }
+
+    @Override
+    public CompletableFuture<Void> batchSaveL1Async(List<L1SaveRequest> requests) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Map<VoxelChunkKey, L1Entry>> bulkLoadRegion(String dim, int rx, int rz) {
+        return coldQueue.submit(() -> loadL1Region(dim, rx, rz));
+    }
+
+    @Override
+    public Map<VoxelChunkKey, L1Entry> loadL1RegionSync(String dim, int rx, int rz) {
+        return loadL1Region(dim, rx, rz);
+    }
+
+    // ---------- L1 region format: l1/{dim}/r.{rx}.{rz}.nbt ----------
+    private static final String L1_DIR = "l1";
+
+    /** Convert dimension string to a filesystem-safe path segment (Windows disallows : in paths). */
+    private static String dimToPathSegment(String dim) {
+        if (dim == null || dim.isEmpty()) return "unknown";
+        return dim.replace(':', '_').replace('/', '_').replace('\\', '_')
+                .replace('*', '_').replace('?', '_').replace('"', '_')
+                .replace('<', '_').replace('>', '_').replace('|', '_')
+                .replace('[', '_').replace(']', '_').replace(' ', '_');
+    }
+
+    /** Sync load one region. Returns empty map if file missing. */
+    Map<VoxelChunkKey, L1Entry> loadL1Region(String dim, int rx, int rz) {
+        Path p = resolve(L1_DIR, dimToPathSegment(dim), "r." + rx + "." + rz + ".nbt");
+        if (p == null || !Files.isRegularFile(p)) return Collections.emptyMap();
+        try {
+            CompoundTag root = NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap());
+            if (root == null || !root.contains("entries")) return Collections.emptyMap();
+            ListTag entries = root.getList("entries", Tag.TAG_COMPOUND);
+            Map<VoxelChunkKey, L1Entry> out = new HashMap<>(entries.size());
+            for (int i = 0; i < entries.size(); i++) {
+                CompoundTag e = entries.getCompound(i);
+                int cx = e.getInt("cx");
+                int cz = e.getInt("cz");
+                int sy = e.getInt("sy");
+                double score = e.contains("score") ? e.getDouble("score") : 0.0;
+                long presenceTime = e.getLong("presenceTime");
+                long lastRecoveryTime = e.getLong("lastRecoveryTime");
+                out.put(new VoxelChunkKey(cx, cz, sy), new L1Entry(score, presenceTime, lastRecoveryTime));
+            }
+            return out;
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to load L1 region r.{}.{}.nbt: {}", rx, rz, e.getMessage());
+            return Collections.emptyMap();
+        }
+    }
+
+    @Override
+    public void writeL1Region(String dim, int rx, int rz, Map<VoxelChunkKey, L1Entry> data) {
+        Path dir = resolve(L1_DIR, dimToPathSegment(dim));
+        if (dir == null) return;
+        try {
+            Files.createDirectories(dir);
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Could not create L1 region dir: {}", e.getMessage());
+            return;
+        }
+        Path p = dir.resolve("r." + rx + "." + rz + ".nbt");
+        try {
+            ListTag entries = new ListTag();
+            for (Map.Entry<VoxelChunkKey, L1Entry> en : data.entrySet()) {
+                VoxelChunkKey k = en.getKey();
+                L1Entry v = en.getValue();
+                // Omit key entirely if score=0 and no presence (per migration plan)
+                if (v.score() == 0 && v.presenceTime() == 0 && v.lastRecoveryTime() == 0) continue;
+                CompoundTag e = new CompoundTag();
+                e.putInt("cx", k.getCx());
+                e.putInt("cz", k.getCz());
+                e.putInt("sy", k.getSy());
+                if (v.score() != 0) e.putDouble("score", v.score());
+                if (v.presenceTime() != 0) e.putLong("presenceTime", v.presenceTime());
+                if (v.lastRecoveryTime() != 0) e.putLong("lastRecoveryTime", v.lastRecoveryTime());
+                entries.add(e);
+            }
+            CompoundTag root = new CompoundTag();
+            root.put("entries", entries);
+            NbtIo.writeCompressed(root, p);
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to write L1 region r.{}.{}.nbt: {}", rx, rz, e.getMessage());
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> submitOnIO(Runnable task) {
+        return coldQueue.submit(() -> {
+            task.run();
+            return null;
+        }).thenApply(x -> null);
+    }
+
+    /** For unified flush and bulk load (Phase 2+). */
+    public ColdIOQueue getColdQueue() {
+        return coldQueue;
+    }
+
+    /** Resolve path to a file under data/civil/. */
+    public Path resolve(String... segments) {
+        Path p = basePath;
+        if (p == null) return null;
+        for (String s : segments) {
+            p = p.resolve(s);
+        }
+        return p;
+    }
+}

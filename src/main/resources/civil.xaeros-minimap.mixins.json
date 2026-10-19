@@ -1,0 +1,11 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "plugin": "civil.compat.xaeros.minimap.XaeroMinimapChunkBandMixinPlugin",
+  "package": "civil.compat.xaeros.minimap",
+  "compatibilityLevel": "JAVA_21",
+  "client": [],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

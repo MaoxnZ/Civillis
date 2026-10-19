@@ -1,0 +1,18 @@
+{
+  "replace": false,
+  "entries": [
+    {
+      "id": "dungeons_arise_seven_seas_all",
+      "structures": [
+        "dungeons_arise_seven_seas:corsair_corvette",
+        "dungeons_arise_seven_seas:pirate_junkship",
+        "dungeons_arise_seven_seas:small_yacht",
+        "dungeons_arise_seven_seas:unicorn_galleon",
+        "dungeons_arise_seven_seas:victory_frigate"
+      ],
+      "rules": {
+        "allow_hostile_spawn": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "_comment": [
+    "Default presence keepalive configuration for the Civil mod.",
+    "Add files under data/<namespace>/civil_presence_keepalive/.",
+    "",
+    "Each entry names an entity type whose vicinity will receive periodic civilization",
+    "presence refresh (getCScoreAt + visitAt), countering natural score decay.",
+    "Optional radius_voxel_chunks { \"x\", \"z\", \"y\" } sets half-extents in voxel chunks;",
+    "omit the block entirely for built-in defaults 3 / 3 / 1.",
+    "",
+    "Files load in lexicographic order; later files add to the merged set.",
+    "Set replace: true on a file to clear all entries from earlier files.",
+    "Unknown entity ids are skipped with a warning."
+  ],
+  "replace": false,
+  "entries": [
+    {
+      "entity": "minecraft:villager",
+      "radius_voxel_chunks": { "x": 3, "z": 3, "y": 1 }
+    },
+    { "entity": "minecraft:iron_golem" },
+    { "entity": "minecraft:snow_golem" }
+  ]
+}

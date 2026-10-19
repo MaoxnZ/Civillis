@@ -1,0 +1,26 @@
+architectury {
+    platformSetupLoomIde()
+    neoForge()
+}
+
+// Optional: gradlew :neoforge:patchXaeroLibNeoForgeDevJar — refresh -dev xaerolib after updating libs/xaerolib-neoforge-*.jar
+apply from: 'xaero-dev-runtime.gradle'
+
+dependencies {
+    neoForge "net.neoforged:neoforge:${rootProject.neoforge_version}"
+
+    // Cloth Config (in-game settings GUI, same API as Fabric variant)
+    modImplementation("me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}")
+
+    // Dev client: NeoForge Xaero WM/MM nest xaerolib under META-INF/jarjar/ (not jars/). Stripped -no-jij + patched
+    // xaerolib avoids FML loading bundled intermediary xaerolib (missing dep / remap issues vs Loom named).
+    modLocalRuntime files(file('dev-runtime-libs/xaeros-world-map-neoforge-1.21.1-1.40.11-no-jij.jar'))
+    modLocalRuntime files(file('dev-runtime-libs/xaeros-minimap-neoforge-1.21.1-25.3.10-no-jij.jar'))
+    modLocalRuntime files(file('dev-runtime-libs/xaerolib-neoforge-1.21.1-1.1.0-dev.jar'))
+
+    // JM API — Architectury Transformer needs PolygonOverlay on classpath.
+    modLocalRuntime files(file('dev-runtime-libs/journeymap-api-neoforge-2.0.0-1.21.1-SNAPSHOT.jar'))
+
+    common(project(path: ':', configuration: 'namedElements')) { transitive false }
+    shadowBundle project(path: ':', configuration: 'transformProductionNeoForge')
+}

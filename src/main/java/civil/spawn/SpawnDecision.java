@@ -1,0 +1,40 @@
+package civil.spawn;
+
+import net.minecraft.world.entity.EntityType;
+
+import java.util.List;
+
+/**
+ * Single spawn decision result, for Mixin logging and head-based conversion.
+ *
+ * <p>branch: LOW / MID / HIGH (civilization score thresholds);
+ * SHRINE_NEARBY (inside farm shrine bypass box → bypass civilization suppression + optional conversion);
+ * SHRINE_SUPPRESS (nearby shrine anchors → probabilistic block);
+ * SPAWN_GATE_WHITELIST (datapack whitelist before zone).
+ *
+ * <p>For SHRINE_NEARBY:
+ * <ul>
+ *   <li>{@code nearbyHeadCount}: total enabled heads in the VC box (for conversion threshold)</li>
+ *   <li>{@code headTypes}: conversion pool (enabled + convert=true entity types, with duplicates
+ *       for weighted sampling)</li>
+ * </ul>
+ */
+public record SpawnDecision(boolean block, double score, String branch,
+                            int nearbyHeadCount, List<EntityType<?>> headTypes) {
+
+    public static final String BRANCH_LOW = "LOW";
+    public static final String BRANCH_MID = "MID";
+    public static final String BRANCH_HIGH = "HIGH";
+    public static final String BRANCH_SHRINE_NEARBY = "SHRINE_NEARBY";
+    public static final String BRANCH_SHRINE_SUPPRESS = "SHRINE_SUPPRESS";
+    public static final String BRANCH_ZONE_POLICY = "ZONE_POLICY";
+    /** Civilization scoring disabled for this dimension — allow spawn (no zone/score stages). */
+    public static final String BRANCH_DIM_NEUTRAL = "DIM_NEUTRAL";
+    /** Datapack {@code civil_spawn_gate_entities} whitelist — allow before zone/score. */
+    public static final String BRANCH_SPAWN_GATE_WHITELIST = "SPAWN_GATE_WHITELIST";
+
+    /** Convenience constructor for non-head branches (no head info). */
+    public SpawnDecision(boolean block, double score, String branch) {
+        this(block, score, branch, 0, List.of());
+    }
+}

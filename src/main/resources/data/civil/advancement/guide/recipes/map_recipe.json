@@ -1,0 +1,36 @@
+{
+  "parent": "civil:guide/root",
+  "criteria": {
+    "has_filled_map": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "minecraft:filled_map"
+          }
+        ]
+      }
+    },
+    "has_detector": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "civil:civil_detector"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "has_filled_map",
+      "has_detector"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "civil:civil_detector_map_upgrade"
+    ]
+  }
+}

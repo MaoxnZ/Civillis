@@ -1,0 +1,37 @@
+{
+  "parent": "civil:guide/root",
+  "display": {
+    "icon": {
+      "id": "civil:civil_detector"
+    },
+    "title": {
+      "translate": "civil.advancement.guide.detector_crafted.title"
+    },
+    "description": {
+      "translate": "civil.advancement.guide.detector_crafted.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "has_detector": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "civil:civil_detector"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "has_detector"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "civil:civil_detector_map_upgrade"
+    ]
+  }
+}

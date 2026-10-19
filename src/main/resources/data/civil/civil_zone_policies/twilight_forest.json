@@ -1,0 +1,40 @@
+{
+  "replace": false,
+  "entries": [
+    {
+      "id": "tf_boss_progression",
+      "structures": [
+        "twilightforest:naga_courtyard",
+        "twilightforest:lich_tower",
+        "twilightforest:labyrinth",
+        "twilightforest:hydra_lair",
+        "twilightforest:knight_stronghold",
+        "twilightforest:dark_tower",
+        "twilightforest:troll_cave",
+        "twilightforest:yeti_cave",
+        "twilightforest:aurora_palace",
+        "twilightforest:final_castle"
+      ],
+      "rules": {
+        "allow_hostile_spawn": true
+      }
+    },
+    {
+      "id": "tf_mazes_hollows",
+      "structures": [
+        "twilightforest:hedge_maze",
+        "twilightforest:giant_house",
+        "twilightforest:hollow_tree",
+        "twilightforest:large_hollow_hill",
+        "twilightforest:medium_hollow_hill",
+        "twilightforest:small_hollow_hill",
+        "twilightforest:mushroom_tower",
+        "twilightforest:swamp_hollow_tree",
+        "twilightforest:fallen_trunk"
+      ],
+      "rules": {
+        "allow_hostile_spawn": true
+      }
+    }
+  ]
+}

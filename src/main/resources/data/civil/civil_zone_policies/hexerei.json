@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "entries": [
+    {
+      "id": "hexerei_all",
+      "structures": [
+        "hexerei:nature_coven",
+        "hexerei:dark_coven"
+      ],
+      "rules": {
+        "allow_hostile_spawn": true
+      }
+    }
+  ]
+}

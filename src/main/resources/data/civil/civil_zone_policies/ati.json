@@ -1,0 +1,52 @@
+{
+  "replace": false,
+  "entries": [
+    {
+      "id": "ati_structures_all",
+      "structures": [
+        "ati_structures:ancient_temple",
+        "ati_structures:ancient_vessel",
+        "ati_structures:arachnid_dwelling",
+        "ati_structures:ati_stoneworks",
+        "ati_structures:castillo",
+        "ati_structures:catalonian_castle",
+        "ati_structures:dark_keep",
+        "ati_structures:dark_tower",
+        "ati_structures:deepslate_keep",
+        "ati_structures:desert_outpost",
+        "ati_structures:dojo",
+        "ati_structures:fortified_temple",
+        "ati_structures:gnome_hut",
+        "ati_structures:granite_fort",
+        "ati_structures:haunted_ruin",
+        "ati_structures:herobrine_stronghold",
+        "ati_structures:illager_homestead",
+        "ati_structures:illager_tower",
+        "ati_structures:lighthouse",
+        "ati_structures:jungle_settlement",
+        "ati_structures:manor",
+        "ati_structures:marble_chateau",
+        "ati_structures:monastery_tower",
+        "ati_structures:mosque",
+        "ati_structures:mud_tower",
+        "ati_structures:nomadic_camp",
+        "ati_structures:old_fort",
+        "ati_structures:old_home",
+        "ati_structures:old_residence",
+        "ati_structures:overgrown_outpost",
+        "ati_structures:quarry",
+        "ati_structures:rotting_temple",
+        "ati_structures:ruined_castle",
+        "ati_structures:sinking_temple",
+        "ati_structures:steam_house",
+        "ati_structures:small_keep",
+        "ati_structures:spider_nest",
+        "ati_structures:stray_ruins",
+        "ati_structures:wither_keep"
+      ],
+      "rules": {
+        "allow_hostile_spawn": true
+      }
+    }
+  ]
+}
