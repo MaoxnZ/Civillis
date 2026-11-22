@@ -23,8 +23,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -404,7 +404,7 @@ public final class AuraWallRenderer {
 
         // Build vertices
         BufferBuilder builder = new BufferBuilder(ALLOCATOR,
-                pipeline.getVertexFormatMode(), pipeline.getVertexFormat());
+                pipeline.getPrimitiveTopology(), pipeline.getVertexFormatBinding(0));
 
         List<int[]> bucketRanges = new ArrayList<>();
         int totalQuads = 0;
@@ -474,7 +474,7 @@ public final class AuraWallRenderer {
 
         // Build vertices — each face has its own faceMinY/faceMaxY
         BufferBuilder builder = new BufferBuilder(SHRINE_ALLOCATOR,
-                pipeline.getVertexFormatMode(), pipeline.getVertexFormat());
+                pipeline.getPrimitiveTopology(), pipeline.getVertexFormatBinding(0));
 
         List<int[]> bucketRanges = new ArrayList<>();
         int totalQuads = 0;
@@ -542,7 +542,7 @@ public final class AuraWallRenderer {
         }
         if (buckets.isEmpty()) return;
         BufferBuilder builder = new BufferBuilder(ZONE_ALLOCATOR,
-                pipeline.getVertexFormatMode(), pipeline.getVertexFormat());
+                pipeline.getPrimitiveTopology(), pipeline.getVertexFormatBinding(0));
         List<int[]> bucketRanges = new ArrayList<>();
         int totalQuads = 0;
         for (var entry : buckets.entrySet()) {
@@ -639,22 +639,22 @@ public final class AuraWallRenderer {
             }
 
             GpuBuffer gpuVerts = ringBuf.currentBuffer();
-            var uploadEncoder = RenderSystem.getDevice().createCommandEncoder();
-            try (GpuBuffer.MappedView mapped = uploadEncoder.mapBuffer(
-                    gpuVerts.slice(0, built.vertexBuffer().remaining()), false, true)) {
+            // 26.2 maps the slice directly and binds that same range as vertex input.
+            GpuBufferSlice vertexSlice = gpuVerts.slice(0, built.vertexBuffer().remaining());
+            try (GpuBufferSlice.MappedView mapped = vertexSlice.map(false, true)) {
                 MemoryUtil.memCopy(built.vertexBuffer(), mapped.data());
             }
 
             // Shared index buffer
             int totalIndices = totalQuads * 6;
             RenderSystem.AutoStorageIndexBuffer shapeIdxBuf =
-                    RenderSystem.getSequentialBuffer(pipeline.getVertexFormatMode());
+                    RenderSystem.getSequentialBuffer(pipeline.getPrimitiveTopology());
             GpuBuffer indices = shapeIdxBuf.getBuffer(totalIndices);
-            VertexFormat.IndexType indexType = shapeIdxBuf.type();
+            var indexType = shapeIdxBuf.type();
 
             Minecraft client = Minecraft.getInstance();
             AbstractTexture forcefield = client.getTextureManager().getTexture(FORCEFIELD_TEXTURE);
-            var fb = client.getMainRenderTarget();
+            var fb = client.gameRenderer.mainRenderTarget();
 
             // Draw each alpha bucket
             for (int[] range : bucketRanges) {
@@ -669,7 +669,7 @@ public final class AuraWallRenderer {
                 Vector4f color = new Vector4f(r, g, b, finalAlpha);
 
                 GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms()
-                        .writeTransform(RenderSystem.getModelViewMatrix(), color, new Vector3f(), texMatrix);
+                        .writeTransform(RenderSystem.getModelViewMatrixCopy(), color, new Vector3f(), texMatrix);
 
                 String passLabel = switch (bufferKind) {
                     case 0 -> "civil aura wall";
@@ -679,16 +679,17 @@ public final class AuraWallRenderer {
                 try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
                         .createRenderPass(
                                 () -> passLabel,
-                                fb.getColorTextureView(), OptionalInt.empty(),
+                                fb.getColorTextureView(), Optional.empty(),
                                 fb.getDepthTextureView(), OptionalDouble.empty())) {
                     pass.setPipeline(pipeline);
                     RenderSystem.bindDefaultUniforms(pass);
                     pass.setUniform("DynamicTransforms", dynamicTransforms);
                     pass.bindTexture("Sampler0",
                             forcefield.getTextureView(), forcefield.getSampler());
-                    pass.setVertexBuffer(0, gpuVerts);
+                    pass.setVertexBuffer(0, vertexSlice);
                     pass.setIndexBuffer(indices, indexType);
-                    pass.drawIndexed(0, firstQuad * 6, quadCount * 6, 1);
+                    // 26.2: indexCount, instanceCount, firstIndex, vertexOffset, firstInstance.
+                    pass.drawIndexed(quadCount * 6, 1, firstQuad * 6, 0, 0);
                 }
             }
 
