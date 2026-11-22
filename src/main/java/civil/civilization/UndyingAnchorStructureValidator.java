@@ -28,7 +28,7 @@ public final class UndyingAnchorStructureValidator {
 
     /** Required stairs block (waxed oxidized cut copper stairs). */
     public static boolean isRequiredStairs(BlockState state) {
-        return state.is(Blocks.WAXED_OXIDIZED_CUT_COPPER_STAIRS);
+        return state.is(Blocks.CUT_COPPER_STAIRS.waxed().oxidized());
     }
 
     /**
