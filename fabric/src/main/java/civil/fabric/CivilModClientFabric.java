@@ -91,7 +91,8 @@ public class CivilModClientFabric implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> ZoneTransitionHud.tick());
 
-        // END_MAIN runs after translucent terrain; bufferSource must be flushed (Fabric javadoc).
+        // END_MAIN runs after translucent terrain. Aura walls use their own RenderPass,
+        // so this callback has no shared vertex batch to flush.
         LevelRenderEvents.END_MAIN.register(context -> {
             UndyingAnchorCinematicEffect.tickAndApplyShake(context.poseStack());
             UndyingAnchorParticleEffect.tick();
@@ -99,11 +100,10 @@ public class CivilModClientFabric implements ClientModInitializer {
             // MC 1.21.11+: Camera no longer exposes getPosition(); match NeoForge (eye + partial tick).
             Minecraft mc = Minecraft.getInstance();
             float pt = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
-            Entity entity = mc.gameRenderer.getMainCamera().entity();
+            Entity entity = mc.gameRenderer.mainCamera().entity();
             if (entity != null) {
                 AuraWallRenderer.onRender(entity.getEyePosition(pt));
             }
-            context.bufferSource().endBatch();
         });
 
         HudElementRegistry.attachElementBefore(

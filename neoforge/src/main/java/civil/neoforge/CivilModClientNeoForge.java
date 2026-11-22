@@ -51,7 +51,7 @@ final class CivilModClientNeoForge {
         // entity.getEyePosition() without partial tick snaps to tick boundaries → walls jitter vs smooth world.
         Minecraft mc = Minecraft.getInstance();
         float pt = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
-        Entity entity = mc.gameRenderer.getMainCamera().entity();
+        Entity entity = mc.gameRenderer.mainCamera().entity();
         if (entity != null) {
             Vec3 cam = entity.getEyePosition(pt);
             AuraWallRenderer.onRender(cam);
