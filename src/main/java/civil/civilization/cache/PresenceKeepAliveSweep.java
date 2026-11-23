@@ -4,6 +4,8 @@ import civil.CivilMod;
 import civil.CivilServices;
 import civil.config.CivilConfig;
 import civil.civilization.ServerClock;
+import civil.civilization.TownCenterAabb;
+import civil.civilization.TownCenterTracker;
 import civil.civilization.VoxelChunkKey;
 import civil.civilization.scoring.CivilizationService;
 import civil.registry.DimensionPolicyRegistry;
@@ -29,9 +31,6 @@ import java.util.concurrent.ThreadLocalRandom;
  * {@link ResultCache#visitAt}), without zone HUD / receipts / round-robin players.
  */
 public final class PresenceKeepAliveSweep {
-
-    /** Vanilla horizontal extent for {@link #fullWorldAabb(int, int)}. */
-    private static final double WORLD_AABB_XZ = 30_000_000.0;
 
     private final ArrayDeque<PrefetchTask> resultQueue = new ArrayDeque<>();
     private final HashSet<String> resultDedupe = new HashSet<>();
@@ -82,6 +81,10 @@ public final class PresenceKeepAliveSweep {
         if (PresenceKeepAliveRegistry.isEmpty()) {
             return;
         }
+        TownCenterTracker townCenters = CivilServices.getTownCenterTracker();
+        if (townCenters == null || !townCenters.isInitialized()) {
+            return;
+        }
 
         this.fillWorldByDim(server);
 
@@ -103,32 +106,28 @@ public final class PresenceKeepAliveSweep {
                 var dimensionType = world.dimensionType();
                 int dimMinY = dimensionType.minY();
                 int dimMaxY = dimMinY + dimensionType.height() - 1;
+                HashSet<Integer> seenEntityIds = new HashSet<>();
 
-                this.scratchEntities.clear();
-                AABB box = fullWorldAabb(dimMinY, dimMaxY);
-                this.scratchEntities.addAll(
-                        world.getEntitiesOfClass(Entity.class, box, e -> e.getType() == entityType));
-
-                for (Entity entity : this.scratchEntities) {
-                    BlockPos pos = entity.blockPosition();
-                    VoxelChunkKey center = VoxelChunkKey.from(pos);
-                    for (int dx = -radiusX; dx <= radiusX; dx++) {
-                        for (int dz = -radiusZ; dz <= radiusZ; dz++) {
-                            for (int dy = -radiusY; dy <= radiusY; dy++) {
-                                VoxelChunkKey vc = center.offset(dx, dz, dy);
-                                if (!vc.isValidIn(world, dimMinY, dimMaxY)) {
-                                    continue;
-                                }
-                                String token = dedupeToken(dim, vc);
-                                if (!this.resultDedupe.add(token)) {
-                                    continue;
-                                }
-                                this.resultQueue.addLast(new PrefetchTask(this.worldSessionId, dim, vc));
-                                stats.produced++;
-                            }
-                        }
+                townCenters.forEachGameplayActive(dim, world.getGameTime(), entry -> {
+                    TownCenterAabb region = TownCenterAabb.atLectern(
+                            new BlockPos(entry.x(), entry.y(), entry.z()), entry.level());
+                    AABB box = toBlockAabb(region, dimMinY, dimMaxY);
+                    if (box == null) {
+                        return;
                     }
-                }
+
+                    this.scratchEntities.clear();
+                    this.scratchEntities.addAll(
+                            world.getEntitiesOfClass(Entity.class, box, e -> e.getType() == entityType));
+
+                    for (Entity entity : this.scratchEntities) {
+                        if (!seenEntityIds.add(entity.getId())) {
+                            continue;
+                        }
+                        this.enqueueEntityRadius(entity, dim, world, dimMinY, dimMaxY,
+                                radiusX, radiusZ, radiusY, stats);
+                    }
+                });
             }
         }
 
@@ -152,12 +151,43 @@ public final class PresenceKeepAliveSweep {
         }
     }
 
-    private static AABB fullWorldAabb(int dimMinY, int dimMaxY) {
-        return new AABB(-WORLD_AABB_XZ, dimMinY, -WORLD_AABB_XZ, WORLD_AABB_XZ, dimMaxY, WORLD_AABB_XZ);
-    }
-
     private static String dedupeToken(String dim, VoxelChunkKey vc) {
         return dim + "|" + vc.getCx() + "|" + vc.getCz() + "|" + vc.getSy();
+    }
+
+    private static AABB toBlockAabb(TownCenterAabb region, int dimMinY, int dimMaxY) {
+        VoxelChunkKey min = region.minVc();
+        VoxelChunkKey max = region.maxVc();
+        int minY = Math.max(min.getSy() * 16, dimMinY);
+        int maxY = Math.min(max.getSy() * 16 + 15, dimMaxY);
+        if (minY > maxY) {
+            return null;
+        }
+        return new AABB(
+                min.getCx() * 16, minY, min.getCz() * 16,
+                max.getCx() * 16 + 16, maxY + 1, max.getCz() * 16 + 16);
+    }
+
+    private void enqueueEntityRadius(Entity entity, String dim, ServerLevel world,
+            int dimMinY, int dimMaxY, int radiusX, int radiusZ, int radiusY, EnqueueStats stats) {
+        BlockPos pos = entity.blockPosition();
+        VoxelChunkKey center = VoxelChunkKey.from(pos);
+        for (int dx = -radiusX; dx <= radiusX; dx++) {
+            for (int dz = -radiusZ; dz <= radiusZ; dz++) {
+                for (int dy = -radiusY; dy <= radiusY; dy++) {
+                    VoxelChunkKey vc = center.offset(dx, dz, dy);
+                    if (!vc.isValidIn(world, dimMinY, dimMaxY)) {
+                        continue;
+                    }
+                    String token = dedupeToken(dim, vc);
+                    if (!this.resultDedupe.add(token)) {
+                        continue;
+                    }
+                    this.resultQueue.addLast(new PrefetchTask(this.worldSessionId, dim, vc));
+                    stats.produced++;
+                }
+            }
+        }
     }
 
     /**

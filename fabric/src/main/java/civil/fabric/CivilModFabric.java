@@ -15,6 +15,9 @@ import civil.respawn.UndyingAnchorParticlePayload;
 import civil.shrine.FarmShrineActivationHandler;
 import civil.shrine.FarmShrineParticleManager;
 import civil.shrine.FarmShrineParticlePayload;
+import civil.towncenter.TownCenterActivationBurstPayload;
+import civil.towncenter.TownCenterParticleManager;
+import civil.towncenter.TownCenterParticlePayload;
 import civil.respawn.UndyingAnchorSaveHandler;
 import civil.respawn.UndyingAnchorPreTeleportPayload;
 import civil.item.CivilDetectorAnimationReset;
@@ -27,17 +30,21 @@ import civil.registry.PresenceKeepAliveLoader;
 import civil.registry.SpawnGateEntityLoader;
 import civil.registry.ZonePolicyLoader;
 import civil.civilization.ZoneTransitionPayload;
+import civil.registry.TownCenterLevelLoader;
+import civil.towncenter.network.TownCenterMenuActionHandler;
+import civil.towncenter.network.TownCenterC2SPayload;
+import civil.towncenter.network.TownCenterGuiSyncPayload;
 import civil.command.CivilAdminCommands;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLevelEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Items;
@@ -60,6 +67,7 @@ public class CivilModFabric implements ModInitializer {
         ModItems.registerDirect();
         ModRecipeSerializers.registerDirect();
         CivilMod.init();
+        civil.ModMenuTypes.registerDirect();
 
         registerPayloadTypes();
         registerEvents();
@@ -72,12 +80,16 @@ public class CivilModFabric implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(UndyingAnchorPreTeleportPayload.ID, UndyingAnchorPreTeleportPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(UndyingAnchorParticlePayload.ID, UndyingAnchorParticlePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(FarmShrineParticlePayload.ID, FarmShrineParticlePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(TownCenterParticlePayload.ID, TownCenterParticlePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(TownCenterActivationBurstPayload.ID, TownCenterActivationBurstPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(ZoneTransitionPayload.ID, ZoneTransitionPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(TownCenterGuiSyncPayload.ID, TownCenterGuiSyncPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(TownCenterC2SPayload.ID, TownCenterC2SPayload.CODEC);
     }
 
     private void registerEvents() {
-        ServerLevelEvents.LOAD.register((server, level) -> CivilMod.onWorldLoad(server, level));
-        ServerLevelEvents.UNLOAD.register((server, level) -> CivilMod.onWorldUnload(server, level));
+        ServerLevelEvents.LOAD.register(CivilMod::onWorldLoad);
+        ServerLevelEvents.UNLOAD.register(CivilMod::onWorldUnload);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             var ra = server.registryAccess();
             BlockWeightLoader.reload(server.getResourceManager());
@@ -87,6 +99,8 @@ public class CivilModFabric implements ModInitializer {
             SpawnGateEntityLoader.reload(server.getResourceManager());
             MobFleeEntityLoader.reload(server.getResourceManager());
             PresenceKeepAliveLoader.reload(server.getResourceManager());
+            TownCenterLevelLoader.reload(server.getResourceManager());
+            CivilMod.onTownCenterLevelsReloaded(server);
             CivilMod.onHeadTypesReloaded();
         });
         ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resourceManager, success) -> {
@@ -100,6 +114,8 @@ public class CivilModFabric implements ModInitializer {
             SpawnGateEntityLoader.reload(server.getResourceManager());
             MobFleeEntityLoader.reload(server.getResourceManager());
             PresenceKeepAliveLoader.reload(server.getResourceManager());
+            TownCenterLevelLoader.reload(server.getResourceManager());
+            CivilMod.onTownCenterLevelsReloaded(server);
             CivilMod.onHeadTypesReloaded();
         });
 
@@ -111,11 +127,9 @@ public class CivilModFabric implements ModInitializer {
             UndyingAnchorSaveHandler.onServerTick(server);
             UndyingAnchorParticleManager.onServerTick(server);
             FarmShrineParticleManager.onServerTick(server);
+            TownCenterParticleManager.onServerTick(server);
             SonarScanManager.onServerTick(server);
         });
-
-        ServerChunkEvents.CHUNK_LOAD.register((world, chunk, newlyGenerated) ->
-                CivilMod.onChunkLoad(world, chunk));
 
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, damageSource, damageAmount) -> {
             if (entity instanceof ServerPlayer player) {
@@ -161,6 +175,10 @@ public class CivilModFabric implements ModInitializer {
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 CivilAdminCommands.register(dispatcher));
+
+        ServerPlayNetworking.registerGlobalReceiver(TownCenterC2SPayload.ID, (payload, context) ->
+                context.server().execute(() ->
+                        TownCenterMenuActionHandler.handle(context.player(), payload)));
     }
 
     private void registerItemGroups() {

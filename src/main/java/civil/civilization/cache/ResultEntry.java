@@ -26,6 +26,9 @@ public final class ResultEntry {
     /** Weighted sum of L1 scores outside coreRadius (decays over time). */
     volatile double outerSum;
 
+    /** Clamped aggregate baseScore from {@link civil.civilization.BaseScoreSourceRegistry}. */
+    volatile double baseScore;
+
     // ── Temporal decay (read-time application) ──
 
     /** ServerClock millis when the area was last "active" (player nearby). */
@@ -108,7 +111,7 @@ public final class ResultEntry {
      */
     public double getEffectiveScore(long serverNow) {
         double freshness = CivilConfig.decayEnabled ? computeDecayFactor(serverNow, presenceTime) : 1.0;
-        double raw = coreSum + outerSum * freshness;
+        double raw = coreSum + outerSum * freshness + baseScore;
         return sigmoid(raw);
     }
 
@@ -117,7 +120,7 @@ public final class ResultEntry {
      */
     public double getRawScore(long serverNow) {
         double freshness = CivilConfig.decayEnabled ? computeDecayFactor(serverNow, presenceTime) : 1.0;
-        return coreSum + outerSum * freshness;
+        return coreSum + outerSum * freshness + baseScore;
     }
 
     // ── TTL ──
@@ -151,6 +154,11 @@ public final class ResultEntry {
 
     public double getCoreSum() { return coreSum; }
     public double getOuterSum() { return outerSum; }
+    public double getBaseScore() { return baseScore; }
+
+    public void setBaseScore(double baseScore) {
+        this.baseScore = baseScore;
+    }
     public long getPresenceTime() { return presenceTime; }
     public long getCreateTime() { return createTime; }
 

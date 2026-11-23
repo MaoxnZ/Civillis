@@ -165,7 +165,7 @@ public final class UndyingAnchorSaveHandler {
         BlockPos playerPos = player.blockPosition();
 
         ValidAnchorResult result = tracker.findNearestValidAnchor(
-                world, playerPos, CivilConfig.undyingAnchorMaxSearchRadius);
+                player, CivilConfig.undyingAnchorMaxSearchRadius);
         if (result == null) return false;
 
         BlockPos anchorPos = result.anchorPos();

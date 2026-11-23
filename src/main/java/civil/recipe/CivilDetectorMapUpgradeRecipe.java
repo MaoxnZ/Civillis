@@ -24,7 +24,7 @@ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
  */
 public final class CivilDetectorMapUpgradeRecipe extends CustomRecipe {
 
-    private static final CivilDetectorMapUpgradeRecipe INSTANCE = new CivilDetectorMapUpgradeRecipe();
+    public static final CivilDetectorMapUpgradeRecipe INSTANCE = new CivilDetectorMapUpgradeRecipe();
 
     public static final MapCodec<CivilDetectorMapUpgradeRecipe> MAP_CODEC =
             MapCodec.unit(INSTANCE);
@@ -32,7 +32,6 @@ public final class CivilDetectorMapUpgradeRecipe extends CustomRecipe {
     public static final StreamCodec<RegistryFriendlyByteBuf, CivilDetectorMapUpgradeRecipe> STREAM_CODEC =
             StreamCodec.unit(INSTANCE);
 
-    /** Set from {@link civil.ModRecipeSerializers#registerDirect()} / NeoForge deferred bind. */
     public static RecipeSerializer<CivilDetectorMapUpgradeRecipe> SERIALIZER;
 
     public CivilDetectorMapUpgradeRecipe() {
@@ -116,7 +115,7 @@ public final class CivilDetectorMapUpgradeRecipe extends CustomRecipe {
     }
 
     @Override
-    public RecipeSerializer<CivilDetectorMapUpgradeRecipe> getSerializer() {
+    public RecipeSerializer<? extends CustomRecipe> getSerializer() {
         return SERIALIZER;
     }
 }

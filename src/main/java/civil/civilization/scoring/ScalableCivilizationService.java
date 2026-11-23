@@ -1,7 +1,9 @@
 package civil.civilization.scoring;
 
 import civil.CivilMod;
+import civil.CivilServices;
 import civil.civilization.CScore;
+import civil.civilization.BaseScoreSourceRegistry;
 import civil.config.CivilConfig;
 import civil.civilization.ServerClock;
 import civil.civilization.cache.ResultCache;
@@ -199,14 +201,14 @@ public final class ScalableCivilizationService implements CivilizationService {
         String dimKey = world.dimension().identifier().toString();
         long[] persisted = cacheService.getPresenceForCompute(world, dimKey, centerVC);
         boolean cacheable = unknownCount == 0;
-        if (persisted != null) {
-            return new ResultCache.ComputeResult(
-                    new ResultEntry(coreSum, outerSum, persisted[0], persisted[1]),
-                    cacheable);
+        ResultEntry entry = persisted != null
+                ? new ResultEntry(coreSum, outerSum, persisted[0], persisted[1])
+                : new ResultEntry(coreSum, outerSum, ServerClock.now());
+        BaseScoreSourceRegistry baseScoreRegistry = CivilServices.getBaseScoreSourceRegistry();
+        if (baseScoreRegistry != null && baseScoreRegistry.isInitialized()) {
+            entry.setBaseScore(baseScoreRegistry.queryBaseScore(dimKey, centerVC));
         }
-        return new ResultCache.ComputeResult(
-                new ResultEntry(coreSum, outerSum, ServerClock.now()),
-                cacheable);
+        return new ResultCache.ComputeResult(entry, cacheable);
     }
 
     // ========== L1 score access ==========

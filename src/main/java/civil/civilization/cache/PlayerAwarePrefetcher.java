@@ -7,6 +7,8 @@ import civil.config.CivilConfig;
 import civil.civilization.ServerClock;
 import civil.civilization.CivilRegionClassifier;
 import civil.civilization.CivilRegionKind;
+import civil.civilization.TownCenterTracker;
+import civil.civilization.TownCenterTracker.TownCenterEntry;
 import civil.civilization.VoxelChunkKey;
 import civil.civilization.ZonePolicyService;
 import civil.civilization.ZoneSemanticState;
@@ -140,11 +142,6 @@ public final class PlayerAwarePrefetcher {
         }
     }
 
-    private static ZoneSemanticState resolveZoneHudState(ServerLevel world, VoxelChunkKey vc, ZoneSemanticState base) {
-        ZoneSemanticState override = resolveFastOverrideState(world, vc);
-        return override != null ? override : base;
-    }
-
     private static ZoneSemanticState resolveFastOverrideState(ServerLevel world, VoxelChunkKey vc) {
         CivilRegionKind k = CivilRegionClassifier.classify(world, vc).kind();
         return switch (k) {
@@ -154,21 +151,8 @@ public final class PlayerAwarePrefetcher {
         };
     }
 
-    private static boolean baseStateMatchesCurrentVc(ServerLevel world, VoxelChunkKey vc, ZoneSemanticState base) {
-        if (base == null) {
-            return false;
-        }
-        CivilRegionKind k = CivilRegionClassifier.classify(world, vc).kind();
-        return switch (base) {
-            case CIVILIZED -> k == CivilRegionKind.HIGH;
-            case WILDERNESS -> k == CivilRegionKind.NONE;
-            case CAUTION, SHRINE -> false;
-        };
-    }
-
     private int applyFastCautionTransition(MinecraftServer server, long epoch, ServerLevel world, String dim,
                                            VoxelChunkKey center, PlayerState state, UUID playerId, boolean dimChanged) {
-        ZoneSemanticState newState;
         boolean vcChangedForHud = dimChanged || state.lastHudVc == null || !state.lastHudVc.equals(center);
         if (!vcChangedForHud) {
             return 0;
@@ -185,27 +169,30 @@ public final class PlayerAwarePrefetcher {
             return 0;
         }
         ZoneSemanticState oldState = state.zoneState;
-        ZoneSemanticState baseState = state.baseState;
-        if (overrideNow == null
-                && (previousOverride != null || state.suppressedOverrideExitBase)
-                && !baseStateMatchesCurrentVc(world, center, baseState)) {
-            state.zoneState = null;
-            state.suppressedOverrideExitBase = true;
-            if (CivilMod.DEBUG) {
-                CivilMod.LOGGER.info("[zone][fast] suppress override->base HUD player={} epoch={} oldState={} base={} vc={}",
-                        playerId, epoch, oldState, baseState, center);
+        if (overrideNow == null) {
+            if (previousOverride != null) {
+                state.zoneState = null;
+                state.lastHudTcKey = null;
+                state.lastHudTcLabel = null;
+                if (CivilMod.DEBUG) {
+                    CivilMod.LOGGER.info("[zone][fast] exit override -> unknown player={} epoch={} oldState={} vc={}",
+                            playerId, epoch, oldState, center);
+                }
             }
             return 0;
         }
-        state.suppressedOverrideExitBase = false;
-        state.zoneState = newState = overrideNow != null ? overrideNow : baseState;
-        if (newState == null || newState == oldState) {
+
+        ZoneSemanticState newState = overrideNow;
+        if (newState == oldState) {
             if (CivilMod.DEBUG) {
-                CivilMod.LOGGER.info("[zone][fast] no state change player={} epoch={} state={} overrideNow={} base={}",
-                        playerId, epoch, newState, overrideNow, baseState);
+                CivilMod.LOGGER.info("[zone][fast] no override change player={} epoch={} state={} overrideNow={}",
+                        playerId, epoch, newState, overrideNow);
             }
             return 0;
         }
+        state.zoneState = newState;
+        state.lastHudTcKey = null;
+        state.lastHudTcLabel = null;
         ServerPlayer player = server.getPlayerList().getPlayer(playerId);
         if (player == null) {
             if (CivilMod.DEBUG) {
@@ -214,10 +201,10 @@ public final class PlayerAwarePrefetcher {
             return 0;
         }
         if (CivilMod.DEBUG) {
-            CivilMod.LOGGER.info("[zone][fast] SEND epoch={} {} -> {} (overrideNow={} base={}) player={}",
-                    epoch, oldState, newState, overrideNow, baseState, playerId);
+            CivilMod.LOGGER.info("[zone][fast] SEND epoch={} {} -> {} (overrideNow={}) player={}",
+                    epoch, oldState, newState, overrideNow, playerId);
         }
-        CivilPlatform.sendToPlayer(player, new ZoneTransitionPayload(epoch, newState.id()));
+        CivilPlatform.sendToPlayer(player, new ZoneTransitionPayload(epoch, newState.id(), ""));
         return 1;
     }
 
@@ -468,12 +455,12 @@ public final class PlayerAwarePrefetcher {
                 boolean leave = !agg.centerCivilized && agg.civilizedCount < leaveThreshold;
                 UUID playerId = Objects.requireNonNull(key.playerId());
                 PlayerState state = this.playerStates.computeIfAbsent(playerId, unused -> new PlayerState());
+                ServerLevel receiptWorld = agg.centerDim != null ? worldByDim.get(agg.centerDim) : null;
                 boolean inCautionByZonePolicy = false;
                 ZonePolicyService zonePolicyService = CivilServices.getZonePolicyService();
-                ServerLevel centerWorld;
                 if (!state.zoneInitialized && zonePolicyService != null && agg.centerDim != null && agg.centerVc != null
-                        && (centerWorld = worldByDim.get(agg.centerDim)) != null) {
-                    inCautionByZonePolicy = zonePolicyService.treatAsNonCivilized(centerWorld, agg.centerVc);
+                        && receiptWorld != null) {
+                    inCautionByZonePolicy = zonePolicyService.treatAsNonCivilized(receiptWorld, agg.centerVc);
                 }
                 ZoneSemanticState oldState = state.zoneState;
                 ZoneSemanticState oldBase = state.baseState;
@@ -490,20 +477,13 @@ public final class PlayerAwarePrefetcher {
                         ? resolveFastOverrideState(currentWorld, currentVc)
                         : null;
                 state.baseState = candidateBase;
-                boolean suppressOverrideExitBase = currentOverride == null
-                        && state.suppressedOverrideExitBase
-                        && currentWorld != null
-                        && currentVc != null
-                        && !baseStateMatchesCurrentVc(currentWorld, currentVc, candidateBase);
-                ZoneSemanticState newState = suppressOverrideExitBase
-                        ? null
-                        : currentOverride != null ? currentOverride : candidateBase;
+                ZoneSemanticState newState = currentOverride != null ? currentOverride : candidateBase;
                 if (CivilMod.DEBUG) {
                     CivilMod.LOGGER.info(
-                            "[zone][receipt] keyEpoch={} currentEpoch={} player={} samples={} civCount={} centerCiv={} enter={} leave={} enterTh={} leaveTh={} oldBase={} candidateBase={} inCautionPolicy={} currentVc={} currentOverride={} suppressExitBase={} newState={} oldState={} zoneInit={}",
+                            "[zone][receipt] keyEpoch={} currentEpoch={} player={} samples={} civCount={} centerCiv={} enter={} leave={} enterTh={} leaveTh={} oldBase={} candidateBase={} inCautionPolicy={} currentVc={} currentOverride={} newState={} oldState={} zoneInit={}",
                             key.epoch(), currentEpoch, playerId, agg.sampleCount, agg.civilizedCount, agg.centerCivilized,
                             enter, leave, enterThreshold, leaveThreshold, oldBase, candidateBase, inCautionByZonePolicy,
-                            currentVc, currentOverride, suppressOverrideExitBase, newState, oldState, state.zoneInitialized);
+                            currentVc, currentOverride, newState, oldState, state.zoneInitialized);
                 }
                 if (!state.zoneInitialized) {
                     state.fastOverrideState = newState == candidateBase ? null : newState;
@@ -514,20 +494,37 @@ public final class PlayerAwarePrefetcher {
                     }
                 }
                 state.zoneState = newState;
-                if (!suppressOverrideExitBase) {
-                    state.suppressedOverrideExitBase = false;
+                TcHudLabel tcHudLabel = null;
+                if (newState == ZoneSemanticState.CIVILIZED
+                        && receiptWorld != null && agg.centerDim != null && agg.centerVc != null) {
+                    tcHudLabel = resolveTownCenterHudLabel(
+                            agg.centerDim, agg.centerVc, playerId, receiptWorld.getGameTime());
                 }
-                if (newState != null && newState != oldState) {
+                String nextTcKey = tcHudLabel != null ? tcHudLabel.key() : null;
+                String nextTcLabel = tcHudLabel != null ? tcHudLabel.label() : null;
+                boolean tcLabelChanged = newState == ZoneSemanticState.CIVILIZED
+                        && nextTcKey != null
+                        && (!Objects.equals(nextTcKey, state.lastHudTcKey)
+                        || !Objects.equals(nextTcLabel, state.lastHudTcLabel));
+
+                if (newState != null && (newState != oldState || tcLabelChanged)) {
                     ServerPlayer player = server.getPlayerList().getPlayer(playerId);
                     if (player != null) {
                         if (CivilMod.DEBUG) {
-                            CivilMod.LOGGER.info("[zone][receipt] SEND receiptEpoch={} currentEpoch={} {} -> {} player={}",
-                                    key.epoch(), currentEpoch, oldState, newState, playerId);
+                            CivilMod.LOGGER.info("[zone][receipt] SEND receiptEpoch={} currentEpoch={} {} -> {} player={} tcLabel={}",
+                                    key.epoch(), currentEpoch, oldState, newState, playerId,
+                                    tcHudLabel != null ? tcHudLabel.label() : "");
                         }
                         // Window id = completed receipt bucket second (prior wall second); not same as fast's current-epoch send.
-                        CivilPlatform.sendToPlayer(player, new ZoneTransitionPayload(key.epoch(), newState.id()));
+                        CivilPlatform.sendToPlayer(player, new ZoneTransitionPayload(
+                                key.epoch(), newState.id(), nextTcLabel != null ? nextTcLabel : ""));
+                        state.lastHudTcKey = nextTcKey;
+                        state.lastHudTcLabel = nextTcLabel;
                         stats.transitions++;
                     }
+                } else if (newState != ZoneSemanticState.CIVILIZED) {
+                    state.lastHudTcKey = null;
+                    state.lastHudTcLabel = null;
                 } else if (CivilMod.DEBUG) {
                     CivilMod.LOGGER.info("[zone][receipt] no send: newState==oldState ({}) player={}", newState, playerId);
                 }
@@ -548,6 +545,72 @@ public final class PlayerAwarePrefetcher {
             return true;
         }
         return currentEpoch - task.epoch() <= (long) epochTtlSec;
+    }
+
+    private static TcHudLabel resolveTownCenterHudLabel(String dim, VoxelChunkKey vc, UUID playerId, long gameTime) {
+        TownCenterTracker tracker = CivilServices.getTownCenterTracker();
+        if (tracker == null || !tracker.isInitialized()) {
+            return null;
+        }
+        TownCenterEntry best = null;
+        for (TownCenterEntry entry : tracker.entriesCoveringVc(dim, vc)) {
+            if (!entry.isGameplayActive(gameTime)) {
+                continue;
+            }
+            if (normalizedTownCenterName(entry).isEmpty()) {
+                continue;
+            }
+            if (best == null || compareTownCentersForHud(entry, best, playerId) > 0) {
+                best = entry;
+            }
+        }
+        if (best == null) {
+            return null;
+        }
+        return new TcHudLabel(townCenterKey(dim, best), normalizedTownCenterName(best));
+    }
+
+    private static int compareTownCentersForHud(TownCenterEntry a, TownCenterEntry b, UUID playerId) {
+        int cmp = Boolean.compare(a.hasBenefit(playerId), b.hasBenefit(playerId));
+        if (cmp != 0) return cmp;
+        cmp = Integer.compare(a.level(), b.level());
+        if (cmp != 0) return cmp;
+        cmp = Integer.compare(a.appliedEffects().size(), b.appliedEffects().size());
+        if (cmp != 0) return cmp;
+        cmp = Integer.compare(sumChosenAtLevel(a), sumChosenAtLevel(b));
+        if (cmp != 0) return cmp;
+        cmp = Integer.compare(sumAmplifier(a), sumAmplifier(b));
+        if (cmp != 0) return cmp;
+        return townCenterPosKey(b).compareTo(townCenterPosKey(a));
+    }
+
+    private static String normalizedTownCenterName(TownCenterEntry entry) {
+        String name = entry.displayName();
+        return name == null ? "" : name.trim();
+    }
+
+    private static int sumChosenAtLevel(TownCenterEntry entry) {
+        int sum = 0;
+        for (var fx : entry.appliedEffects()) {
+            sum += fx.chosenAtLevel();
+        }
+        return sum;
+    }
+
+    private static int sumAmplifier(TownCenterEntry entry) {
+        int sum = 0;
+        for (var fx : entry.appliedEffects()) {
+            sum += fx.amplifier();
+        }
+        return sum;
+    }
+
+    private static String townCenterKey(String dim, TownCenterEntry entry) {
+        return dim + "|" + townCenterPosKey(entry);
+    }
+
+    private static String townCenterPosKey(TownCenterEntry entry) {
+        return entry.x() + "|" + entry.y() + "|" + entry.z();
     }
 
     public void consumePendingRestores(MinecraftServer server) {
@@ -595,7 +658,8 @@ public final class PlayerAwarePrefetcher {
         ZoneSemanticState zoneState;
         ZoneSemanticState baseState;
         ZoneSemanticState fastOverrideState;
-        boolean suppressedOverrideExitBase;
+        String lastHudTcKey;
+        String lastHudTcLabel;
         boolean zoneInitialized;
     }
 
@@ -642,4 +706,6 @@ public final class PlayerAwarePrefetcher {
         String centerDim;
         VoxelChunkKey centerVc;
     }
+
+    private record TcHudLabel(String key, String label) {}
 }

@@ -312,6 +312,17 @@ public final class CivilConfig {
     public static double farmShrineAttractMaxRadius = 128.0;
     public static double farmShrineAttractLambda = 0.15;
 
+    // -- Town center (Phase A + Profile) --
+    public static int townCenterMaxCount = 1000;
+    public static int townCenterMinSpacingHorizontal = 11;
+    public static int townCenterMinSpacingVertical = 3;
+    public static double baseScoreGlobalCap = 2.0;
+    public static double baseScoreGlobalFloor = -2.0;
+    public static int townCenterShutdownTicks = 1200;
+    public static int townCenterZoneBuffDurationTicks = 300;
+    public static int townCenterZoneBuffRefreshTicks = 200;
+    public static int townCenterSpoilDurationTicks = 2400;
+
     // -- Cache & Performance --
     /** L1 information shard TTL. Short-lived: only needs to survive until ResultEntry is computed.
      *  Prefetcher refreshes on VC change; stationary players rely on ResultEntry for spawn checks. */
@@ -597,6 +608,15 @@ public final class CivilConfig {
                             v -> mapTintZoneFillAlpha = Math.max(0, Math.min(255, v))),
                     intEntry("advanced.mapTint.zoneEdgeAlpha", () -> mapTintZoneEdgeAlpha,
                             v -> mapTintZoneEdgeAlpha = Math.max(0, Math.min(255, v)))),
+            section("Town center profile",
+                    intEntry("advanced.townCenter.shutdownTicks", () -> townCenterShutdownTicks,
+                            v -> townCenterShutdownTicks = Math.max(0, v)),
+                    intEntry("advanced.townCenter.zoneBuffDurationTicks", () -> townCenterZoneBuffDurationTicks,
+                            v -> townCenterZoneBuffDurationTicks = Math.max(1, v)),
+                    intEntry("advanced.townCenter.zoneBuffRefreshTicks", () -> townCenterZoneBuffRefreshTicks,
+                            v -> townCenterZoneBuffRefreshTicks = Math.max(1, v)),
+                    intEntry("advanced.townCenter.spoilDurationTicks", () -> townCenterSpoilDurationTicks,
+                            v -> townCenterSpoilDurationTicks = Math.max(1, v))),
     };
 
     // ══════════════════════════════════════════════════════════

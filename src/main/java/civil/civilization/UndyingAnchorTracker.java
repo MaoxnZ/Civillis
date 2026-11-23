@@ -6,6 +6,7 @@ import civil.civilization.storage.CivilStorage;
 import civil.config.CivilConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,14 +136,26 @@ public final class UndyingAnchorTracker {
     }
 
     /**
-     * Find the nearest valid undying anchor within maxDist blocks.
-     * Valid = activated, global cooldown passed, civilization >= required, 2-block clearance above.
+     * Find the nearest valid undying anchor within maxDist blocks for {@code player}.
+     * Valid = activated, cooldown, civilization, clearance, and anchor VC inside an authorized TC region.
      */
-    public ValidAnchorResult findNearestValidAnchor(ServerLevel world, BlockPos pos, int maxDist) {
+    public ValidAnchorResult findNearestValidAnchor(ServerPlayer player, int maxDist) {
+        ServerLevel world = (ServerLevel) player.level();
+        BlockPos pos = player.blockPosition();
         if (!initialized) return null;
 
         CivilizationService civService = CivilServices.getCivilizationService();
         if (civService == null) return null;
+
+        TownCenterTracker tcTracker = CivilServices.getTownCenterTracker();
+        List<TownCenterTracker.AuthorizedTcView> authorized = List.of();
+        if (tcTracker != null && tcTracker.isInitialized()) {
+            authorized = tcTracker.collectAuthorizedViews(
+                    world.dimension().identifier().toString(),
+                    player.getUUID(),
+                    world.getGameTime());
+        }
+        if (authorized.isEmpty()) return null;
 
         String dim = world.dimension().identifier().toString();
         var dimIndex = anchorsByVcXZ.get(dim);
@@ -194,6 +207,16 @@ public final class UndyingAnchorTracker {
 
         for (AnchorEntry a : candidates) {
             BlockPos anchorPos = new BlockPos(a.x(), a.y(), a.z());
+            VoxelChunkKey anchorVc = VoxelChunkKey.from(anchorPos);
+            boolean inTcRegion = false;
+            for (TownCenterTracker.AuthorizedTcView tc : authorized) {
+                if (tc.region().contains(anchorVc)) {
+                    inTcRegion = true;
+                    break;
+                }
+            }
+            if (!inTcRegion) continue;
+
             double score = civService.getCScoreAt(world, anchorPos).score();
             if (score + CIV_EPSILON < civRequired) continue;
 

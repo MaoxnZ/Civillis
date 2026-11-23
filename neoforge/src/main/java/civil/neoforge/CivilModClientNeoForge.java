@@ -1,18 +1,25 @@
 package civil.neoforge;
 
+import civil.ModMenuTypes;
 import civil.aura.AuraWallRenderer;
+import civil.towncenter.gui.TownCenterMainScreen;
+import civil.towncenter.gui.TownCenterMenu;
 import civil.civilization.ZoneTransitionHud;
 import civil.config.CivilConfigScreen;
 import civil.item.CivilDetectorClientParticles;
 import civil.respawn.UndyingAnchorCinematicEffect;
 import civil.respawn.UndyingAnchorParticleEffect;
 import civil.shrine.FarmShrineParticleEffect;
+import civil.towncenter.TownCenterActivationBurstEffect;
+import civil.towncenter.TownCenterParticleEffect;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
+import net.minecraft.world.inventory.MenuType;
+import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
@@ -31,6 +38,7 @@ final class CivilModClientNeoForge {
 
     static void init(IEventBus modBus, ModContainer modContainer) {
         CivilDetectorClientParticles.register();
+        modBus.addListener(CivilModClientNeoForge::registerMenuScreens);
         NeoForge.EVENT_BUS.addListener(CivilModClientNeoForge::onAfterTranslucent);
         NeoForge.EVENT_BUS.addListener(CivilModClientNeoForge::onRenderGuiPost);
         NeoForge.EVENT_BUS.addListener(CivilModClientNeoForge::onRenderGuiPostZone);
@@ -42,11 +50,19 @@ final class CivilModClientNeoForge {
                 (mc, parent) -> CivilConfigScreen.create(parent));
     }
 
+    private static void registerMenuScreens(RegisterMenuScreensEvent event) {
+        MenuType<TownCenterMenu> type = CivilModNeoForge.townCenterMenuType();
+        ModMenuTypes.setTownCenter(type);
+        event.register(type, TownCenterMainScreen::new);
+    }
+
     private static void onAfterTranslucent(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         var poseStack = event.getPoseStack();
         UndyingAnchorCinematicEffect.tickAndApplyShake(poseStack);
         UndyingAnchorParticleEffect.tick();
         FarmShrineParticleEffect.tick();
+        TownCenterParticleEffect.tick();
+        TownCenterActivationBurstEffect.tick();
         // Match Fabric WorldRenderEvents (cameraRenderState.pos): per-frame interpolated eye position.
         // entity.getEyePosition() without partial tick snaps to tick boundaries → walls jitter vs smooth world.
         Minecraft mc = Minecraft.getInstance();
