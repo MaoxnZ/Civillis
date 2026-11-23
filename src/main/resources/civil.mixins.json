@@ -9,7 +9,11 @@
     "CivilLevelBlockChangeMixin",
     "CivilMobGoalMixin",
     "CivilServerLevelSpawnGateMixin",
-    "CivilSpawnHelperMixin"
+    "CivilSpawnHelperMixin",
+    "CivilLecternBlockUseMixin",
+    "CivilTownCenterBlockBreakMixin",
+    "CivilTownCenterExplosionBlockMixin",
+    "CivilTownCenterWorldDestroyMixin"
   ],
   "client": [
     "CivilGameRendererFovMixin"
@@ -21,4 +25,3 @@
     "requireAnnotations": true
   }
 }
-
