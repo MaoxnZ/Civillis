@@ -1,5 +1,97 @@
 # Changelog
 
+## [2.0.1-release]
+
+### Added
+
+- **Town names on the Zone HUD**: When you enter civilized land covered by an active Town
+  Center, the Zone Transition HUD can now show that town's name instead of the generic
+  Civilized label. In overlapping territory, Civillis prefers the most relevant town for
+  the player.
+
+### Changed
+
+- **Max-level Town Centers claim danger pockets**: A fully upgraded, active Town Center now
+  stabilizes caution zones inside its territory. Those claimed areas behave as part of the
+  town for Civillis' spawn and zone rules, so a mature settlement can push back local danger
+  instead of always yielding to it.
+- **Town Center zone buff defaults**: The default catalog now puts Regeneration on the gold
+  choice and Resistance on the netherite choice. Modpacks overriding
+  `civil_town_center_levels` should update any offer IDs copied from the old defaults.
+- **Town Center presence upkeep**: Entity presence upkeep now scans active Town Center
+  territory instead of sweeping the whole world, keeping the mechanic tied to actual
+  settlements and reducing background work on busy servers.
+- **Farm Shrine head discovery**: Existing mob heads are now discovered when a Farm Shrine
+  is activated, rather than during chunk-load events. This avoids tying shrine setup to
+  chunk-load side effects and makes existing-head registration more stable.
+
+### Fixed
+
+- **Town Center lecterns**: Registered Town Center lecterns with a missing book can now be
+  repaired by placing a written book back into them, restoring the Town Center interface
+  without strange empty-lectern behavior.
+- **Explosion protection**: TNT and other explosion paths no longer destroy protected active
+  Town Center blocks.
+- **Non-player block destruction**: Protected Town Center blocks are also guarded against
+  non-player `destroyBlock` calls, matching the normal player break protection more closely.
+- **NeoForge login reloads**: Joining a server no longer forces Civillis' data loaders to
+  reload as if a full data-pack sync had happened, avoiding a noticeable login hitch on
+  affected NeoForge builds.
+
+### Note
+
+- Feedback, bug reports, ideas — join our Discord: [Civillis Official](https://discord.gg/dA7QCPx7zd)
+
+## [2.0.0-release]
+
+### Added
+
+- **Town Centers**: A new settlement core for Civillis. Place a written book on a lectern
+  above an emerald block, then offer an emerald to found a Town Center. Once founded, the
+  lectern opens a dedicated Town Center interface for status, upgrades, members, and options.
+- **Town Center influence**: Active Town Centers add a stable civilization baseline around
+  their territory. They don't replace real building, but they make settlements much easier
+  to grow. Upgrading a Town Center expands that territory and raises its baseline.
+- **Management interface**: Town Centers have a custom multi-page GUI with a main status
+  page, a member management page, and an upgrade page. Towns can be renamed, opened for
+  registration, locked again, and managed without leaving the lectern.
+- **Members and registration**: Town Centers track a creator and members. Creators can open
+  or lock registration and remove members; players can join or leave when registration is
+  open. Membership controls who benefits from Town Center upgrades.
+- **Town upgrades and zone buffs**: Upgrade Town Centers with emerald blocks, with optional
+  ingot choices unlocking local benefits. The default catalog offers Mining Haste,
+  Resistance, and Regeneration choices for members inside the Town Center territory while
+  they are standing in civilized land.
+- **Structure protection and shutdown**: Active Town Center lecterns and their supporting
+  emerald blocks are protected from being broken. Shutting one down starts a short countdown;
+  once fully inactive, it stops contributing civilization influence and can be dismantled.
+- **Spoils for attackers**: If a non-member destroys a vulnerable upgraded Town Center, they
+  temporarily claim its chosen zone buffs for two minutes. Town Centers are meant to be
+  valuable, shared infrastructure — and worth defending.
+- **Town Center data packs** *(for modpack authors)*: Upgrade costs, territory size, baseline
+  values, and zone buff offers are driven by `civil_town_center_levels` data files.
+- **More dimension and adventure-structure coverage**: Civillis recognizes more dimensions
+  where civilization should stay disabled, plus more adventure structures where danger-zone
+  behavior should take priority.
+
+### Changed
+
+- **Civilization scoring foundation**: Civillis now supports persistent base score sources
+  in addition to ordinary block-driven civilization score. Town Centers use this system, and
+  integration authors get a small API surface for adding, updating, removing, and querying
+  base score influence without patching the core scanner.
+- **Podium of Undying authorization**: Undying rescue is now tied to Town Center territory.
+  A valid anchor must be inside a gameplay-active Town Center that recognizes the player as
+  creator or member, making rescue points part of settlement ownership instead of a purely
+  nearby structure.
+
+### Note
+
+- Town Centers are the foundation for a more social and contested settlement layer in Civillis.
+- Starting with 2.0.0, Civillis will focus active updates on **1.20.1**, **1.21.1**, and **1.21.11**.
+  Other Minecraft versions are paused for now.
+- Feedback, bug reports, ideas — join our Discord: [Civillis Official](https://discord.gg/dA7QCPx7zd)
+
 ## [1.4.0-release]
 
 ### Added
@@ -33,6 +125,9 @@
 - **Exploration performance**: Significantly improved performance when loading into or
   moving through large areas. The key change is a reworked NBT bulk-load schedule that
   avoids unnecessary work during fast exploration.
+- **Log noise on world load**: Registry loaders no longer spam warnings about unknown
+  entries (blocks, entities, dimensions, structures) on every world join. These messages
+  now only appear when debug mode is enabled.
 
 ### Note
 
