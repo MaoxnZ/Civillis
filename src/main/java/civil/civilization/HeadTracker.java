@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p><b>Data sources (priority order):</b>
  * <ol>
  *   <li>Block change mixin — real-time, incremental add/remove</li>
- *   <li>Chunk load event — discovers pre-existing heads (world upgrade path)</li>
+ *   <li>Farm shrine activation scan — low-frequency discovery of pre-existing heads in shrine coverage</li>
  *   <li>Disk snapshot — restores state across server restarts</li>
  * </ol>
  *
@@ -154,7 +154,7 @@ public final class HeadTracker {
     // ========== Updates ==========
 
     /**
-     * Called when a monster head block is placed or discovered (chunk load).
+     * Called when a monster head block is placed or discovered by a farm shrine scan.
      * Adds to in-memory map (if absent); marks mob heads dirty for the next unified flush.
      *
      * @return true if this was a new head (not already known)

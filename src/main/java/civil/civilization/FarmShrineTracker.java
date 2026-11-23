@@ -5,7 +5,12 @@ import civil.config.CivilConfig;
 import civil.registry.HeadTypeRegistry;
 import civil.registry.HeadTypeRegistry.HeadTypeEntry;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.level.block.AbstractSkullBlock;
+import net.minecraft.world.level.block.entity.SkullBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -303,6 +308,47 @@ public final class FarmShrineTracker {
         indexShrine(dim, entry);
         rebuildHeadPosSetForShrine(dim, entry);
         shrinesDirty = true;
+    }
+
+    public void discoverExistingHeadsForShrine(ServerLevel level, String dim, int x, int y, int z) {
+        if (!initialized || headTracker == null || !headTracker.isInitialized()) {
+            return;
+        }
+        var dimMap = shrines.get(dim);
+        if (dimMap == null) {
+            return;
+        }
+        ShrineEntry shrine = dimMap.get(packPos(x, y, z));
+        if (shrine == null || !shrine.activated()) {
+            return;
+        }
+
+        int anchorCx = x >> 4;
+        int anchorCz = z >> 4;
+        int rx = CivilConfig.farmShrineRangeX;
+        int rz = CivilConfig.farmShrineRangeZ;
+
+        for (int cx = anchorCx - rx; cx <= anchorCx + rx; cx++) {
+            for (int cz = anchorCz - rz; cz <= anchorCz + rz; cz++) {
+                LevelChunk chunk = level.getChunk(cx, cz);
+                for (BlockPos bePos : chunk.getBlockEntitiesPos()) {
+                    if (!bypassContainsAnchor(shrine, bePos)) {
+                        continue;
+                    }
+                    if (!(chunk.getBlockEntity(bePos) instanceof SkullBlockEntity)) {
+                        continue;
+                    }
+                    BlockState state = chunk.getBlockState(bePos);
+                    if (!BlockScanner.isSkullBlock(state)) {
+                        continue;
+                    }
+                    AbstractSkullBlock skull = (AbstractSkullBlock) state.getBlock();
+                    headTracker.onHeadAdded(
+                            dim, bePos.getX(), bePos.getY(), bePos.getZ(), skull.getType().toString());
+                }
+            }
+        }
+        rebuildHeadPosSetForShrine(dim, shrine);
     }
 
     public void onShrineRemoved(String dim, int x, int y, int z) {
