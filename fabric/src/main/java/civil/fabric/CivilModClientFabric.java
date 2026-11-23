@@ -2,7 +2,6 @@ package civil.fabric;
 
 import civil.CivilMod;
 import civil.ModMenuTypes;
-import civil.towncenter.gui.TownCenterMenu;
 import civil.towncenter.gui.TownCenterMainScreen;
 import civil.towncenter.gui.TownCenterScreenBase;
 import net.minecraft.client.gui.screens.MenuScreens;
