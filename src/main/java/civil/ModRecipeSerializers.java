@@ -19,9 +19,7 @@ public final class ModRecipeSerializers {
                 Registry.register(
                         BuiltInRegistries.RECIPE_SERIALIZER,
                         Identifier.fromNamespaceAndPath(CivilMod.MOD_ID, "detector_map_upgrade"),
-                        new RecipeSerializer<>(
-                                CivilDetectorMapUpgradeRecipe.MAP_CODEC,
-                                CivilDetectorMapUpgradeRecipe.STREAM_CODEC));
+                        new RecipeSerializer<>(CivilDetectorMapUpgradeRecipe.MAP_CODEC,CivilDetectorMapUpgradeRecipe.STREAM_CODEC));
     }
 
     public static void bindDetectorMapUpgrade(RecipeSerializer<CivilDetectorMapUpgradeRecipe> serializer) {
