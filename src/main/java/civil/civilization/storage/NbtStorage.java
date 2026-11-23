@@ -1,6 +1,7 @@
 package civil.civilization.storage;
 
 import civil.CivilMod;
+import civil.civilization.BaseScoreSourceRegistry;
 import civil.civilization.CScore;
 import civil.civilization.VoxelChunkKey;
 import net.minecraft.nbt.CompoundTag;
@@ -136,6 +137,8 @@ public final class NbtStorage implements CivilStorage {
     private static final String MOB_HEADS_FILE = "mob_heads.nbt";
     private static final String UNDYING_ANCHORS_FILE = "undying_anchors.nbt";
     private static final String FARM_SHRINES_FILE = "farm_shrines.nbt";
+    private static final String TOWN_CENTERS_FILE = "town_centers.nbt";
+    private static final String BASE_SCORE_SOURCES_FILE = "base_score_sources.nbt";
 
     @Override
     public List<StoredMobHead> loadMobHeads() {
@@ -274,6 +277,104 @@ public final class NbtStorage implements CivilStorage {
             NbtIo.writeCompressed(root, p);
         } catch (Exception e) {
             LOGGER.warn("[civil-storage] Failed to write farm_shrines.nbt: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public List<StoredTownCenter> loadTownCenters() {
+        Path p = resolve(TOWN_CENTERS_FILE);
+        if (p == null || !Files.isRegularFile(p)) return Collections.emptyList();
+        try {
+            CompoundTag root = NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap());
+            if (root == null || !root.contains("entries")) return Collections.emptyList();
+            int schema = TownCenterNbtCodec.readSchema(root);
+            if (!TownCenterNbtCodec.isSupportedSchema(schema)) {
+                LOGGER.warn("[civil-storage] Unsupported town_centers.nbt schema {}, skipping", schema);
+                return Collections.emptyList();
+            }
+            ListTag entries = root.getList("entries").orElse(new ListTag());
+            List<StoredTownCenter> out = new ArrayList<>(entries.size());
+            for (int i = 0; i < entries.size(); i++) {
+                CompoundTag e = entries.getCompound(i).orElse(new CompoundTag());
+                String dim = e.getString("dim").orElse("");
+                out.add(new StoredTownCenter(dim, TownCenterNbtCodec.readEntry(e)));
+            }
+            return out;
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to load town_centers.nbt: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public void writeTownCenters(List<StoredTownCenter> snapshot) {
+        Path p = resolve(TOWN_CENTERS_FILE);
+        if (p == null) return;
+        try {
+            ListTag entries = new ListTag();
+            for (StoredTownCenter t : snapshot) {
+                entries.add(TownCenterNbtCodec.writeEntry(t.dim(), t.entry()));
+            }
+            CompoundTag root = new CompoundTag();
+            root.putInt("schema", TownCenterNbtCodec.SCHEMA_VERSION);
+            root.put("entries", entries);
+            NbtIo.writeCompressed(root, p);
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to write town_centers.nbt: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public List<StoredBaseScoreSource> loadBaseScoreSources() {
+        Path p = resolve(BASE_SCORE_SOURCES_FILE);
+        if (p == null || !Files.isRegularFile(p)) return Collections.emptyList();
+        try {
+            CompoundTag root = NbtIo.readCompressed(p, NbtAccounter.unlimitedHeap());
+            if (root == null || !root.contains("entries")) return Collections.emptyList();
+            ListTag entries = root.getList("entries").orElse(new ListTag());
+            List<StoredBaseScoreSource> out = new ArrayList<>(entries.size());
+            for (int i = 0; i < entries.size(); i++) {
+                CompoundTag e = entries.getCompound(i).orElse(new CompoundTag());
+                out.add(new StoredBaseScoreSource(
+                        e.getString("sourceId").orElse(""),
+                        e.getString("dim").orElse(""),
+                        e.getInt("minVcX").orElse(0), e.getInt("minVcY").orElse(0), e.getInt("minVcZ").orElse(0),
+                        e.getInt("maxVcX").orElse(0), e.getInt("maxVcY").orElse(0), e.getInt("maxVcZ").orElse(0),
+                        e.getDouble("rawValue").orElse(0.0),
+                        e.getString("type").orElse(BaseScoreSourceRegistry.TYPE_API)));
+            }
+            return out;
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to load base_score_sources.nbt: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public void writeBaseScoreSources(List<StoredBaseScoreSource> snapshot) {
+        Path p = resolve(BASE_SCORE_SOURCES_FILE);
+        if (p == null) return;
+        try {
+            ListTag entries = new ListTag();
+            for (StoredBaseScoreSource s : snapshot) {
+                CompoundTag e = new CompoundTag();
+                e.putString("sourceId", s.sourceId());
+                e.putString("dim", s.dim());
+                e.putInt("minVcX", s.minVcX());
+                e.putInt("minVcY", s.minVcY());
+                e.putInt("minVcZ", s.minVcZ());
+                e.putInt("maxVcX", s.maxVcX());
+                e.putInt("maxVcY", s.maxVcY());
+                e.putInt("maxVcZ", s.maxVcZ());
+                e.putDouble("rawValue", s.rawValue());
+                e.putString("type", s.type());
+                entries.add(e);
+            }
+            CompoundTag root = new CompoundTag();
+            root.put("entries", entries);
+            NbtIo.writeCompressed(root, p);
+        } catch (Exception e) {
+            LOGGER.warn("[civil-storage] Failed to write base_score_sources.nbt: {}", e.getMessage());
         }
     }
 

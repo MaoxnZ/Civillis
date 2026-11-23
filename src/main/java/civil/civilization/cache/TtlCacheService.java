@@ -213,6 +213,26 @@ public final class TtlCacheService implements CivilizationCache {
             shrinesDirty = false;
             shrinesSnapshot = List.of();
         }
+        final boolean townCentersDirty;
+        final List<CivilStorage.StoredTownCenter> townCentersSnapshot;
+        final var townCenterTracker = civil.CivilServices.getTownCenterTracker();
+        if (townCenterTracker != null && townCenterTracker.isTownCentersDirty()) {
+            townCentersDirty = true;
+            townCentersSnapshot = townCenterTracker.snapshotAllTownCenters();
+        } else {
+            townCentersDirty = false;
+            townCentersSnapshot = List.of();
+        }
+        final boolean baseScoreSourcesDirty;
+        final List<CivilStorage.StoredBaseScoreSource> baseScoreSourcesSnapshot;
+        final var baseScoreRegistry = civil.CivilServices.getBaseScoreSourceRegistry();
+        if (baseScoreRegistry != null && baseScoreRegistry.isSourcesDirty()) {
+            baseScoreSourcesDirty = true;
+            baseScoreSourcesSnapshot = baseScoreRegistry.snapshotAllSources();
+        } else {
+            baseScoreSourcesDirty = false;
+            baseScoreSourcesSnapshot = List.of();
+        }
 
         return storage.submitOnIO(() -> {
             long flushStartMs = System.currentTimeMillis();
@@ -228,6 +248,14 @@ public final class TtlCacheService implements CivilizationCache {
             if (shrinesDirty) {
                 storage.writeFarmShrines(shrinesSnapshot);
                 if (farmShrineTracker != null) farmShrineTracker.clearShrinesDirty();
+            }
+            if (townCentersDirty) {
+                storage.writeTownCenters(townCentersSnapshot);
+                if (townCenterTracker != null) townCenterTracker.clearTownCentersDirty();
+            }
+            if (baseScoreSourcesDirty) {
+                storage.writeBaseScoreSources(baseScoreSourcesSnapshot);
+                if (baseScoreRegistry != null) baseScoreRegistry.clearSourcesDirty();
             }
 
             Map<String, CScore> resolvedScoreUpserts = new HashMap<>(pendingScores);

@@ -23,6 +23,16 @@ public interface CivilStorage {
 
     /** Farm shrine anchor = lit soul campfire block; {@code activated} must be true for persisted entries. */
     record StoredFarmShrine(String dim, int x, int y, int z, boolean activated) {}
+
+    record StoredTownCenter(String dim, civil.civilization.TownCenterTracker.TownCenterEntry entry) {}
+
+    record StoredBaseScoreSource(
+            String sourceId,
+            String dim,
+            int minVcX, int minVcY, int minVcZ,
+            int maxVcX, int maxVcY, int maxVcZ,
+            double rawValue,
+            String type) {}
     record StoredL1Entry(VoxelChunkKey key, CScore cScore, long createTime, String dim) {
         public StoredL1Entry(VoxelChunkKey key, CScore cScore, long createTime) {
             this(key, cScore, createTime, null);
@@ -104,6 +114,18 @@ public interface CivilStorage {
      * NBT: write farm_shrines.nbt.
      */
     void writeFarmShrines(List<StoredFarmShrine> snapshot);
+
+    // ========== Structure: town centers ==========
+
+    List<StoredTownCenter> loadTownCenters();
+
+    void writeTownCenters(List<StoredTownCenter> snapshot);
+
+    // ========== Base score sources ==========
+
+    List<StoredBaseScoreSource> loadBaseScoreSources();
+
+    void writeBaseScoreSources(List<StoredBaseScoreSource> snapshot);
 
     // ========== Batch L1 (legacy / prefetch) ==========
 
