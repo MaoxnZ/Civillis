@@ -84,7 +84,7 @@ public class CivilModFabric implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(TownCenterActivationBurstPayload.ID, TownCenterActivationBurstPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(ZoneTransitionPayload.ID, ZoneTransitionPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(TownCenterGuiSyncPayload.ID, TownCenterGuiSyncPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(TownCenterC2SPayload.ID, TownCenterC2SPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(TownCenterC2SPayload.ID, TownCenterC2SPayload.CODEC);
     }
 
     private void registerEvents() {

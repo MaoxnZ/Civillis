@@ -12,7 +12,6 @@
   },
   "license": "${mod_license}",
   "icon": "assets/civil/icon.png",
-  "accessWidener": "civil.accesswidener",
   "environment": "*",
   "entrypoints": {
     "main": [
